@@ -26,7 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # O esquema de segurança que ativa o botão "Authorize" no Swagger
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login"),
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 @app.get("/")
 async def root():
     return {"status": "online", "message": "Banco de dados conectado!"}
