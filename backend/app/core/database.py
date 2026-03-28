@@ -1,23 +1,24 @@
+import urllib.parse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Por enquanto, vamos usar o SQLite nativo do Python para você não precisar 
-# instalar e configurar o servidor PostgreSQL agora e perder o embalo. 
-# Para mudar para PostgreSQL depois, é só trocar essa URL!
-SQLALCHEMY_DATABASE_URL = "sqlite:///./techlab.db"
+# 1. Coloque aqui os dados exatos do seu DBeaver
+usuario = "postgres"
+senha = "523880" # <-- Coloque sua senha real aqui
+host = "localhost"
+porta = "5432"
+banco = "techlab"
 
-# Cria o "motor" do banco de dados
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
+# 2. A MÁGICA: Isso converte o 'ã' ou '@' em algo que a URL aceita
+senha_segura = urllib.parse.quote_plus(senha)
 
-# Cria a fábrica de sessões (as "conversas" com o banco)
+# 3. Monta a URL usando a senha protegida
+SQLALCHEMY_DATABASE_URL = f"postgresql://{usuario}:{senha_segura}@{host}:{porta}/{banco}"
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# A classe base que nossas tabelas vão herdar
 Base = declarative_base()
 
-# Dependência para injetar o banco nas rotas
 def get_db():
     db = SessionLocal()
     try:
