@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 # Importações usando a sua nova estrutura de pastas
 from .core.database import engine, get_db
 from .core import security
@@ -14,6 +15,16 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+app = FastAPI() # Essa linha você já tem, coloque o código abaixo dela:
+
+# --- CONFIGURAÇÃO DE CORS (Liberando o React) ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], # O endereço do seu React
+    allow_credentials=True,
+    allow_methods=["*"], # Permite POST, GET, PUT, DELETE
+    allow_headers=["*"], # Permite enviar o Token no cabeçalho
+)
 # --- ROTA: CRIAR CLIENTE ---
 @app.post("/clientes", response_model=schemas.ClienteResponse)
 def criar_cliente(cliente: schemas.ClienteCreate, db: Session = Depends(get_db)):

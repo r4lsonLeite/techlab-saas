@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Balcao from './Balcao'; // <-- ESSA É A LINHA QUE ESTÁ FALTANDO!
 
 export default function Dashboard({ onLogout }) {
   // Esse estado controla qual tela está aparecendo no momento
@@ -64,9 +65,9 @@ export default function Dashboard({ onLogout }) {
           <p className="text-slate-400 mt-1">Gerencie as informações do seu negócio.</p>
         </header>
 
-        {/* Aqui nós vamos "plugar" as suas telas reais depois */}
-        <div className="bg-[#1e293b] border border-slate-700 rounded-2xl p-6 min-h-[60vh] flex items-center justify-center border-dashed">
-          {telaAtiva === 'balcao' && <p className="text-slate-400 text-lg">O seu formulário de Nova OS vai entrar aqui!</p>}
+       {/* Aqui nós vamos "plugar" as suas telas reais depois */}
+        <div className="flex items-center justify-center">
+          {telaAtiva === 'balcao' && <Balcao />}
           {telaAtiva === 'tecnico' && <p className="text-slate-400 text-lg">A lista de aparelhos para conserto vai entrar aqui!</p>}
           {telaAtiva === 'estoque' && <p className="text-slate-400 text-lg">A tabela de produtos e telas vai entrar aqui!</p>}
           {telaAtiva === 'financeiro' && <p className="text-slate-400 text-lg">Os gráficos de lucro vão entrar aqui!</p>}
