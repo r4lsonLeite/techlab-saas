@@ -1,138 +1,182 @@
 import { useState } from 'react';
-import api from '../services/api';
 
 export default function Balcao() {
-  const [cliente, setCliente] = useState({ nome: '', telefone: '' });
-  const [aparelho, setAparelho] = useState({ marca: '', modelo: '', imei: '', defeito: '' });
-  const [status, setStatus] = useState(''); // Para mostrar mensagens de sucesso ou erro
+  const [os, setOs] = useState({
+    nome: '', telefone: '', email: '',
+    marca: '', modelo: '', imei: '', senha: '',
+    defeito: '', acessorios: '', prioridade: 'Normal'
+  });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setStatus('Salvando...');
+  // Estado para os botões do Checklist (Figma)
+  const itensChecklist = ['Wi-Fi', 'Bluetooth', 'Câm. Frontal', 'Câm. Traseira', 'Touch', 'Alto-falante', 'Microfone', 'Botões', 'Bateria', 'Carregamento'];
+  const [checklistMarcados, setChecklistMarcados] = useState([]);
 
-    try {
-      // Aqui nós estamos "simulando" o envio para a sua API por enquanto
-      // No próximo passo vamos conectar isso com a rota exata de POST /ordens-servico
-      console.log("Enviando dados:", { cliente, aparelho });
-      
-      // Simulando o tempo de resposta do servidor
-      setTimeout(() => {
-        setStatus('sucesso');
-        // Limpa o formulário para o próximo cliente
-        setCliente({ nome: '', telefone: '' });
-        setAparelho({ marca: '', modelo: '', imei: '', defeito: '' });
-      }, 1000);
-
-    } catch (error) {
-      console.error(error);
-      setStatus('erro');
+  const toggleChecklist = (item) => {
+    if (checklistMarcados.includes(item)) {
+      setChecklistMarcados(checklistMarcados.filter(i => i !== item));
+    } else {
+      setChecklistMarcados([...checklistMarcados, item]);
     }
   };
 
+  const handleChange = (e) => setOs({ ...os, [e.target.name]: e.target.value });
+
+  // Lista Fixa Lateral (Mock idêntico ao Figma)
+  const aparelhosProntos = [
+    { id: '#1047', nome: 'Carlos Eduardo', modelo: 'iPhone 11', data: '19/03/2026' },
+    { id: '#1043', nome: 'Fernanda Silva', modelo: 'Galaxy A52', data: '19/03/2026' },
+    { id: '#1041', nome: 'Roberto Alves', modelo: 'Moto G9', data: '18/03/2026' },
+  ];
+
   return (
-    <div className="w-full max-w-4xl bg-[#1e293b] rounded-2xl p-8 shadow-xl border border-slate-700">
-      <h2 className="text-2xl font-bold text-white mb-6 border-b border-slate-700 pb-4">
-        Abrir Nova Ordem de Serviço
-      </h2>
+    <div className="flex h-full w-full">
+      
+      {/* LADO ESQUERDO: FORMULÁRIO (3/4 da tela) */}
+      <div className="flex-1 p-8 overflow-y-auto">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-3xl font-bold text-white mb-1">Nova Ordem de Serviço</h1>
+          <p className="text-slate-400 text-sm mb-8">Preencha os dados para registrar a entrada do aparelho</p>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* GRID DE DUAS COLUNAS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          {/* COLUNA 1: CLIENTE */}
-          <div className="space-y-4">
-            <h3 className="text-emerald-400 font-semibold flex items-center gap-2">
-              👤 Dados do Cliente
-            </h3>
-            <div>
-              <label className="block text-slate-400 text-sm mb-1">Nome Completo</label>
-              <input 
-                type="text" required
-                value={cliente.nome}
-                onChange={(e) => setCliente({...cliente, nome: e.target.value})}
-                className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all"
-                placeholder="Ex: João da Silva"
-              />
-            </div>
-            <div>
-              <label className="block text-slate-400 text-sm mb-1">Telefone / WhatsApp</label>
-              <input 
-                type="text" required
-                value={cliente.telefone}
-                onChange={(e) => setCliente({...cliente, telefone: e.target.value})}
-                className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all"
-                placeholder="(11) 99999-9999"
-              />
-            </div>
-          </div>
-
-          {/* COLUNA 2: APARELHO */}
-          <div className="space-y-4">
-            <h3 className="text-emerald-400 font-semibold flex items-center gap-2">
-              📱 Dados do Aparelho
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-slate-400 text-sm mb-1">Marca</label>
-                <input 
-                  type="text" required
-                  value={aparelho.marca}
-                  onChange={(e) => setAparelho({...aparelho, marca: e.target.value})}
-                  className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none"
-                  placeholder="Ex: Samsung"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-400 text-sm mb-1">Modelo</label>
-                <input 
-                  type="text" required
-                  value={aparelho.modelo}
-                  onChange={(e) => setAparelho({...aparelho, modelo: e.target.value})}
-                  className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none"
-                  placeholder="Ex: S22 Ultra"
-                />
+          <form className="space-y-6">
+            
+            {/* DADOS DO CLIENTE */}
+            <div className="bg-[#1e293b] p-6 rounded-xl border border-emerald-500/20 shadow-lg">
+              <h3 className="text-white font-semibold mb-4 border-b border-slate-700 pb-2">Dados do Cliente</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Nome Completo *</label>
+                  <input type="text" name="nome" value={os.nome} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none" placeholder="Nome do cliente" />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Telefone *</label>
+                  <input type="text" name="telefone" value={os.telefone} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none" placeholder="(11) 98765-4321" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">E-mail (opcional)</label>
+                  <input type="email" name="email" value={os.email} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none" placeholder="cliente@email.com" />
+                </div>
               </div>
             </div>
-            <div>
-              <label className="block text-slate-400 text-sm mb-1">IMEI ou Nº de Série (Opcional)</label>
-              <input 
-                type="text" 
-                value={aparelho.imei}
-                onChange={(e) => setAparelho({...aparelho, imei: e.target.value})}
-                className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none font-mono"
-                placeholder="15 dígitos..."
-              />
+
+            {/* DADOS DO APARELHO */}
+            <div className="bg-[#1e293b] p-6 rounded-xl border border-[#3b82f6]/20 shadow-lg">
+              <h3 className="text-white font-semibold mb-4 border-b border-slate-700 pb-2">Dados do Aparelho</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Marca *</label>
+                  <input type="text" name="marca" value={os.marca} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-[#3b82f6] outline-none" placeholder="Ex: Apple, Samsung..." />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Modelo *</label>
+                  <input type="text" name="modelo" value={os.modelo} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-[#3b82f6] outline-none" placeholder="Ex: iPhone 12..." />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">IMEI (opcional)</label>
+                  <input type="text" name="imei" value={os.imei} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-[#3b82f6] outline-none font-mono" placeholder="15 dígitos" />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Senha/PIN</label>
+                  <input type="text" name="senha" value={os.senha} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-[#3b82f6] outline-none" placeholder="Senha de desbloqueio" />
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Sintoma/Defeito Relatado *</label>
+                <textarea name="defeito" rows="3" value={os.defeito} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-[#3b82f6] outline-none resize-none" placeholder="Descreva o problema relatado pelo cliente..."></textarea>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Acessórios Entregues</label>
+                  <input type="text" name="acessorios" value={os.acessorios} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-[#3b82f6] outline-none" placeholder="Ex: Carregador, capinha" />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Prioridade</label>
+                  <select name="prioridade" value={os.prioridade} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-[#3b82f6] outline-none appearance-none">
+                    <option>Baixa</option>
+                    <option>Normal</option>
+                    <option>Urgente</option>
+                  </select>
+                </div>
+              </div>
             </div>
-          </div>
+
+            {/* CHECKLIST DE ENTRADA */}
+            <div className="bg-[#1e293b] p-6 rounded-xl border border-[#eab308]/30 shadow-lg">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[#eab308] text-xl">⚠️</span>
+                <h3 className="text-white font-semibold">Checklist de Entrada</h3>
+              </div>
+              <p className="text-slate-400 text-xs mb-4">Marque os defeitos PREEXISTENTES para proteger a oficina</p>
+              
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {itensChecklist.map((item) => (
+                  <button
+                    key={item} type="button"
+                    onClick={() => toggleChecklist(item)}
+                    className={`p-2 rounded-lg text-sm border transition-all ${
+                      checklistMarcados.includes(item) 
+                      ? 'bg-red-500/20 border-red-500 text-red-400 font-bold' 
+                      : 'bg-[#0f172a] border-slate-600 text-slate-300 hover:border-slate-400'
+                    }`}
+                  >
+                    {checklistMarcados.includes(item) ? '❌ ' : '✔️ '}{item}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* BOTÕES DE AÇÃO */}
+            <div className="flex justify-between items-center pt-4">
+              <button type="button" className="px-6 py-3 rounded-lg text-slate-300 bg-slate-800 hover:bg-slate-700 font-semibold transition-colors">
+                Cancelar
+              </button>
+              <div className="space-x-4">
+                <button type="button" className="px-6 py-3 rounded-lg text-white bg-blue-600 hover:bg-blue-700 font-bold transition-colors shadow-lg shadow-blue-600/20">
+                  🖨️ Imprimir
+                </button>
+                <button type="submit" className="px-8 py-3 rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 font-bold transition-colors shadow-lg shadow-emerald-600/20">
+                  Criar Ordem de Serviço
+                </button>
+              </div>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+      {/* LADO DIREITO: PRONTOS PARA RETIRADA (1/4 da tela) */}
+      <div className="w-80 bg-[#1e293b] border-l border-slate-700 flex flex-col">
+        <div className="p-4 bg-emerald-600/10 border-b border-emerald-500/20">
+          <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2">
+            ✅ Prontos para Retirada
+          </h2>
+          <p className="text-sm text-slate-300 mt-1">{aparelhosProntos.length} aparelhos aguardando</p>
         </div>
 
-        {/* ÁREA DE TEXTO: DEFEITO */}
-        <div className="pt-4 border-t border-slate-700">
-          <label className="block text-slate-400 text-sm mb-1">Defeito Relatado pelo Cliente (Checklist)</label>
-          <textarea 
-            required rows="3"
-            value={aparelho.defeito}
-            onChange={(e) => setAparelho({...aparelho, defeito: e.target.value})}
-            className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none resize-none"
-            placeholder="Ex: Tela trincada, aparelho não carrega. Marcas de queda na quina superior."
-          ></textarea>
+        <div className="flex-1 p-4 overflow-y-auto space-y-3">
+          {aparelhosProntos.map((aparelho) => (
+            <div key={aparelho.id} className="bg-[#0f172a] border border-slate-700 rounded-lg p-3 hover:border-emerald-500/50 transition-colors cursor-pointer relative group">
+              <div className="flex justify-between items-start mb-1">
+                <span className="text-xs font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">OS {aparelho.id}</span>
+                <button className="text-slate-400 hover:text-emerald-400 transition-colors" title="Avisar no WhatsApp">
+                  💬
+                </button>
+              </div>
+              <p className="text-white font-semibold text-sm">{aparelho.nome}</p>
+              <p className="text-slate-400 text-xs mb-2">{aparelho.modelo}</p>
+              <p className="text-slate-500 text-[10px] uppercase tracking-wider">Concluído: {aparelho.data}</p>
+            </div>
+          ))}
         </div>
 
-        {/* MENSAGENS E BOTÃO DE SALVAR */}
-        <div className="flex items-center justify-between pt-4">
-          <div>
-            {status === 'sucesso' && <p className="text-emerald-400 font-medium">✅ OS Gerada com Sucesso!</p>}
-            {status === 'erro' && <p className="text-red-400 font-medium">❌ Erro ao salvar OS. Verifique os dados.</p>}
-          </div>
-          
-          <button 
-            type="submit" 
-            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-8 rounded-lg transition-all shadow-lg shadow-emerald-500/20"
-          >
-            {status === 'Salvando...' ? 'Processando...' : 'Gerar Ordem de Serviço'}
+        <div className="p-4 border-t border-slate-700">
+          <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold text-sm transition-colors">
+            Ver Todos os Prontos
           </button>
         </div>
-      </form>
+      </div>
+
     </div>
   );
 }
