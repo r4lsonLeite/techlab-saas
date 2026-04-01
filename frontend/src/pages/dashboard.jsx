@@ -1,20 +1,29 @@
 import { useState, useEffect } from 'react';
 import Balcao from './Balcao';
 import Vendas from './Vendas';
+import Bancada from './Bancada'; 
+import AdminDashboard from './AdminDashboard'; 
+import Estoque from './Estoque';
+import Usuarios from './Usuarios';
+import Financeiro from './Financeiro';
+import Configuracoes from './Configuracoes';
 
 export default function Dashboard({ onLogout }) {
   // SIMULAÇÃO DE CARGO: Altere para 'balcao' ou 'tecnico' para ver a mágica do menu mudando.
   // (No futuro, isso virá automático do token JWT do Python)
+  
   const [cargo, setCargo] = useState('adm'); 
   const [telaAtiva, setTelaAtiva] = useState('entrada-os');
-
   // Definição das permissões do sistema
-  const menus = [
+const menus = [
+    { id: 'configuracoes', titulo: '⚙️ Ajustes da Loja', papeis: ['adm'] }, 
+    { id: 'admin-home', titulo: '📊 Visão Geral (ADM)', papeis: ['adm'] },
     { id: 'vendas', titulo: '🛒 Vendas / PDV', papeis: ['adm', 'balcao'] },
     { id: 'entrada-os', titulo: '📝 Entrada de Aparelhos', papeis: ['adm', 'balcao'] },
     { id: 'consultar-os', titulo: '🔍 Consultar OS', papeis: ['adm', 'balcao', 'tecnico'] },
     { id: 'bancada', titulo: '🔧 Bancada Técnica', papeis: ['adm', 'tecnico'] },
     { id: 'estoque', titulo: '📦 Estoque de Peças', papeis: ['adm'] },
+    { id: 'usuarios', titulo: '👥 Controle de Equipe', papeis: ['adm'] }, // <-- ADICIONE ESTA LINHA AQUI
     { id: 'financeiro', titulo: '💰 Financeiro', papeis: ['adm'] },
   ];
 
@@ -62,10 +71,16 @@ export default function Dashboard({ onLogout }) {
 
       {/* ÁREA CENTRAL */}
       <main className="flex-1 overflow-y-auto bg-[#0f172a]">
+        {telaAtiva === 'configuracoes' && <Configuracoes />}
+        {telaAtiva === 'financeiro' && <Financeiro />}
+        {telaAtiva === 'estoque' && <Estoque />}
+        {telaAtiva === 'usuarios' && <Usuarios />}
+        {telaAtiva === 'admin-home' && <AdminDashboard />} {/* */}
+        {telaAtiva === 'entrada-os' && <Balcao />}
         {telaAtiva === 'entrada-os' && <Balcao />}
         {telaAtiva === 'vendas' && <Vendas />}
         {telaAtiva === 'consultar-os' && <div className="p-8 text-slate-400">Busca de OS entrará aqui.</div>}
-        {telaAtiva === 'bancada' && <div className="p-8 text-slate-400">Fila de consertos do Técnico entrará aqui.</div>}
+        {telaAtiva === 'bancada' && <Bancada />}
         {telaAtiva === 'estoque' && <div className="p-8 text-slate-400">Tabela de Peças entrará aqui.</div>}
         {telaAtiva === 'financeiro' && <div className="p-8 text-slate-400">Gráficos do ADM entrarão aqui.</div>}
       </main>
