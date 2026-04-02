@@ -4,19 +4,16 @@ from typing import List
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 # Importações usando a sua nova estrutura de pastas
-from .core.database import engine, get_db
-from .core import security
-from .models import models
-from .schemas import schemas
+from core.database import engine, get_db
+from core import security
+from models import models
+from schemas import schemas
 
 # Cria as tabelas no PostgreSQL automaticamente
 print("Criando tabelas...")
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-
-app = FastAPI() # Essa linha você já tem, coloque o código abaixo dela:
-
 # --- CONFIGURAÇÃO DE CORS (Liberando o React) ---
 app.add_middleware(
     CORSMiddleware,
@@ -40,7 +37,6 @@ def criar_os(os: schemas.OSCreate, db: Session = Depends(get_db)):
     # Montamos a OS com todos os novos campos do seu Figma
     nova_os = models.OrdemServico(
         **os.model_dump(),
-        aparelho=f"{os.marca} {os.modelo}",
         status="Aguardando Análise",
         loja_id=1,
         usuario_id=1 # Simulando usuário logado

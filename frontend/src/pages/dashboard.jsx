@@ -7,24 +7,26 @@ import Estoque from './Estoque';
 import Usuarios from './Usuarios';
 import Financeiro from './Financeiro';
 import Configuracoes from './Configuracoes';
+import ConsultarOS from './ConsultarOS';
 
 export default function Dashboard({ onLogout }) {
+
   // SIMULAÇÃO DE CARGO: Altere para 'balcao' ou 'tecnico' para ver a mágica do menu mudando.
   // (No futuro, isso virá automático do token JWT do Python)
   
   const [cargo, setCargo] = useState('adm'); 
   const [telaAtiva, setTelaAtiva] = useState('entrada-os');
   // Definição das permissões do sistema
-const menus = [
-    { id: 'configuracoes', titulo: '⚙️ Ajustes da Loja', papeis: ['adm'] }, 
-    { id: 'admin-home', titulo: '📊 Visão Geral (ADM)', papeis: ['adm'] },
+const menus = [ 
     { id: 'vendas', titulo: '🛒 Vendas / PDV', papeis: ['adm', 'balcao'] },
     { id: 'entrada-os', titulo: '📝 Entrada de Aparelhos', papeis: ['adm', 'balcao'] },
-    { id: 'consultar-os', titulo: '🔍 Consultar OS', papeis: ['adm', 'balcao', 'tecnico'] },
     { id: 'bancada', titulo: '🔧 Bancada Técnica', papeis: ['adm', 'tecnico'] },
+    { id: 'consultar-os', titulo: '🔍 Consultar OS', papeis: ['adm', 'balcao', 'tecnico'] },
     { id: 'estoque', titulo: '📦 Estoque de Peças', papeis: ['adm'] },
-    { id: 'usuarios', titulo: '👥 Controle de Equipe', papeis: ['adm'] }, // <-- ADICIONE ESTA LINHA AQUI
+    { id: 'usuarios', titulo: '👥 Controle de Equipe', papeis: ['adm'] }, 
     { id: 'financeiro', titulo: '💰 Financeiro', papeis: ['adm'] },
+    { id: 'admin-home', titulo: '📊 Visão Geral (ADM)', papeis: ['adm'] },
+    { id: 'configuracoes', titulo: '⚙️ Ajustes da Loja', papeis: ['adm'] }, 
   ];
 
   // Filtra os botões que o usuário atual pode ver
@@ -63,9 +65,13 @@ const menus = [
         </nav>
 
         <div className="p-4 border-t border-slate-700">
-          <button onClick={onLogout} className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2 rounded-lg font-bold transition-colors border border-red-500/20">
-            Sair do Sistema
-          </button>
+        {/* BOTÃO SAIR NO FINAL DO MENU */}
+        <button 
+          onClick={onLogout} // <-- ADICIONE ISSO AQUI
+          className="mt-auto w-full bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white font-bold py-3 rounded-xl transition-all border border-red-500/20"
+        >
+          Sair do Sistema
+        </button>
         </div>
       </aside>
 
@@ -73,13 +79,13 @@ const menus = [
       <main className="flex-1 overflow-y-auto bg-[#0f172a]">
         {telaAtiva === 'configuracoes' && <Configuracoes />}
         {telaAtiva === 'financeiro' && <Financeiro />}
-        {telaAtiva === 'estoque' && <Estoque />}
         {telaAtiva === 'usuarios' && <Usuarios />}
+        {telaAtiva === 'estoque' && <Estoque />}
         {telaAtiva === 'admin-home' && <AdminDashboard />} {/* */}
         {telaAtiva === 'entrada-os' && <Balcao />}
         {telaAtiva === 'entrada-os' && <Balcao />}
         {telaAtiva === 'vendas' && <Vendas />}
-        {telaAtiva === 'consultar-os' && <div className="p-8 text-slate-400">Busca de OS entrará aqui.</div>}
+        {telaAtiva === 'consultar-os' && <ConsultarOS />}
         {telaAtiva === 'bancada' && <Bancada />}
         {telaAtiva === 'estoque' && <div className="p-8 text-slate-400">Tabela de Peças entrará aqui.</div>}
         {telaAtiva === 'financeiro' && <div className="p-8 text-slate-400">Gráficos do ADM entrarão aqui.</div>}

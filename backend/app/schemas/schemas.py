@@ -96,7 +96,7 @@ class OSResponse(BaseModel):
     aparelho: str
     defeito: str
     status: str
-    valor: float
+    valor: float = 0.0
     cliente_id: int
     usuario_id: int
     loja_id: int

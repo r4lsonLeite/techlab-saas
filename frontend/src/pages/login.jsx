@@ -1,50 +1,130 @@
 import { useState } from 'react';
-import api from '../services/api';
 
-export default function Login({ onLoginSuccess }) {
+export default function Login({ onLoginSucesso }) {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
+  const [carregando, setCarregando] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setErro('');
+    setCarregando(true);
+
     try {
-      // Usamos o formato que o FastAPI (OAuth2) exige
-      const formData = new FormData();
-      formData.append('username', email);
+      // O PULO DO GATO: O FastAPI exige formato de Formulário (x-www-form-urlencoded)
+      const formData = new URLSearchParams();
+      formData.append('username', email); // O FastAPI chama de 'username', mas enviamos o e-mail
       formData.append('password', senha);
 
-      const res = await api.post('/token', formData);
-      
-      // Guarda o "crachá" no navegador para não deslogar ao dar F5
-      localStorage.setItem('techlab_token', res.data.access_token);
-      
-      onLoginSuccess(); // Avisa o App.jsx que entramos!
-    } catch (err) {
-      setErro('E-mail ou senha incorretos.');
+      const resposta = await fetch('http://localhost:8000/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData,
+      });
+
+      if (resposta.ok) {
+        const dados = await resposta.json();
+        // Salva o "Crachá" (Token) no navegador do usuário
+        localStorage.setItem('techlab_token', dados.access_token);
+        
+        // Avisa o App que o login deu certo para liberar o Dashboard!
+        onLoginSucesso();
+      } else {
+        // Se der Erro 401 (Não autorizado)
+        setErro('E-mail ou senha incorretos. Tente novamente.');
+      }
+    } catch (error) {
+      console.error("Erro ao conectar:", error);
+      setErro('Erro de conexão com o servidor. Verifique se o sistema está online.');
+    } finally {
+      setCarregando(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4">
-      <div className="bg-[#1e293b] p-8 rounded-2xl shadow-2xl w-full max-w-md border border-emerald-500/20">
-        <h1 className="text-3xl font-bold text-emerald-400 mb-6 text-center">TechLab</h1>
-        <form onSubmit={handleLogin} className="space-y-4">
-          <input 
-            type="email" placeholder="E-mail" 
-            className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-700"
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <input 
-            type="password" placeholder="Senha" 
-            className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-700"
-            onChange={(e) => setSenha(e.target.value)}
-          />
-          {erro && <p className="text-red-400 text-sm">{erro}</p>}
-          <button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition-all">
-            Entrar no Sistema
-          </button>
-        </form>
+      <div className="max-w-md w-full">
+        
+        {/* LOGO E BOAS-VINDAS */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 mb-4 shadow-lg shadow-emerald-500/20">
+            <span className="text-3xl">🔧</span>
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2">TechLab</h1>
+          <p className="text-slate-400">Acesse o painel de gestão da oficina</p>
+        </div>
+
+        {/* CARD DO FORMULÁRIO */}
+        <div className="bg-[#1e293b] rounded-2xl border border-slate-700 shadow-2xl p-8 relative overflow-hidden">
+          {/* Efeito visual de brilho no topo do card */}
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-emerald-500 to-emerald-400"></div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            
+            {/* MENSAGEM DE ERRO */}
+            {erro && (
+              <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-2 animate-pulse">
+                <span>⚠️</span> {erro}
+              </div>
+            )}
+
+            {/* CAMPO E-MAIL */}
+            <div>
+              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">E-mail</label>
+              <div className="relative">
+                <span className="absolute left-4 top-3.5 text-slate-500">✉️</span>
+                <input 
+                  type="email" 
+                  required 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none transition-colors"
+                  placeholder="seu@email.com"
+                />
+              </div>
+            </div>
+
+            {/* CAMPO SENHA */}
+            <div>
+              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Senha</label>
+              <div className="relative">
+                <span className="absolute left-4 top-3.5 text-slate-500">🔑</span>
+                <input 
+                  type="password" 
+                  required 
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none transition-colors"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center text-sm">
+              <label className="flex items-center text-slate-400 cursor-pointer hover:text-white transition-colors">
+                <input type="checkbox" className="mr-2 rounded bg-slate-800 border-slate-600 text-emerald-500 focus:ring-emerald-500" />
+                Lembrar de mim
+              </label>
+              <a href="#" className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">Esqueceu a senha?</a>
+            </div>
+
+            {/* BOTÃO DE ENTRAR */}
+            <button 
+              type="submit" 
+              disabled={carregando}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex justify-center items-center gap-2"
+            >
+              {carregando ? 'Autenticando...' : 'Entrar no Sistema'}
+            </button>
+          </form>
+        </div>
+
+        <p className="text-center text-slate-500 text-xs mt-8">
+          &copy; 2026 TechLab SaaS. Todos os direitos reservados.
+        </p>
       </div>
     </div>
   );
