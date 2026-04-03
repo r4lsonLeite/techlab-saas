@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Balcao() {
   const [os, setOs] = useState({
@@ -84,14 +84,29 @@ export default function Balcao() {
     }
   };
 
-  // Lista Fixa Lateral (Mock)
-  const aparelhosProntos = [
-    { id: '#1047', nome: 'Carlos Eduardo', modelo: 'iPhone 11', data: '19/03/2026' },
-    { id: '#1043', nome: 'Fernanda Silva', modelo: 'Galaxy A52', data: '19/03/2026' },
-    { id: '#1041', nome: 'Roberto Alves', modelo: 'Moto G9', data: '18/03/2026' },
-  ];
+const [aparelhosProntos, setAparelhosProntos] = useState([]);
 
-  return (
+  // Quando a tela abrir, vai puxar os dados do banco
+  useEffect(() => {
+    carregarProntos();
+  }, []);
+
+  const carregarProntos = async () => {
+    try {
+      const resposta = await fetch('http://localhost:8000/ordens-servico');
+      if (resposta.ok) {
+        const dados = await resposta.json();
+        // O SEGREDO: Filtra a lista inteira para mostrar apenas as Prontas!
+        const prontas = dados.filter(os => os.status === 'Pronto para Retirada');
+        setAparelhosProntos(prontas);
+      }
+    } catch (erro) {
+      console.error("Erro ao puxar fila de prontos:", erro);
+    }
+  };
+  
+
+return (
     <div className="flex h-full w-full">
       
       {/* LADO ESQUERDO: FORMULÁRIO */}
@@ -100,7 +115,6 @@ export default function Balcao() {
           <h1 className="text-3xl font-bold text-white mb-1">Nova Ordem de Serviço</h1>
           <p className="text-slate-400 text-sm mb-8">Preencha os dados para registrar a entrada do aparelho</p>
 
-          {/* O FORMULÁRIO AGORA DISPARA O HANDLESUBMIT */}
           <form onSubmit={handleSubmit} className="space-y-6">
             
             {/* DADOS DO CLIENTE */}
@@ -203,7 +217,6 @@ export default function Balcao() {
                 <button type="button" className="px-6 py-3 rounded-lg text-white bg-blue-600 hover:bg-blue-700 font-bold transition-colors shadow-lg shadow-blue-600/20">
                   🖨️ Imprimir
                 </button>
-                {/* O BOTÃO AGORA É TYPE="SUBMIT" */}
                 <button type="submit" disabled={status === 'Salvando...'} className="px-8 py-3 rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-600 font-bold transition-colors shadow-lg shadow-emerald-600/20">
                   {status === 'Salvando...' ? 'Enviando...' : 'Criar Ordem de Serviço'}
                 </button>
@@ -224,17 +237,26 @@ export default function Balcao() {
         </div>
 
         <div className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar">
-          {aparelhosProntos.map((aparelho) => (
-            <div key={aparelho.id} className="bg-[#0f172a] border border-slate-700 rounded-lg p-3 hover:border-emerald-500/50 transition-colors cursor-pointer relative group">
-              <div className="flex justify-between items-start mb-1">
-                <span className="text-xs font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">OS {aparelho.id}</span>
-                <button className="text-slate-400 hover:text-emerald-400 transition-colors" title="Avisar no WhatsApp">💬</button>
+<div className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar">
+          {aparelhosProntos.length === 0 ? (
+            <p className="text-slate-500 text-xs text-center mt-4">Nenhum aparelho aguardando retirada.</p>
+          ) : (
+            aparelhosProntos.map((os) => (
+              <div key={os.id} className="bg-[#0f172a] border border-slate-700 rounded-lg p-3 hover:border-emerald-500/50 transition-colors cursor-pointer relative group">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-xs font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">OS #{os.id}</span>
+                  <button className="text-slate-400 hover:text-emerald-400 transition-colors" title="Avisar no WhatsApp">💬</button>
+                </div>
+                <h3 className="text-white font-semibold text-sm">{os.cliente_nome || "Cliente"}</h3>
+                <p className="text-slate-400 text-xs mb-2">{os.aparelho}</p>
+                <p className="text-slate-500 text-[10px] uppercase tracking-wider font-bold text-emerald-500/70">
+                  R$ {os.valor_orcamento ? os.valor_orcamento : "0.00"}
+                </p>
               </div>
-              <p className="text-white font-semibold text-sm">{aparelho.nome}</p>
-              <p className="text-slate-400 text-xs mb-2">{aparelho.modelo}</p>
-              <p className="text-slate-500 text-[10px] uppercase tracking-wider">Concluído: {aparelho.data}</p>
-            </div>
-          ))}
+            ))
+          )}
+        </div>
+          
         </div>
 
         <div className="p-4 border-t border-slate-700">

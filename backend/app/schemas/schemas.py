@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from typing import Optional
 
 # 1. O que nós recebemos do Front-end (Formulário do ADM)
 class LojaCreate(BaseModel):
@@ -126,3 +127,13 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+    
+
+
+# ... (seu código existente) ...
+
+class OSUpdate(BaseModel):
+    laudo_tecnico: Optional[str] = None
+    pecas_necessarias: Optional[str] = None
+    valor: Optional[float] = None
+    status: Optional[str] = None

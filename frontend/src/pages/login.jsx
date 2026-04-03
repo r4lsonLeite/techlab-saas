@@ -123,7 +123,7 @@ export default function Login({ onLoginSucesso }) {
         </div>
 
         <p className="text-center text-slate-500 text-xs mt-8">
-          &copy; 2026 TechLab SaaS. Todos os direitos reservados.
+          &copy; 2026 TechLab. Todos os direitos reservados.
         </p>
       </div>
     </div>

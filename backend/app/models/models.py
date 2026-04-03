@@ -44,7 +44,9 @@ class OrdemServico(Base):
     acessorios = Column(String, nullable=True)
     prioridade = Column(String, default="Normal")
     checklist = Column(Text, nullable=True) # Guardaremos os itens marcados aqui (ex: "Wi-fi, Tela, Bateria")
-    
+    laudo_tecnico = Column(String, nullable=True)
+    pecas_necessarias = Column(String, nullable=True)
+    valor = Column(Float, default=0.0)
     # Controle e Valores
     status = Column(String, default="Aguardando Análise")
     valor_orcamento = Column(Float, default=0.0)

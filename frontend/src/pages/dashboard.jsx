@@ -14,7 +14,7 @@ export default function Dashboard({ onLogout }) {
   // SIMULAÇÃO DE CARGO: Altere para 'balcao' ou 'tecnico' para ver a mágica do menu mudando.
   // (No futuro, isso virá automático do token JWT do Python)
   
-  const [cargo, setCargo] = useState('adm'); 
+  const [cargo, setCargo] = useState('balcao'); 
   const [telaAtiva, setTelaAtiva] = useState('entrada-os');
   // Definição das permissões do sistema
 const menus = [ 
@@ -67,7 +67,7 @@ const menus = [
         <div className="p-4 border-t border-slate-700">
         {/* BOTÃO SAIR NO FINAL DO MENU */}
         <button 
-          onClick={onLogout} // <-- ADICIONE ISSO AQUI
+          onClick={onLogout} 
           className="mt-auto w-full bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white font-bold py-3 rounded-xl transition-all border border-red-500/20"
         >
           Sair do Sistema
@@ -78,14 +78,11 @@ const menus = [
       {/* ÁREA CENTRAL */}
       <main className="flex-1 overflow-y-auto bg-[#0f172a]">
         {telaAtiva === 'configuracoes' && <Configuracoes />}
-        {telaAtiva === 'financeiro' && <Financeiro />}
         {telaAtiva === 'usuarios' && <Usuarios />}
-        {telaAtiva === 'estoque' && <Estoque />}
         {telaAtiva === 'admin-home' && <AdminDashboard />} {/* */}
         {telaAtiva === 'entrada-os' && <Balcao />}
-        {telaAtiva === 'entrada-os' && <Balcao />}
         {telaAtiva === 'vendas' && <Vendas />}
-        {telaAtiva === 'consultar-os' && <ConsultarOS />}
+        {telaAtiva === 'consultar-os' && <ConsultarOS cargo={cargo} />}
         {telaAtiva === 'bancada' && <Bancada />}
         {telaAtiva === 'estoque' && <div className="p-8 text-slate-400">Tabela de Peças entrará aqui.</div>}
         {telaAtiva === 'financeiro' && <div className="p-8 text-slate-400">Gráficos do ADM entrarão aqui.</div>}

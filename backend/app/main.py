@@ -1,3 +1,5 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
@@ -8,7 +10,7 @@ from core.database import engine, get_db
 from core import security
 from models import models
 from schemas import schemas
-
+from pydantic import BaseModel
 # Cria as tabelas no PostgreSQL automaticamente
 print("Criando tabelas...")
 models.Base.metadata.create_all(bind=engine)
@@ -55,6 +57,29 @@ def listar_os(db: Session = Depends(get_db)):
         o.cliente_nome = db.query(models.Cliente).filter(models.Cliente.id == o.cliente_id).first().nome
     return ordens
 
+# --- ROTA: ATUALIZAR ORDEM DE SERVIÇO (BANCADA/BALCÃO) ---
+@app.put("/ordens-servico/{os_id}", response_model=schemas.OSResponse)
+def atualizar_os(os_id: int, os_atualizada: schemas.OSUpdate, db: Session = Depends(get_db)):
+    # 1. Procura a OS no banco
+    db_os = db.query(models.OrdemServico).filter(models.OrdemServico.id == os_id).first()
+    if not db_os:
+        raise HTTPException(status_code=404, detail="OS não encontrada")
+
+    # 2. Atualiza apenas os campos que foram enviados (que não são nulos)
+    if os_atualizada.laudo_tecnico is not None:
+        db_os.laudo_tecnico = os_atualizada.laudo_tecnico
+    if os_atualizada.pecas_necessarias is not None:
+        db_os.pecas_necessarias = os_atualizada.pecas_necessarias
+    if os_atualizada.valor is not None:
+        db_os.valor = os_atualizada.valor
+    if os_atualizada.status is not None:
+        db_os.status = os_atualizada.status
+
+    # 3. Salva as alterações
+    db.commit()
+    db.refresh(db_os)
+    return db_os
+
 # --- ROTA: CRIAR USUÁRIO (O ADMIN) ---
 @app.post("/usuarios", response_model=schemas.UsuarioBase)
 def criar_usuario(usuario: schemas.UsuarioCreate, db: Session = Depends(get_db)):
@@ -79,6 +104,21 @@ def criar_usuario(usuario: schemas.UsuarioCreate, db: Session = Depends(get_db))
     db.refresh(novo_usuario)
     return novo_usuario
 
+# --- ROTA: EXCLUIR ORDEM DE SERVIÇO ---
+@app.delete("/ordens-servico/{os_id}")
+def excluir_os(os_id: int, db: Session = Depends(get_db)):
+    # 1. Procura a OS no banco
+    db_os = db.query(models.OrdemServico).filter(models.OrdemServico.id == os_id).first()
+    
+    # 2. Se não achar, avisa que já sumiu
+    if not db_os:
+        raise HTTPException(status_code=404, detail="OS não encontrada")
+    
+    # 3. Se achar, deleta e salva o banco
+    db.delete(db_os)
+    db.commit()
+    return {"mensagem": f"OS {os_id} excluída com sucesso!"}
+
 # --- ROTA: LOGIN (GERAR TOKEN) ---
 @app.post("/token", response_model=schemas.Token)
 def login_para_acesso_token(
@@ -99,3 +139,23 @@ def login_para_acesso_token(
     # 3. Se estiver tudo certo, cria o "Crachá" (Token)
     access_token = security.create_access_token(data={"sub": usuario.email})
     return {"access_token": access_token, "token_type": "bearer"}
+
+# Esquema para receber os dados da atualização
+class AtualizarStatus(BaseModel):
+    status: str
+    valor_orcamento: float
+
+# --- ROTA: ATUALIZAR STATUS E VALOR DA OS ---
+@app.put("/ordens-servico/{os_id}/status")
+def atualizar_status_os(os_id: int, dados: AtualizarStatus, db: Session = Depends(get_db)):
+    db_os = db.query(models.OrdemServico).filter(models.OrdemServico.id == os_id).first()
+    
+    if not db_os:
+        raise HTTPException(status_code=404, detail="OS não encontrada")
+    
+    # Atualiza as informações no banco de dados
+    db_os.status = dados.status
+    db_os.valor_orcamento = dados.valor_orcamento
+    db.commit()
+    
+    return {"mensagem": "OS atualizada com sucesso!"}
