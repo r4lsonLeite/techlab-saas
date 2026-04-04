@@ -7,11 +7,14 @@ export default function Balcao() {
     defeito: '', acessorios: '', prioridade: 'Normal'
   });
 
-  const [status, setStatus] = useState(''); // Para mostrar se salvou ou deu erro
-
-  // Estado para os botões do Checklist (Figma)
+  const [status, setStatus] = useState('');
   const itensChecklist = ['Wi-Fi', 'Bluetooth', 'Câm. Frontal', 'Câm. Traseira', 'Touch', 'Alto-falante', 'Microfone', 'Botões', 'Bateria', 'Carregamento'];
   const [checklistMarcados, setChecklistMarcados] = useState([]);
+
+  // ESTADOS DA BARRA LATERAL (NOVO)
+  const [abaLateral, setAbaLateral] = useState('prontos'); // Pode ser 'prontos' ou 'aprovacao'
+  const [aparelhosProntos, setAparelhosProntos] = useState([]);
+  const [aparelhosAprovacao, setAparelhosAprovacao] = useState([]);
 
   const toggleChecklist = (item) => {
     if (checklistMarcados.includes(item)) {
@@ -23,38 +26,108 @@ export default function Balcao() {
 
   const handleChange = (e) => setOs({ ...os, [e.target.name]: e.target.value });
 
-// A FUNÇÃO QUE CONVERSA COM O PYTHON
+  // FUNÇÃO MÁGICA DE IMPRESSÃO (Térmica 80mm)
+  const imprimirComprovante = (dadosOs, idOs) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+    
+    const htmlRecibo = `
+      <html>
+        <head>
+          <title>OS #${idOs}</title>
+          <style>
+            body { font-family: 'Courier New', Courier, monospace; margin: 0 auto; padding: 0; color: #000; font-size: 12px; width: 100%; max-width: 300px; }
+            h1, h2, h3, p { margin: 0; padding: 0; }
+            .center { text-align: center; }
+            .bold { font-weight: bold; }
+            .divider { border-top: 1px dashed #000; margin: 8px 0; }
+            .linha { margin: 4px 0; line-height: 1.2; }
+            .titulo { font-size: 20px; font-weight: 900; margin-bottom: 2px; }
+            .os-numero { font-size: 26px; font-weight: 900; text-align: center; margin: 10px 0; border: 2px solid #000; padding: 5px; }
+            .termo { font-size: 10px; text-align: justify; margin: 10px 0; line-height: 1.2; }
+            .assinatura { border-top: 1px solid #000; text-align: center; margin-top: 30px; padding-top: 5px; font-size: 11px; font-weight: bold; }
+            .separador-vias { border-top: 2px dashed #000; margin-top: 30px; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="center">
+            <h1 class="titulo">TECHLAB</h1>
+            <p class="linha">Sua Assistência Técnica</p>
+            <p class="linha">WhatsApp: (11) 99999-0000</p>
+          </div>
+          <div class="os-numero">OS #${idOs}</div>
+          <p class="center bold">VIA DO CLIENTE</p>
+          <div class="divider"></div>
+          <p class="linha"><span class="bold">Cliente:</span> ${dadosOs.nome || 'Não informado'}</p>
+          <p class="linha"><span class="bold">Tel:</span> ${dadosOs.telefone}</p>
+          <div class="divider"></div>
+          <p class="linha"><span class="bold">Aparelho:</span> ${dadosOs.marca} ${dadosOs.modelo}</p>
+          <p class="linha"><span class="bold">IMEI:</span> ${dadosOs.imei || '---'}</p>
+          <div class="divider"></div>
+          <p class="linha bold">Defeito Relatado:</p>
+          <p class="linha">${dadosOs.defeito || 'Nenhum defeito detalhado.'}</p>
+          <br>
+          <p class="linha"><span class="bold">Acessórios:</span> ${dadosOs.acessorios || 'Nenhum'}</p>
+          <p class="linha"><span class="bold">Prioridade:</span> ${dadosOs.prioridade}</p>
+          <div class="divider"></div>
+          <p class="termo">
+            TERMO DE RESPONSABILIDADE: 1. Orçamentos válidos por 5 dias. 2. Aparelhos não retirados em 90 dias serão descartados (Lei 10.406). 3. Garantia de 90 dias p/ peças trocadas. 4. Não nos responsabilizamos por perda de dados (faça backup).
+          </p>
+          <div class="assinatura">Assinatura do Cliente</div>
+
+          <div class="separador-vias"></div>
+          <div class="os-numero">OS #${idOs}</div>
+          <p class="center bold">VIA DO LABORATÓRIO (ETIQUETA)</p>
+          <div class="divider"></div>
+          <p class="linha"><span class="bold">Aparelho:</span> ${dadosOs.marca} ${dadosOs.modelo}</p>
+          <p class="linha" style="font-size: 14px;"><span class="bold">Senha:</span> ${dadosOs.senha || 'Sem senha'}</p>
+          <div class="divider"></div>
+          <p class="linha bold">Defeito:</p>
+          <p class="linha">${dadosOs.defeito || 'Nenhum'}</p>
+          <p class="linha"><span class="bold">Cliente:</span> ${dadosOs.nome || '---'}</p>
+        </body>
+      </html>
+    `;
+
+    iframe.contentWindow.document.open();
+    iframe.contentWindow.document.write(htmlRecibo);
+    iframe.contentWindow.document.close();
+
+    iframe.onload = function() {
+      setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(() => { document.body.removeChild(iframe); }, 1000);
+      }, 200);
+    };
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus('Salvando...');
 
     try {
-      // PASSO 1: Salvar o Cliente primeiro (para o banco gerar o cliente_id)
       const resCliente = await fetch('http://localhost:8000/clientes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nome: os.nome,
           telefone: os.telefone,
-          email: os.email || "nao_informado@email.com" // Previne erro se o email for vazio
+          email: os.email || "nao_informado@email.com"
         })
       });
 
-      if (!resCliente.ok) {
-        throw new Error("Erro ao criar o Cliente no banco de dados.");
-      }
-      
+      if (!resCliente.ok) throw new Error("Erro ao criar o Cliente.");
       const dadosCliente = await resCliente.json();
-      const idDoCliente = dadosCliente.id; // Pegamos o ID que o banco acabou de criar!
 
-      // PASSO 2: Criar a OS amarrada ao Cliente recém-criado
       const resOS = await fetch('http://localhost:8000/ordens-servico', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          aparelho: `${os.marca} ${os.modelo}`, // Juntamos Marca + Modelo num campo só!
-          defeito: os.defeito,                  // Corrigido para bater com o Python
-          cliente_id: idDoCliente,              // A mágica acontece aqui!
+          aparelho: `${os.marca} ${os.modelo}`,
+          defeito: os.defeito,
+          cliente_id: dadosCliente.id,
           imei: os.imei,
           senha: os.senha,
           acessorios: os.acessorios,
@@ -63,8 +136,11 @@ export default function Balcao() {
       });
 
       if (resOS.ok) {
+        const osCriada = await resOS.json();
+        
+        imprimirComprovante(os, osCriada.id);
+
         setStatus('sucesso');
-        // Limpa o formulário após salvar
         setOs({
           nome: '', telefone: '', email: '',
           marca: '', modelo: '', imei: '', senha: '',
@@ -72,43 +148,42 @@ export default function Balcao() {
         });
         setChecklistMarcados([]);
         setTimeout(() => setStatus(''), 4000);
+        carregarListasLaterais(); // ATUALIZA AS LISTAS
       } else {
         setStatus('erro');
-        console.error("Erro no servidor Python (OS):", await resOS.text());
         setTimeout(() => setStatus(''), 4000);
       }
-
     } catch (erro) {
-      console.error("Erro na comunicação com o FastAPI:", erro);
+      console.error(erro);
       setStatus('erro');
     }
   };
 
-const [aparelhosProntos, setAparelhosProntos] = useState([]);
-
-  // Quando a tela abrir, vai puxar os dados do banco
-  useEffect(() => {
-    carregarProntos();
-  }, []);
-
-  const carregarProntos = async () => {
+  // FUNÇÃO QUE CARREGA AS DUAS LISTAS DA BARRA LATERAL
+  const carregarListasLaterais = async () => {
     try {
       const resposta = await fetch('http://localhost:8000/ordens-servico');
       if (resposta.ok) {
         const dados = await resposta.json();
-        // O SEGREDO: Filtra a lista inteira para mostrar apenas as Prontas!
-        const prontas = dados.filter(os => os.status === 'Pronto para Retirada');
+        
+        // Separa quem está pronto e quem está esperando aprovação
+        const prontas = dados.filter(o => o.status === 'Pronto para Retirada');
+        const aguardando = dados.filter(o => o.status === 'Aguardando Cliente');
+        
         setAparelhosProntos(prontas);
+        setAparelhosAprovacao(aguardando);
       }
     } catch (erro) {
-      console.error("Erro ao puxar fila de prontos:", erro);
+      console.error(erro);
     }
   };
-  
 
-return (
+  useEffect(() => {
+    carregarListasLaterais();
+  }, []);
+
+  return (
     <div className="flex h-full w-full">
-      
       {/* LADO ESQUERDO: FORMULÁRIO */}
       <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
         <div className="max-w-4xl mx-auto">
@@ -214,8 +289,8 @@ return (
                 <button type="button" className="px-6 py-3 rounded-lg text-slate-300 bg-slate-800 hover:bg-slate-700 font-semibold transition-colors">
                   Cancelar
                 </button>
-                <button type="button" className="px-6 py-3 rounded-lg text-white bg-blue-600 hover:bg-blue-700 font-bold transition-colors shadow-lg shadow-blue-600/20">
-                  🖨️ Imprimir
+                <button type="button" onClick={() => imprimirComprovante(os, "Teste")} className="px-6 py-3 rounded-lg text-white bg-blue-600 hover:bg-blue-700 font-bold transition-colors shadow-lg shadow-blue-600/20">
+                  🖨️ Testar Impressão
                 </button>
                 <button type="submit" disabled={status === 'Salvando...'} className="px-8 py-3 rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-600 font-bold transition-colors shadow-lg shadow-emerald-600/20">
                   {status === 'Salvando...' ? 'Enviando...' : 'Criar Ordem de Serviço'}
@@ -227,45 +302,105 @@ return (
         </div>
       </div>
 
-      {/* LADO DIREITO: PRONTOS PARA RETIRADA */}
-      <div className="w-80 bg-[#1e293b] border-l border-slate-700 flex flex-col">
-        <div className="p-4 bg-emerald-600/10 border-b border-emerald-500/20">
-          <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2">
-            ✅ Prontos para Retirada
-          </h2>
-          <p className="text-sm text-slate-300 mt-1">{aparelhosProntos.length} aparelhos aguardando</p>
+      {/* LADO DIREITO: BARRA LATERAL COM ABAS */}
+      <div className="w-80 bg-[#1e293b] border-l border-slate-700 flex flex-col z-10 shadow-xl">
+        
+        {/* CABEÇALHO DAS ABAS */}
+        <div className="flex w-full border-b border-slate-700">
+          <button
+            onClick={() => setAbaLateral('prontos')}
+            className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
+              abaLateral === 'prontos'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-transparent text-slate-400 hover:bg-slate-800'
+            }`}
+          >
+            ✅ Prontos ({aparelhosProntos.length})
+          </button>
+          
+          <button
+            onClick={() => setAbaLateral('aprovacao')}
+            className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative ${
+              abaLateral === 'aprovacao'
+                ? 'bg-amber-500 text-white'
+                : 'bg-transparent text-slate-400 hover:bg-slate-800'
+            }`}
+          >
+            ⏱️ Aprovação ({aparelhosAprovacao.length})
+            {/* Bolinha vermelha piscando se tiver aprovação pendente */}
+            {aparelhosAprovacao.length > 0 && abaLateral !== 'aprovacao' && (
+              <span className="absolute top-2 right-4 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+              </span>
+            )}
+          </button>
         </div>
 
+        {/* CONTEÚDO DAS LISTAS */}
         <div className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar">
-<div className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar">
-          {aparelhosProntos.length === 0 ? (
-            <p className="text-slate-500 text-xs text-center mt-4">Nenhum aparelho aguardando retirada.</p>
-          ) : (
-            aparelhosProntos.map((os) => (
-              <div key={os.id} className="bg-[#0f172a] border border-slate-700 rounded-lg p-3 hover:border-emerald-500/50 transition-colors cursor-pointer relative group">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">OS #{os.id}</span>
-                  <button className="text-slate-400 hover:text-emerald-400 transition-colors" title="Avisar no WhatsApp">💬</button>
-                </div>
-                <h3 className="text-white font-semibold text-sm">{os.cliente_nome || "Cliente"}</h3>
-                <p className="text-slate-400 text-xs mb-2">{os.aparelho}</p>
-                <p className="text-slate-500 text-[10px] uppercase tracking-wider font-bold text-emerald-500/70">
-                  R$ {os.valor_orcamento ? os.valor_orcamento : "0.00"}
-                </p>
+          
+          {abaLateral === 'prontos' ? (
+            /* CONTEÚDO DA ABA: PRONTOS */
+            aparelhosProntos.length === 0 ? (
+              <div className="text-center mt-10">
+                <span className="text-4xl">📦</span>
+                <p className="text-slate-500 text-sm mt-3">Nenhum aparelho para entrega.</p>
               </div>
-            ))
+            ) : (
+              aparelhosProntos.map((ordem) => (
+                <div key={ordem.id} className="bg-[#0f172a] border border-emerald-500/30 rounded-lg p-3 hover:border-emerald-500 transition-colors cursor-pointer group">
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="text-xs font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">OS #{ordem.id}</span>
+                    <span className="text-emerald-500">✅</span>
+                  </div>
+                  <h3 className="text-white font-semibold text-sm">{ordem.cliente_nome || "Cliente"}</h3>
+                  <p className="text-slate-400 text-xs mb-2">{ordem.aparelho}</p>
+                  <p className="text-slate-500 text-[10px] uppercase tracking-wider font-bold text-emerald-500/70">
+                    Cobrado: R$ {ordem.valor_orcamento ? ordem.valor_orcamento : "0.00"}
+                  </p>
+                </div>
+              ))
+            )
+          ) : (
+            /* CONTEÚDO DA ABA: APROVAÇÃO */
+            aparelhosAprovacao.length === 0 ? (
+              <div className="text-center mt-10">
+                <span className="text-4xl">👍</span>
+                <p className="text-slate-500 text-sm mt-3">Nenhum orçamento pendente.</p>
+              </div>
+            ) : (
+              aparelhosAprovacao.map((ordem) => (
+                <div key={ordem.id} className="bg-[#0f172a] border border-amber-500/30 rounded-lg p-3 hover:border-amber-500 transition-colors cursor-pointer group">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs font-bold bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded">OS #{ordem.id}</span>
+                    <span className="text-amber-500 animate-pulse">⏱️</span>
+                  </div>
+                  <h3 className="text-white font-semibold text-sm">{ordem.cliente_nome || "Cliente"}</h3>
+                  <p className="text-slate-400 text-xs mb-3">{ordem.aparelho}</p>
+                  
+                  {/* Caixa mostrando o Laudo do Técnico direto na lista */}
+                  <div className="bg-[#1e293b] p-2 rounded border border-slate-700">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Laudo do Técnico:</p>
+                    <p className="text-slate-300 text-xs italic line-clamp-2">{ordem.laudo_tecnico || "Consulte a OS para ver o laudo..."}</p>
+                  </div>
+                </div>
+              ))
+            )
           )}
-        </div>
           
         </div>
 
+        {/* RODAPÉ */}
         <div className="p-4 border-t border-slate-700">
-          <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold text-sm transition-colors">
-            Ver Todos os Prontos
+          <button className={`w-full text-white py-3 rounded-lg font-bold text-sm transition-colors shadow-lg ${
+            abaLateral === 'prontos' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20' : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'
+          }`}>
+            {abaLateral === 'prontos' ? 'Ver Todos os Prontos' : 'Ir para Negociação'}
           </button>
         </div>
-      </div>
 
+      </div>
     </div>
   );
 }

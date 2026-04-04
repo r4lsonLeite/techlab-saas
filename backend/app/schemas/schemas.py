@@ -15,6 +15,7 @@ class LojaResponse(BaseModel):
     nome_fantasia: str
     cnpj: str
     criado_at: datetime
+    observacoes_balcao: Optional[str] = None
 
     class Config:
         from_attributes = True  # Isso permite que o Pydantic leia os dados do SQLAlchemy
@@ -84,7 +85,8 @@ class OSResponse(BaseModel):
     cliente_id: int
     usuario_id: int
     loja_id: int
-    
+    laudo_tecnico: Optional[str] = None
+    pecas_necessarias: Optional[str] = None
     class Config:
         from_attributes = True
         
@@ -102,9 +104,10 @@ class OSResponse(BaseModel):
     usuario_id: int
     loja_id: int
     
-    # ADICIONE ESTA LINHA AQUI:
+    
     cliente_nome: str | None = None # O servidor vai preencher isso
-
+    laudo_tecnico: Optional[str] = None
+    pecas_necessarias: Optional[str] = None
     class Config:
         from_attributes = True       
         
@@ -130,10 +133,42 @@ class TokenData(BaseModel):
     
 
 
-# ... (seu código existente) ...
+
 
 class OSUpdate(BaseModel):
     laudo_tecnico: Optional[str] = None
     pecas_necessarias: Optional[str] = None
     valor: Optional[float] = None
     status: Optional[str] = None
+    laudo_tecnico: Optional[str] = None      
+    pecas_necessarias: Optional[str] = None
+    observacoes_balcao: Optional[str] = None
+    
+
+
+# SCHEMA MESTRE DE ATUALIZAÇÃO (Para o Balcão e para a Bancada)
+class OSUpdate(BaseModel):
+    status: Optional[str] = None
+    laudo_tecnico: Optional[str] = None
+    pecas_necessarias: Optional[str] = None
+    observacoes_balcao: Optional[str] = None
+    valor_orcamento: Optional[float] = None
+
+class OSResponse(BaseModel):
+    id: int
+    aparelho: str
+    defeito: str
+    status: str
+    valor_orcamento: float
+    cliente_id: int
+    usuario_id: int
+    loja_id: int
+    
+    # Campos dinâmicos
+    cliente_nome: Optional[str] = None
+    laudo_tecnico: Optional[str] = None
+    pecas_necessarias: Optional[str] = None
+    observacoes_balcao: Optional[str] = None
+
+    class Config:
+        from_attributes = True

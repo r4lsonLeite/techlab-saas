@@ -1,0 +1,1 @@
+observacoes_balcao: Optional[str] = None

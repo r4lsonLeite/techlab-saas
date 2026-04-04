@@ -28,26 +28,29 @@ class Cliente(Base):
     data_cadastro = Column(DateTime(timezone=True), server_default=func.now())
     loja_id = Column(Integer, ForeignKey("lojas.id"))
 
+
 class OrdemServico(Base):
     __tablename__ = "ordens_servico"
     id = Column(Integer, primary_key=True, index=True)
     
-    # Dados do Aparelho (Separados como no Figma)
+    # Dados do Aparelho
     marca = Column(String)
     modelo = Column(String)
-    aparelho = Column(String) # Vamos manter como "Marca Modelo" juntos para facilitar buscas rápidas
+    aparelho = Column(String) 
     imei = Column(String, nullable=True)
     senha_aparelho = Column(String, nullable=True)
     
-    # Problema e Condições
+    # Diagnóstico e Execução (Unificados)
     defeito = Column(Text)
+    checklist = Column(Text, nullable=True)
     acessorios = Column(String, nullable=True)
     prioridade = Column(String, default="Normal")
-    checklist = Column(Text, nullable=True) # Guardaremos os itens marcados aqui (ex: "Wi-fi, Tela, Bateria")
+    
     laudo_tecnico = Column(String, nullable=True)
     pecas_necessarias = Column(String, nullable=True)
-    valor = Column(Float, default=0.0)
-    # Controle e Valores
+    observacoes_balcao = Column(String, nullable=True)
+    
+    # Controle e Valores (Apenas UM campo de valor para evitar conflitos)
     status = Column(String, default="Aguardando Análise")
     valor_orcamento = Column(Float, default=0.0)
     
@@ -57,9 +60,10 @@ class OrdemServico(Base):
     
     # Relacionamentos
     cliente_id = Column(Integer, ForeignKey("clientes.id"))
-    usuario_id = Column(Integer, ForeignKey("usuarios.id")) # Quem atendeu no balcão
-    tecnico_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True) # Quem pegou para consertar
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"))
+    tecnico_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
     loja_id = Column(Integer, ForeignKey("lojas.id"))
+
 
 # ==========================================
 # NOVAS TABELAS PARA A TELA DE VENDAS / PDV
