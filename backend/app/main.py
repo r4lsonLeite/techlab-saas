@@ -3,6 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List
+import os
+import shutil
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File
+from fastapi.staticfiles import StaticFiles
 
 # ✅ IMPORTS CORRIGIDOS (PADRÃO CERTO)
 from core.database import engine, get_db
@@ -21,7 +25,11 @@ app = FastAPI()
 def root():
     return {"status": "API TechLab rodando 🚀"}
 
+app = FastAPI()
 
+# --- NOVO: PREPARANDO A PASTA DE FOTOS ---
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 # --- CONFIGURAÇÃO DE CORS ---
 app.add_middleware(
     CORSMiddleware,
@@ -125,6 +133,26 @@ def criar_usuario(usuario: schemas.UsuarioCreate, db: Session = Depends(get_db))
     db.refresh(novo_usuario)
 
     return novo_usuario
+
+# --- ROTA: UPLOAD DE FOTO DA OS ---
+@app.post("/ordens-servico/{os_id}/foto")
+def upload_foto_os(os_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    db_os = db.query(models.OrdemServico).filter(models.OrdemServico.id == os_id).first()
+    if not db_os:
+        raise HTTPException(status_code=404, detail="OS não encontrada")
+
+    # Salva a foto na pasta 'uploads' com o número da OS
+    file_path = f"uploads/os_{os_id}_{file.filename}"
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Gera o link e salva no banco de dados
+    foto_url = f"http://localhost:8000/{file_path}"
+    db_os.foto_url = foto_url
+    db.commit()
+    db.refresh(db_os)
+    
+    return {"foto_url": foto_url}
 
 
 # --- LOGIN (GERAR TOKEN) ---

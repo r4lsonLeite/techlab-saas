@@ -143,6 +143,7 @@ class OSUpdate(BaseModel):
     laudo_tecnico: Optional[str] = None      
     pecas_necessarias: Optional[str] = None
     observacoes_balcao: Optional[str] = None
+    foto_url: Optional[str] = None
     
 
 
@@ -169,6 +170,7 @@ class OSResponse(BaseModel):
     laudo_tecnico: Optional[str] = None
     pecas_necessarias: Optional[str] = None
     observacoes_balcao: Optional[str] = None
+    foto_url: Optional[str] = None
 
     class Config:
         from_attributes = True

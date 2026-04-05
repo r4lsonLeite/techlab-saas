@@ -36,12 +36,12 @@ export default function Bancada() {
     setOsAtiva(os);
     setLaudo(os.laudo_tecnico || "");
     setPecas(os.pecas_necessarias || "");
-    setFoto(null); 
+    setFoto(null); // Limpa a foto anterior ao trocar de OS
   };
 
-  // BOTÃO LIGADO À ROTA UNIVERSAL DO PYTHON
   const handleAtualizarOS = async (novoStatus) => {
     try {
+      // 1. Atualiza os textos primeiro
       const resposta = await fetch(`http://localhost:8000/ordens-servico/${osAtiva.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -53,8 +53,20 @@ export default function Bancada() {
       });
 
       if (resposta.ok) {
+        // 2. SE TIVER FOTO ANEXADA, ENVIA ELA AGORA
+        if (foto) {
+          const formData = new FormData();
+          formData.append("file", foto);
+          
+          await fetch(`http://localhost:8000/ordens-servico/${osAtiva.id}/foto`, {
+            method: 'POST',
+            body: formData
+          });
+        }
+
         alert(`Sucesso! OS atualizada para: ${novoStatus}`);
         setOsAtiva(null);
+        setFoto(null); 
         carregarOrdens(); 
       } else {
         alert("Erro ao salvar no banco de dados.");
@@ -148,6 +160,7 @@ export default function Bancada() {
                     <span>👨‍🔧</span> Área de Diagnóstico
                   </h3>
                   
+                  {/* BOTÃO DE ANEXAR FOTO */}
                   <div>
                     <input 
                       type="file" 

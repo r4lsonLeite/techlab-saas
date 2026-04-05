@@ -49,6 +49,7 @@ class OrdemServico(Base):
     laudo_tecnico = Column(String, nullable=True)
     pecas_necessarias = Column(String, nullable=True)
     observacoes_balcao = Column(String, nullable=True)
+    foto_url = Column(String, nullable=True)
     
     # Controle e Valores (Apenas UM campo de valor para evitar conflitos)
     status = Column(String, default="Aguardando Análise")
