@@ -1,66 +1,150 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-export default function Vendas() {
+export default function Vendas({ osParaPDV, setOsParaPDV }) {
   // Estados do PDV
   const [carrinho, setCarrinho] = useState([]);
   const [filtroCategoria, setFiltroCategoria] = useState('Todos');
   const [busca, setBusca] = useState('');
-  const [vendedor, setVendedor] = useState('Ana Paula'); // Para a comissão
+  const [vendedor, setVendedor] = useState('Ana Paula'); 
   const [formaPagamento, setFormaPagamento] = useState('PIX');
 
-  // Categorias baseadas no seu Figma + "Outros"
+  // Estados que vêm do Banco de Dados
+  const [produtos, setProdutos] = useState([]);
+  const [aparelhosProntos, setAparelhosProntos] = useState([]);
+
   const categorias = ['Todos', 'Capinhas', 'Carregadores', 'Cabos', 'Películas', 'Fones', 'Suportes', 'Outros'];
 
-  // Banco de dados simulado de produtos
+  // Produtos de demonstração (caso o banco esteja vazio)
   const produtosIniciais = [
-    { id: 1, nome: 'Capinha iPhone 13 Silicone', categoria: 'Capinhas', preco: 39.90, estoque: 45, local: 'Prat. A2 - Col. 1' },
-    { id: 2, nome: 'Carregador Turbo USB-C 20W', categoria: 'Carregadores', preco: 49.90, estoque: 18, local: 'Prat. B1 - Col. 3' },
-    { id: 3, nome: 'Cabo Lightning Original 1m', categoria: 'Cabos', preco: 29.90, estoque: 42, local: 'Prat. C1 - Gav. 2' },
-    { id: 4, nome: 'Película Vidro 9H Universal', categoria: 'Películas', preco: 19.90, estoque: 87, local: 'Prat. D1 - Col. 1' },
-    { id: 5, nome: 'Fone de Ouvido Bluetooth XY', categoria: 'Fones', preco: 89.90, estoque: 12, local: 'Vitrine Principal' },
-    { id: 6, nome: 'Suporte Veicular Magnético', categoria: 'Suportes', preco: 35.00, estoque: 22, local: 'Prat. E2 - Col. 4' },
-    { id: 7, nome: 'Pendrive SanDisk 64GB', categoria: 'Outros', preco: 45.00, estoque: 8, local: 'Gaveta Caixa' },
+    { id: 1, nome: 'Capinha iPhone 13 Silicone', categoria: 'Capinhas', preco: 39.90, estoque_atual: 45, local: 'Prat. A2 - Col. 1' },
+    { id: 2, nome: 'Carregador Turbo USB-C 20W', categoria: 'Carregadores', preco: 49.90, estoque_atual: 18, local: 'Prat. B1 - Col. 3' },
+    { id: 3, nome: 'Cabo Lightning Original 1m', categoria: 'Cabos', preco: 29.90, estoque_atual: 42, local: 'Prat. C1 - Gav. 2' },
   ];
 
-  // Lógica de Filtragem e Busca
-  const produtosFiltrados = produtosIniciais.filter(p => {
+  // 1. CARREGAR DADOS DO BANCO (Produtos Reais e OS Prontas)
+  useEffect(() => {
+    carregarDadosBase();
+  }, []);
+
+  const carregarDadosBase = async () => {
+    try {
+      // Busca OS Prontas reais
+      const resOs = await fetch('http://localhost:8000/ordens-servico');
+      if (resOs.ok) {
+        const ordens = await resOs.json();
+        setAparelhosProntos(ordens.filter(o => o.status === 'Pronto para Retirada'));
+      }
+      
+      // Busca Produtos reais (Se não tiver, usa os iniciais para visualização)
+      const resProd = await fetch('http://localhost:8000/produtos');
+      if (resProd.ok) {
+        const prodBanco = await resProd.json();
+        setProdutos(prodBanco.length > 0 ? prodBanco : produtosIniciais);
+      }
+    } catch (erro) {
+      console.error(erro);
+      setProdutos(produtosIniciais);
+    }
+  };
+
+  // 2. O ÍMÃ DE OS: Se veio uma OS da outra tela, joga no carrinho na hora!
+  useEffect(() => {
+    if (osParaPDV) {
+      adicionarOSAoCarrinho(osParaPDV);
+    }
+  }, [osParaPDV]);
+
+  // Lógica de Filtragem
+  const produtosFiltrados = produtos.filter(p => {
     const bateCategoria = filtroCategoria === 'Todos' || p.categoria === filtroCategoria;
     const bateBusca = p.nome.toLowerCase().includes(busca.toLowerCase());
     return bateCategoria && bateBusca;
   });
 
-  // Funções do Carrinho
+// Funções do Carrinho para PRODUTOS
   const adicionarAoCarrinho = (produto) => {
-    const itemExistente = carrinho.find(item => item.id === produto.id);
-    if (itemExistente) {
-      setCarrinho(carrinho.map(item => item.id === produto.id ? { ...item, qtd: item.qtd + 1 } : item));
-    } else {
-      setCarrinho([...carrinho, { ...produto, qtd: 1 }]);
-    }
+    setCarrinho(prev => {
+      const itemExistente = prev.find(item => item.id === produto.id && !item.isOS);
+      if (itemExistente) {
+        return prev.map(item => item.id === produto.id && !item.isOS ? { ...item, qtd: item.qtd + 1 } : item);
+      } else {
+        return [...prev, { ...produto, preco: parseFloat(produto.preco_venda || produto.preco), qtd: 1, isOS: false }];
+      }
+    });
+  };
+
+  // Funções do Carrinho para ORDEM DE SERVIÇO (Corrigida: Sem duplicar e forçando Número)
+  const adicionarOSAoCarrinho = (os) => {
+    setCarrinho(prev => {
+      // Confere DENTRO do carrinho atual se a OS já existe
+      const jaTemOS = prev.find(item => item.isOS && item.originalOsId === os.id);
+      if (jaTemOS) return prev; // Se já tem, ignora a duplicata
+
+      return [...prev, {
+        id: `os-${os.id}`, // ID virtual pro React não confundir com Produto
+        nome: `Serviço OS #${os.id} - ${os.cliente_nome || 'Cliente'}`,
+        preco: parseFloat(os.valor_orcamento) || 0, // MÁGICA 2: Força o texto a virar dinheiro (número)
+        qtd: 1,
+        isOS: true,
+        originalOsId: os.id
+      }];
+    });
   };
 
   const removerDoCarrinho = (id) => {
-    setCarrinho(carrinho.filter(item => item.id !== id));
+    setCarrinho(prev => prev.filter(item => item.id !== id));
   };
 
-  const subtotal = carrinho.reduce((acc, item) => acc + (item.preco * item.qtd), 0);
+  // Garante que todo cálculo seja matemático
+  const subtotal = carrinho.reduce((acc, item) => acc + (parseFloat(item.preco) * item.qtd), 0);
 
-  const finalizarVenda = () => {
+
+  // 3. O FECHAMENTO DE CAIXA
+  const finalizarVenda = async () => {
     if (carrinho.length === 0) return;
-    alert(`✅ Venda de R$ ${subtotal.toFixed(2)} finalizada com sucesso!\nVendedor(a): ${vendedor}\nPagamento: ${formaPagamento}`);
-    setCarrinho([]); // Limpa o carrinho
-  };
 
-  // Lista Fixa Lateral (Para não perder de vista os clientes da OS)
-  const aparelhosProntos = [
-    { id: '#1047', nome: 'Carlos Eduardo', modelo: 'iPhone 11', data: '19/03/2026' },
-    { id: '#1043', nome: 'Fernanda Silva', modelo: 'Galaxy A52', data: '19/03/2026' },
-  ];
+    // Separa os Produtos das OS
+    const itensFisicos = carrinho.filter(item => !item.isOS).map(item => ({
+      produto_id: item.id,
+      quantidade: item.qtd,
+      preco_unitario: item.preco
+    }));
+
+    const itemOS = carrinho.find(item => item.isOS);
+    const os_id_final = itemOS ? itemOS.originalOsId : null;
+
+    const payloadDaVenda = {
+      valor_total: subtotal,
+      forma_pagamento: formaPagamento,
+      itens: itensFisicos,
+      os_id: os_id_final
+    };
+
+    try {
+      const resposta = await fetch('http://localhost:8000/vendas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadDaVenda)
+      });
+
+      if (resposta.ok) {
+        alert(`✅ Venda de R$ ${subtotal.toFixed(2)} finalizada com sucesso!`);
+        setCarrinho([]); 
+        if (setOsParaPDV) setOsParaPDV(null); // Limpa o "ímã"
+        carregarDadosBase(); // Atualiza a lista lateral para a OS sumir dali
+      } else {
+        const err = await resposta.json();
+        alert(`⚠️ Atenção: ${err.detail}\n\n(Dica: Se você usou os produtos de teste, o banco rejeitou porque eles ainda não existem de verdade na tabela Produtos. Mas a lógica da OS funciona perfeitamente!)`);
+      }
+    } catch (erro) {
+      console.error(erro);
+    }
+  };
 
   return (
     <div className="flex h-full w-full">
       
-      {/* MEIO: ÁREA DO PDV E PRODUTOS (Ocupa a maior parte) */}
+      {/* MEIO: ÁREA DO PDV E PRODUTOS */}
       <div className="flex-1 flex flex-col p-6 overflow-hidden">
         
         {/* TOPO: Busca, Filtros e Vendedor */}
@@ -74,7 +158,6 @@ export default function Vendas() {
                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#1e293b] text-white border border-slate-700 focus:border-emerald-500 outline-none shadow-sm"
               />
             </div>
-            {/* SELEÇÃO DO VENDEDOR PARA COMISSÃO */}
             <div className="w-64">
               <select 
                 value={vendedor} onChange={(e) => setVendedor(e.target.value)}
@@ -112,15 +195,15 @@ export default function Vendas() {
               <div key={produto.id} className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 flex flex-col justify-between hover:border-emerald-500/50 transition-colors group">
                 <div>
                   <div className="flex justify-between items-start mb-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-[#0f172a] px-2 py-1 rounded">{produto.categoria}</span>
-                    <span className="text-xs text-slate-500">{produto.estoque} un.</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-[#0f172a] px-2 py-1 rounded">{produto.categoria || 'Produto'}</span>
+                    <span className="text-xs text-slate-500">{produto.estoque_atual} un.</span>
                   </div>
                   <h3 className="text-white font-medium mb-1 line-clamp-2" title={produto.nome}>{produto.nome}</h3>
-                  <p className="text-emerald-500/80 text-xs flex items-center gap-1">📍 {produto.local}</p>
+                  {produto.local && <p className="text-emerald-500/80 text-xs flex items-center gap-1">📍 {produto.local}</p>}
                 </div>
                 
                 <div className="flex justify-between items-end mt-4">
-                  <span className="text-xl font-bold text-white">R$ {produto.preco.toFixed(2)}</span>
+                  <span className="text-xl font-bold text-white">R$ {(produto.preco_venda || produto.preco).toFixed(2)}</span>
                   <button 
                     onClick={() => adicionarAoCarrinho(produto)}
                     className="bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white px-4 py-2 rounded-lg font-bold text-sm transition-all"
@@ -143,7 +226,7 @@ export default function Vendas() {
         </div>
 
         {/* LISTA DE ITENS DO CARRINHO */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
           {carrinho.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-2">
               <span className="text-4xl">🛍️</span>
@@ -151,10 +234,12 @@ export default function Vendas() {
             </div>
           ) : (
             carrinho.map(item => (
-              <div key={item.id} className="flex justify-between items-center bg-[#0f172a] p-3 rounded-lg border border-slate-700">
+              <div key={item.id} className={`flex justify-between items-center p-3 rounded-lg border ${item.isOS ? 'bg-blue-500/10 border-blue-500/30' : 'bg-[#0f172a] border-slate-700'}`}>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-white truncate w-40" title={item.nome}>{item.nome}</p>
-                  <p className="text-xs text-emerald-400">R$ {(item.preco * item.qtd).toFixed(2)}</p>
+                  <p className={`text-sm font-medium truncate w-40 ${item.isOS ? 'text-blue-400' : 'text-white'}`} title={item.nome}>
+                    {item.isOS && "🔧 "} {item.nome}
+                  </p>
+                  <p className="text-xs text-emerald-400 font-bold">R$ {(item.preco * item.qtd).toFixed(2)}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-slate-300 font-bold">x{item.qtd}</span>
@@ -183,7 +268,7 @@ export default function Vendas() {
                 key={metodo} onClick={() => setFormaPagamento(metodo)}
                 className={`py-2 rounded-lg text-xs font-bold border transition-all ${
                   formaPagamento === metodo 
-                  ? 'bg-emerald-500 border-emerald-500 text-white' 
+                  ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)]' 
                   : 'bg-[#1e293b] border-slate-600 text-slate-400 hover:border-slate-400'
                 }`}
               >
@@ -201,18 +286,33 @@ export default function Vendas() {
         </div>
       </div>
 
-      {/* PAINEL DIREITO 2: PRONTOS PARA RETIRADA (Herdado do Balcão) */}
+      {/* PAINEL DIREITO 2: OS PRONTAS PARA RETIRADA (Direto do Banco!) */}
       <div className="w-64 bg-[#1e293b] flex flex-col">
         <div className="p-4 bg-emerald-600/10 border-b border-emerald-500/20">
           <h2 className="text-sm font-bold text-emerald-400 flex items-center gap-2">✅ Prontos para Retirada</h2>
         </div>
-        <div className="flex-1 p-3 overflow-y-auto space-y-3">
-          {aparelhosProntos.map((aparelho) => (
-            <div key={aparelho.id} className="bg-[#0f172a] border border-slate-700 rounded-lg p-3 hover:border-emerald-500/50 transition-colors cursor-pointer">
-              <span className="text-xs font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">OS {aparelho.id}</span>
-              <p className="text-white font-semibold text-sm mt-1">{aparelho.nome}</p>
-            </div>
-          ))}
+        <div className="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar">
+          {aparelhosProntos.length === 0 ? (
+             <p className="text-slate-500 text-xs text-center mt-4">Nenhum aparelho aguardando retirada.</p>
+          ) : (
+            aparelhosProntos.map((aparelho) => (
+              <div 
+                key={aparelho.id} 
+                onClick={() => adicionarOSAoCarrinho(aparelho)}
+                className="bg-[#0f172a] border border-slate-700 rounded-lg p-3 hover:border-emerald-500/50 transition-colors cursor-pointer group shadow-sm"
+              >
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">OS #{aparelho.id}</span>
+                  <span className="text-xs text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity">Adicionar +</span>
+                </div>
+                <p className="text-white font-semibold text-sm truncate" title={aparelho.cliente_nome}>{aparelho.cliente_nome}</p>
+                <p className="text-slate-400 text-xs truncate mt-0.5">{aparelho.aparelho}</p>
+                <p className="text-emerald-500 font-bold text-xs mt-2 border-t border-slate-700 pt-1">
+                  R$ {aparelho.valor_orcamento.toFixed(2)}
+                </p>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

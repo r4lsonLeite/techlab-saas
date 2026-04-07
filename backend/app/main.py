@@ -176,3 +176,77 @@ def login_para_acesso_token(
         "access_token": access_token,
         "token_type": "bearer"
     }
+    # ==========================================
+# ROTAS DE VENDAS / PDV E ESTOQUE
+# ==========================================
+
+# --- ROTA: LISTAR PRODUTOS NO PDV ---
+@app.get("/produtos", response_model=List[schemas.ProdutoResponse])
+def listar_produtos(db: Session = Depends(get_db)):
+    return db.query(models.Produto).all()
+
+# --- ROTA: CRIAR UM PRODUTO (Para testes rápidos) ---
+@app.post("/produtos", response_model=schemas.ProdutoResponse)
+def criar_produto(produto: schemas.ProdutoCreate, db: Session = Depends(get_db)):
+    novo_produto = models.Produto(**produto.model_dump())
+    db.add(novo_produto)
+    db.commit()
+    db.refresh(novo_produto)
+    return novo_produto
+
+# --- ROTA INTELIGENTE: FINALIZAR VENDA (BAIXA DE ESTOQUE AUTOMÁTICA) ---
+@app.post("/vendas")
+def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db)):
+    # 1. Cria o registro da Venda Mestre
+    nova_venda = models.Venda(
+        valor_total=venda.valor_total,
+        forma_pagamento=venda.forma_pagamento,
+        loja_id=1,
+        usuario_id=1 # Simulando o caixa logado
+    )
+    db.add(nova_venda)
+    db.flush() # Gera o ID da venda sem fechar a transação
+    
+    # 2. Varre o carrinho de compras
+    for item in venda.itens:
+        # Busca o produto no banco
+        produto_db = db.query(models.Produto).filter(models.Produto.id == item.produto_id).first()
+        if not produto_db:
+            raise HTTPException(status_code=404, detail=f"Produto {item.produto_id} não encontrado")
+            
+        # Verifica se tem estoque
+        if produto_db.estoque_atual < item.quantidade:
+            raise HTTPException(status_code=400, detail=f"Estoque insuficiente para {produto_db.nome}")
+            
+        # Dá a baixa no estoque!
+        produto_db.estoque_atual -= item.quantidade
+        
+        # Registra o item vendido
+        novo_item_venda = models.ItemVenda(
+            venda_id=nova_venda.id,
+            produto_id=item.produto_id,
+            quantidade=item.quantidade,
+            preco_unitario=item.preco_unitario
+        )
+        db.add(novo_item_venda)
+        
+        # Opcional: Registra no Histórico de Movimentação (Para auditoria)
+        movimentacao = models.MovimentacaoEstoque(
+            produto_id=item.produto_id,
+            usuario_id=1,
+            tipo="SAIDA",
+            quantidade=item.quantidade,
+            observacao=f"Venda PDV #{nova_venda.id}"
+        )
+        db.add(movimentacao)
+        
+    # 3. O Cliente pagou uma OS junto? Muda o status dela para Entregue!
+    if venda.os_id:
+        os_db = db.query(models.OrdemServico).filter(models.OrdemServico.id == venda.os_id).first()
+        if os_db:
+            os_db.status = "Entregue"
+            
+    # 4. Salva tudo de uma vez (Garante que se der erro, cancela tudo e não perde estoque à toa)
+    db.commit()
+    
+    return {"mensagem": "Venda finalizada com sucesso!", "venda_id": nova_venda.id}

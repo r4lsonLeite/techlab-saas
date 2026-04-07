@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export default function ConsultarOS({ cargo }) {
+export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, abrirPDVComOS }) {
   const [ordens, setOrdens] = useState([]);
   const [osAtiva, setOsAtiva] = useState(null);
   const [busca, setBusca] = useState("");
@@ -15,12 +15,21 @@ export default function ConsultarOS({ cargo }) {
     carregarOrdens();
   }, []);
 
-  const carregarOrdens = async () => {
+const carregarOrdens = async () => {
     try {
       const resposta = await fetch('http://localhost:8000/ordens-servico');
       if (resposta.ok) {
         const dados = await resposta.json();
         setOrdens(dados);
+        
+        // MÁGICA AQUI: Se veio um ID do Dashboard, acha a OS e abre na hora
+        if (osIdParaAbrir) {
+          const osDesejada = dados.find(o => o.id === osIdParaAbrir);
+          if (osDesejada) {
+            setOsAtiva(osDesejada);
+          }
+          setOsIdParaAbrir(null); // Limpa o ID para não prender a tela
+        }
       }
     } catch (erro) {
       console.error("Erro ao buscar OS:", erro);
@@ -244,8 +253,11 @@ export default function ConsultarOS({ cargo }) {
                     }}
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg"
                   ><span>💬</span> WhatsApp</button>
-                  <button onClick={() => handleAtualizarStatus('Entregue')} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg">
-                    <span>📦</span> Entregue
+                  <button 
+                    onClick={() => abrirPDVComOS(osAtiva)}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg"
+                  >
+                    <span>📦</span> Ir para o Pagamento 
                   </button>
                 </div>
               </div>

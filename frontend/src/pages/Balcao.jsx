@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export default function Balcao() {
+export default function Balcao({ abrirOSNaConsulta }) {
   const [os, setOs] = useState({
     nome: '', telefone: '', email: '',
     marca: '', modelo: '', imei: '', senha: '',
@@ -371,7 +371,11 @@ export default function Balcao() {
               </div>
             ) : (
               aparelhosAprovacao.map((ordem) => (
-                <div key={ordem.id} className="bg-[#0f172a] border border-amber-500/30 rounded-lg p-3 hover:border-amber-500 transition-colors cursor-pointer group">
+                <div 
+                  key={ordem.id} 
+                  onClick={() => abrirOSNaConsulta(ordem.id)} 
+                  className="bg-[#0f172a] border border-amber-500/30 rounded-lg p-3 hover:border-amber-500 transition-all cursor-pointer hover:scale-[1.02] group"
+                >
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-xs font-bold bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded">OS #{ordem.id}</span>
                     <span className="text-amber-500 animate-pulse">⏱️</span>

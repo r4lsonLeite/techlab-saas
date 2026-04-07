@@ -174,3 +174,37 @@ class OSResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        
+    # ==========================================
+# SCHEMAS DO PDV E ESTOQUE
+# ==========================================
+
+class ProdutoBase(BaseModel):
+    nome: str
+    marca: Optional[str] = None
+    preco_custo: float = 0.0
+    preco_venda: float
+    estoque_atual: int = 0
+    estoque_minimo: int = 5
+
+class ProdutoCreate(ProdutoBase):
+    loja_id: int = 1
+
+class ProdutoResponse(ProdutoBase):
+    id: int
+    loja_id: int
+    class Config:
+        from_attributes = True
+
+# O que vem dentro do carrinho
+class ItemVendaCreate(BaseModel):
+    produto_id: int
+    quantidade: int
+    preco_unitario: float
+
+# O carrinho completo que o React envia
+class VendaCreate(BaseModel):
+    valor_total: float
+    forma_pagamento: str
+    itens: List[ItemVendaCreate]
+    os_id: Optional[int] = None # Se o cliente estiver pagando uma OS junto!
