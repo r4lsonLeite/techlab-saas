@@ -181,7 +181,15 @@ class OSResponse(BaseModel):
 
 class ProdutoBase(BaseModel):
     nome: str
+    categoria: str = "Outros"
+    localizacao: Optional[str] = None
+    
+    # NOVOS CAMPOS OPCIONAIS (Nem todo produto tem)
     marca: Optional[str] = None
+    codigo_barras: Optional[str] = None
+    codigo_modelo: Optional[str] = None
+    fornecedor: Optional[str] = None
+    
     preco_custo: float = 0.0
     preco_venda: float
     estoque_atual: int = 0

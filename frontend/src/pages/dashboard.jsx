@@ -2,15 +2,15 @@ import { useState } from 'react';
 import Balcao from './Balcao';
 import Vendas from './Vendas';
 import Bancada from './Bancada'; 
-import AdminDashboard from './AdminDashboard'; 
 import Estoque from './Estoque';
+import AdminDashboard from './AdminDashboard'; 
 import Usuarios from './Usuarios';
 import Financeiro from './Financeiro';
 import Configuracoes from './Configuracoes';
 import ConsultarOS from './ConsultarOS';
 
 export default function Dashboard({ onLogout }) {
-  const [cargo, setCargo] = useState('balcao'); 
+  const [cargo, setCargo] = useState('adm'); 
   const [telaAtiva, setTelaAtiva] = useState('entrada-os');
   
   // Estados de navegação inteligente
@@ -98,7 +98,7 @@ export default function Dashboard({ onLogout }) {
         {telaAtiva === 'usuarios' && <Usuarios />}
         {telaAtiva === 'admin-home' && <AdminDashboard />}
         {telaAtiva === 'bancada' && <Bancada />}
-        {telaAtiva === 'estoque' && <div className="p-8 text-slate-400">Tabela de Peças entrará aqui.</div>}
+        {telaAtiva === 'estoque' && <Estoque />}
         {telaAtiva === 'financeiro' && <div className="p-8 text-slate-400">Gráficos do ADM entrarão aqui.</div>}
       </main>
 

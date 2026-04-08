@@ -72,18 +72,25 @@ class OrdemServico(Base):
 # 1. TABELA DE PRODUTOS (Atualizada com Estoque e Custos)
 class Produto(Base):
     __tablename__ = "produtos"
-
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String, index=True, nullable=False)
-    marca = Column(String)
-    preco_custo = Column(Float, default=0.0) # O que o ADM pagou
-    preco_venda = Column(Float, nullable=False) # O que o Cliente paga
+    
+    # NOVOS CAMPOS COMERCIAIS
+    marca = Column(String, nullable=True)
+    codigo_barras = Column(String, index=True, nullable=True)
+    codigo_modelo = Column(String, nullable=True)
+    fornecedor = Column(String, nullable=True)
+    
+    categoria = Column(String, default="Outros") 
+    localizacao = Column(String, nullable=True)  
+    
+    preco_custo = Column(Float, default=0.0)
+    preco_venda = Column(Float, nullable=False)
     estoque_atual = Column(Integer, default=0)
-    estoque_minimo = Column(Integer, default=5) # Para avisar quando está acabando
+    estoque_minimo = Column(Integer, default=5)
     loja_id = Column(Integer, ForeignKey("lojas.id"))
-
+    
     loja = relationship("Loja")
-    # Relacionamento com as movimentações
     movimentacoes = relationship("MovimentacaoEstoque", back_populates="produto")
 
 # 2. NOVA TABELA: HISTÓRICO DE ESTOQUE (Quem tirou, quando e por quê)

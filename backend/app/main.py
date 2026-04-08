@@ -7,6 +7,7 @@ import os
 import shutil
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File
 from fastapi.staticfiles import StaticFiles
+import bcrypt
 
 # ✅ IMPORTS CORRIGIDOS (PADRÃO CERTO)
 from core.database import engine, get_db
@@ -239,6 +240,25 @@ def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db)):
             observacao=f"Venda PDV #{nova_venda.id}"
         )
         db.add(movimentacao)
+        
+@app.put("/produtos/{produto_id}", response_model=schemas.ProdutoResponse)
+def atualizar_produto(produto_id: int, produto_atualizado: schemas.ProdutoCreate, db: Session = Depends(get_db)):
+    db_prod = db.query(models.Produto).filter(models.Produto.id == produto_id).first()
+    if not db_prod: raise HTTPException(status_code=404, detail="Produto não encontrado")
+    
+    for key, value in produto_atualizado.model_dump().items():
+        setattr(db_prod, key, value)
+    db.commit()
+    db.refresh(db_prod)
+    return db_prod
+
+@app.delete("/produtos/{produto_id}")
+def excluir_produto(produto_id: int, db: Session = Depends(get_db)):
+    db_prod = db.query(models.Produto).filter(models.Produto.id == produto_id).first()
+    if not db_prod: raise HTTPException(status_code=404, detail="Produto não encontrado")
+    db.delete(db_prod)
+    db.commit()
+    return {"mensagem": "Produto excluído"}
         
     # 3. O Cliente pagou uma OS junto? Muda o status dela para Entregue!
     if venda.os_id:
