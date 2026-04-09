@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from typing import Optional
+from datetime import datetime
 
 # 1. O que nós recebemos do Front-end (Formulário do ADM)
 class LojaCreate(BaseModel):
@@ -216,3 +217,24 @@ class VendaCreate(BaseModel):
     forma_pagamento: str
     itens: List[ItemVendaCreate]
     os_id: Optional[int] = None # Se o cliente estiver pagando uma OS junto!
+    
+   
+
+class SolicitacaoCompraBase(BaseModel):
+    produto_solicitado: str
+    quantidade: int = 1
+    origem: str
+    prioridade: str = "Normal"
+    status: str = "Pendente"
+    os_id: Optional[int] = None
+    observacao: Optional[str] = None
+
+class SolicitacaoCompraCreate(SolicitacaoCompraBase):
+    pass
+
+class SolicitacaoCompraResponse(SolicitacaoCompraBase):
+    id: int
+    data_solicitacao: datetime
+
+    class Config:
+        from_attributes = True

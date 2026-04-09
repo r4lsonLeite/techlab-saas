@@ -2,7 +2,8 @@ from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Tex
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from core.database import Base
-
+from datetime import datetime 
+ 
 class Loja(Base):
     __tablename__ = "lojas"
     id = Column(Integer, primary_key=True, index=True)
@@ -147,3 +148,26 @@ class ItemVenda(Base):
     
     venda_id = Column(Integer, ForeignKey("vendas.id"))
     produto_id = Column(Integer, ForeignKey("produtos.id"))
+    
+   
+class SolicitacaoCompra(Base):
+    __tablename__ = "solicitacoes_compra"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    produto_solicitado = Column(String, nullable=False)
+    quantidade = Column(Integer, default=1)
+    
+    # "Bancada" (Peça para OS) ou "Balcao" (Venda perdida)
+    origem = Column(String, nullable=False) 
+    
+    # "Urgente", "Normal", "Sugestão"
+    prioridade = Column(String, default="Normal") 
+    
+    # "Pendente", "Comprado", "Entregue"
+    status = Column(String, default="Pendente") 
+    
+    # Se for da Bancada, qual OS precisa dessa peça?
+    os_id = Column(Integer, ForeignKey("ordens_servico.id"), nullable=True)
+    observacao = Column(String, nullable=True)
+    
+    data_solicitacao = Column(DateTime, default=datetime.utcnow)

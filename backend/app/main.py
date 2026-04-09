@@ -270,3 +270,28 @@ def excluir_produto(produto_id: int, db: Session = Depends(get_db)):
     db.commit()
     
     return {"mensagem": "Venda finalizada com sucesso!", "venda_id": nova_venda.id}
+
+# --- ROTAS DE SOLICITAÇÃO DE COMPRAS ---
+
+@app.post("/solicitacoes", response_model=schemas.SolicitacaoCompraResponse)
+def criar_solicitacao(solicitacao: schemas.SolicitacaoCompraCreate, db: Session = Depends(get_db)):
+    db_solicitacao = models.SolicitacaoCompra(**solicitacao.model_dump())
+    db.add(db_solicitacao)
+    db.commit()
+    db.refresh(db_solicitacao)
+    return db_solicitacao
+
+@app.get("/solicitacoes", response_model=list[schemas.SolicitacaoCompraResponse])
+def listar_solicitacoes(db: Session = Depends(get_db)):
+    # Retorna as mais novas primeiro
+    return db.query(models.SolicitacaoCompra).order_by(models.SolicitacaoCompra.id.desc()).all()
+
+@app.put("/solicitacoes/{id}/status")
+def mudar_status_solicitacao(id: int, status: str, db: Session = Depends(get_db)):
+    db_solic = db.query(models.SolicitacaoCompra).filter(models.SolicitacaoCompra.id == id).first()
+    if not db_solic:
+        raise HTTPException(status_code=404, detail="Solicitação não encontrada")
+    
+    db_solic.status = status
+    db.commit()
+    return {"mensagem": f"Status alterado para {status}"}
