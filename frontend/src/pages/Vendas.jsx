@@ -24,13 +24,19 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
   useEffect(() => { carregarDadosBase(); }, []);
 
   const carregarDadosBase = async () => {
+    const token = localStorage.getItem('techlab_token');
     try {
-      const resOs = await fetch('http://localhost:8000/ordens-servico');
+      const resOs = await fetch('http://localhost:8000/ordens-servico', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (resOs.ok) {
         const ordens = await resOs.json();
         setAparelhosProntos(ordens.filter(o => o.status === 'Pronto para Retirada'));
       }
-      const resProd = await fetch('http://localhost:8000/produtos');
+      
+      const resProd = await fetch('http://localhost:8000/produtos', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (resProd.ok) {
         setProdutos(await resProd.json());
       }
@@ -89,8 +95,10 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
     };
 
     try {
+      const token = localStorage.getItem('techlab_token'); // 1. Pega o crachá
       const resposta = await fetch('http://localhost:8000/vendas', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadDaVenda)
+        headers: {'Authorization': `Bearer ${token}`
+      }
       });
       if (resposta.ok) {
         alert(`✅ Venda de R$ ${subtotal.toFixed(2)} finalizada com sucesso!`);

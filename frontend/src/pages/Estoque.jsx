@@ -30,17 +30,24 @@ export default function Estoque() {
   }, []);
 
   // 1. BUSCA O ESTOQUE
+  // 1. BUSCA O ESTOQUE
   const carregarProdutos = async () => {
+    const token = localStorage.getItem('techlab_token');
     try {
-      const res = await fetch('http://localhost:8000/produtos');
+      const res = await fetch('http://localhost:8000/produtos', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.ok) setProdutos(await res.json());
     } catch (e) { console.error(e); } finally { setCarregando(false); }
   };
 
   // 2. BUSCA AS SOLICITAÇÕES DE COMPRA
   const carregarSolicitacoes = async () => {
+    const token = localStorage.getItem('techlab_token');
     try {
-      const res = await fetch('http://localhost:8000/solicitacoes');
+      const res = await fetch('http://localhost:8000/solicitacoes', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.ok) setSolicitacoes(await res.json());
     } catch (e) { console.error(e); }
   };
@@ -97,22 +104,47 @@ export default function Estoque() {
     setModalAberto(true);
   };
 
-  const salvarProduto = async (e) => {
+ const salvarProduto = async (e) => {
     e.preventDefault();
+    const token = localStorage.getItem('techlab_token');
+
+    // Usando formData (o nome correto do seu estado)
     const payload = {
-      ...formData,
-      preco_custo: parseFloat(formData.preco_custo) || 0, preco_venda: parseFloat(formData.preco_venda) || 0,
-      estoque_atual: parseInt(formData.estoque_atual) || 0, estoque_minimo: parseInt(formData.estoque_minimo) || 5, loja_id: 1
+      nome: formData.nome,
+      categoria: formData.categoria,
+      marca: formData.marca,
+      codigo_modelo: formData.codigo_modelo,
+      codigo_barras: formData.codigo_barras,
+      fornecedor: formData.fornecedor,
+      localizacao: formData.localizacao,
+      estoque_atual: Number(formData.estoque_atual),
+      estoque_minimo: Number(formData.estoque_minimo),
+      preco_custo: Number(formData.preco_custo),
+      preco_venda: Number(formData.preco_venda)
     };
 
-    const url = produtoEditando ? `http://localhost:8000/produtos/${produtoEditando}` : 'http://localhost:8000/produtos';
-    const method = produtoEditando ? 'PUT' : 'POST';
-
     try {
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (res.ok) { setModalAberto(false); carregarProdutos(); } 
-      else { alert("Erro ao salvar produto."); }
-    } catch (e) { console.error(e); }
+      const res = await fetch('http://localhost:8000/produtos', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        alert("✅ Produto salvo com sucesso!");
+        setModalAberto(false);
+        carregarProdutos();
+      } else {
+        const err = await res.json();
+        console.error("Erro do backend:", err);
+        alert("Erro ao salvar produto. Verifique a consola (F12).");
+      }
+    } catch (erro) {
+      console.error("Erro de requisição:", erro);
+    }
   };
 
   const excluirProduto = async (id, nome) => {

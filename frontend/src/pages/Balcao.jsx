@@ -1,32 +1,32 @@
 import { useState, useEffect } from 'react';
 
 export default function Balcao({ abrirOSNaConsulta }) {
-  const [os, setOs] = useState({
+  const estadoInicial = {
     nome: '', telefone: '', email: '',
     marca: '', modelo: '', imei: '', senha: '',
     defeito: '', acessorios: '', prioridade: 'Normal'
-  });
+  };
 
+  const [os, setOs] = useState(estadoInicial);
   const [status, setStatus] = useState('');
+
   const itensChecklist = ['Wi-Fi', 'Bluetooth', 'Câm. Frontal', 'Câm. Traseira', 'Touch', 'Alto-falante', 'Microfone', 'Botões', 'Bateria', 'Carregamento'];
   const [checklistMarcados, setChecklistMarcados] = useState([]);
 
-  // ESTADOS DA BARRA LATERAL (NOVO)
-  const [abaLateral, setAbaLateral] = useState('prontos'); // Pode ser 'prontos' ou 'aprovacao'
+  const [abaLateral, setAbaLateral] = useState('prontos');
   const [aparelhosProntos, setAparelhosProntos] = useState([]);
   const [aparelhosAprovacao, setAparelhosAprovacao] = useState([]);
 
   const toggleChecklist = (item) => {
-    if (checklistMarcados.includes(item)) {
-      setChecklistMarcados(checklistMarcados.filter(i => i !== item));
-    } else {
-      setChecklistMarcados([...checklistMarcados, item]);
-    }
+    setChecklistMarcados(prev =>
+      prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
+    );
   };
 
-  const handleChange = (e) => setOs({ ...os, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    setOs(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
-  // FUNÇÃO MÁGICA DE IMPRESSÃO (Térmica 80mm)
   const imprimirComprovante = (dadosOs, idOs) => {
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
@@ -90,15 +90,20 @@ export default function Balcao({ abrirOSNaConsulta }) {
       </html>
     `;
 
-    iframe.contentWindow.document.open();
-    iframe.contentWindow.document.write(htmlRecibo);
-    iframe.contentWindow.document.close();
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
 
-    iframe.onload = function() {
+    doc.open();
+    doc.write(htmlRecibo);
+    doc.close();
+
+    iframe.onload = () => {
       setTimeout(() => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-        setTimeout(() => { document.body.removeChild(iframe); }, 1000);
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
       }, 200);
     };
   };
@@ -107,10 +112,21 @@ export default function Balcao({ abrirOSNaConsulta }) {
     e.preventDefault();
     setStatus('Salvando...');
 
+    const token = localStorage.getItem('techlab_token');
+
+    if (!token) {
+      alert("Sessão expirada. Faça login novamente.");
+      setStatus('');
+      return;
+    }
+
     try {
       const resCliente = await fetch('http://localhost:8000/clientes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
         body: JSON.stringify({
           nome: os.nome,
           telefone: os.telefone,
@@ -118,12 +134,19 @@ export default function Balcao({ abrirOSNaConsulta }) {
         })
       });
 
-      if (!resCliente.ok) throw new Error("Erro ao criar o Cliente.");
+      if (!resCliente.ok) {
+        const erro = await resCliente.text();
+        throw new Error(erro);
+      }
+
       const dadosCliente = await resCliente.json();
 
       const resOS = await fetch('http://localhost:8000/ordens-servico', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           aparelho: `${os.marca} ${os.modelo}`,
           defeito: os.defeito,
@@ -135,44 +158,48 @@ export default function Balcao({ abrirOSNaConsulta }) {
         })
       });
 
-      if (resOS.ok) {
-        const osCriada = await resOS.json();
-        
-        imprimirComprovante(os, osCriada.id);
-
-        setStatus('sucesso');
-        setOs({
-          nome: '', telefone: '', email: '',
-          marca: '', modelo: '', imei: '', senha: '',
-          defeito: '', acessorios: '', prioridade: 'Normal'
-        });
-        setChecklistMarcados([]);
-        setTimeout(() => setStatus(''), 4000);
-        carregarListasLaterais(); // ATUALIZA AS LISTAS
-      } else {
-        setStatus('erro');
-        setTimeout(() => setStatus(''), 4000);
+      if (!resOS.ok) {
+        const erro = await resOS.text();
+        throw new Error(erro);
       }
+
+      const osCriada = await resOS.json();
+
+      imprimirComprovante(os, osCriada.id);
+
+      setStatus('sucesso');
+      setOs(estadoInicial);
+      setChecklistMarcados([]);
+
+      carregarListasLaterais();
+
+      setTimeout(() => setStatus(''), 4000);
+
     } catch (erro) {
-      console.error(erro);
+      console.error("Erro real:", erro);
       setStatus('erro');
     }
   };
 
-  // FUNÇÃO QUE CARREGA AS DUAS LISTAS DA BARRA LATERAL
   const carregarListasLaterais = async () => {
+    const token = localStorage.getItem('techlab_token');
+
+    if (!token) return;
+
     try {
-      const resposta = await fetch('http://localhost:8000/ordens-servico');
-      if (resposta.ok) {
-        const dados = await resposta.json();
-        
-        // Separa quem está pronto e quem está esperando aprovação
-        const prontas = dados.filter(o => o.status === 'Pronto para Retirada');
-        const aguardando = dados.filter(o => o.status === 'Aguardando Cliente');
-        
-        setAparelhosProntos(prontas);
-        setAparelhosAprovacao(aguardando);
-      }
+      const resposta = await fetch('http://localhost:8000/ordens-servico', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!resposta.ok) throw new Error("Erro ao carregar OS");
+
+      const dados = await resposta.json();
+
+      setAparelhosProntos(dados.filter(o => o.status === 'Pronto para Retirada'));
+      setAparelhosAprovacao(dados.filter(o => o.status === 'Aguardando Cliente'));
+
     } catch (erro) {
       console.error(erro);
     }
@@ -286,7 +313,7 @@ export default function Balcao({ abrirOSNaConsulta }) {
                 {status === 'erro' && <span className="bg-red-500/20 text-red-400 px-4 py-2 rounded-lg font-bold">❌ Erro ao salvar OS. Verifique o servidor.</span>}
               </div>
               <div className="flex space-x-4">
-                <button type="button" className="px-6 py-3 rounded-lg text-slate-300 bg-slate-800 hover:bg-slate-700 font-semibold transition-colors">
+                <button type="button" onClick={() => { setOs(estadoInicial); setChecklistMarcados([]); setStatus(''); }} className="px-6 py-3 rounded-lg text-slate-300 bg-slate-800 hover:bg-slate-700 font-semibold transition-colors">
                   Cancelar
                 </button>
                 <button type="button" onClick={() => imprimirComprovante(os, "Teste")} className="px-6 py-3 rounded-lg text-white bg-blue-600 hover:bg-blue-700 font-bold transition-colors shadow-lg shadow-blue-600/20">
@@ -327,7 +354,6 @@ export default function Balcao({ abrirOSNaConsulta }) {
             }`}
           >
             ⏱️ Aprovação ({aparelhosAprovacao.length})
-            {/* Bolinha vermelha piscando se tiver aprovação pendente */}
             {aparelhosAprovacao.length > 0 && abaLateral !== 'aprovacao' && (
               <span className="absolute top-2 right-4 flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -341,7 +367,6 @@ export default function Balcao({ abrirOSNaConsulta }) {
         <div className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar">
           
           {abaLateral === 'prontos' ? (
-            /* CONTEÚDO DA ABA: PRONTOS */
             aparelhosProntos.length === 0 ? (
               <div className="text-center mt-10">
                 <span className="text-4xl">📦</span>
@@ -363,7 +388,6 @@ export default function Balcao({ abrirOSNaConsulta }) {
               ))
             )
           ) : (
-            /* CONTEÚDO DA ABA: APROVAÇÃO */
             aparelhosAprovacao.length === 0 ? (
               <div className="text-center mt-10">
                 <span className="text-4xl">👍</span>
@@ -383,7 +407,6 @@ export default function Balcao({ abrirOSNaConsulta }) {
                   <h3 className="text-white font-semibold text-sm">{ordem.cliente_nome || "Cliente"}</h3>
                   <p className="text-slate-400 text-xs mb-3">{ordem.aparelho}</p>
                   
-                  {/* Caixa mostrando o Laudo do Técnico direto na lista */}
                   <div className="bg-[#1e293b] p-2 rounded border border-slate-700">
                     <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Laudo do Técnico:</p>
                     <p className="text-slate-300 text-xs italic line-clamp-2">{ordem.laudo_tecnico || "Consulte a OS para ver o laudo..."}</p>

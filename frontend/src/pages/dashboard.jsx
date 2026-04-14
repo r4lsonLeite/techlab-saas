@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Balcao from './Balcao';
 import Vendas from './Vendas';
 import Bancada from './Bancada'; 
@@ -10,12 +10,43 @@ import Configuracoes from './Configuracoes';
 import ConsultarOS from './ConsultarOS';
 
 export default function Dashboard({ onLogout }) {
-  const [cargo, setCargo] = useState('adm'); 
-  const [telaAtiva, setTelaAtiva] = useState('entrada-os');
+  // Começam vazios, pois vamos ler do Token
+  const [cargo, setCargo] = useState(''); 
+  const [nomeUsuario, setNomeUsuario] = useState('');
+  const [telaAtiva, setTelaAtiva] = useState('');
   
-  // Estados de navegação inteligente
   const [osIdParaAbrir, setOsIdParaAbrir] = useState(null);
-  const [osParaPDV, setOsParaPDV] = useState(null); // NOVO: Guarda a OS que vai ser paga
+  const [osParaPDV, setOsParaPDV] = useState(null);
+
+  useEffect(() => {
+    // 1. Pega o crachá (Token) guardado no navegador
+    const token = localStorage.getItem('techlab_token');
+    
+    if (token) {
+      try {
+        // 2. Decodifica o Token para ler os dados do usuário
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        
+        setCargo(payload.cargo);
+        setNomeUsuario(payload.nome); // Aqui pegamos o nome real do banco!
+
+        // 3. Roteamento Inteligente: Define a tela inicial baseada no cargo
+        if (payload.cargo === 'balcao') {
+          setTelaAtiva('vendas');
+        } else if (payload.cargo === 'tecnico') {
+          setTelaAtiva('bancada');
+        } else {
+          setTelaAtiva('admin-home'); // ADM começa na Visão Geral
+        }
+        
+      } catch (e) {
+        console.error("Erro ao ler o token de acesso.", e);
+      }
+    }
+  }, []);
+
+  // Tela de loading rápida enquanto decodifica o token
+  if (!cargo) return <div className="h-screen bg-[#0b1120] text-white flex items-center justify-center">Carregando painel...</div>;
 
   const menus = [ 
     { id: 'vendas', titulo: '🛒 Vendas / PDV', papeis: ['adm', 'balcao'] },
@@ -31,13 +62,11 @@ export default function Dashboard({ onLogout }) {
 
   const menusPermitidos = menus.filter(menu => menu.papeis.includes(cargo));
 
-  // Navegação: Leva do Balcão para Consulta
   const abrirOSNaConsulta = (id) => {
     setOsIdParaAbrir(id);
     setTelaAtiva('consultar-os');
   };
 
-  // NOVO: Navegação: Leva da Consulta para o PDV de Vendas
   const abrirPDVComOS = (os) => {
     setOsParaPDV(os);
     setTelaAtiva('vendas');
@@ -53,9 +82,14 @@ export default function Dashboard({ onLogout }) {
           <p className="text-slate-400 text-sm mt-1">SaaS Management</p>
         </div>
         
+        {/* IDENTIFICAÇÃO DINÂMICA DO USUÁRIO */}
         <div className="px-6 pb-4 border-b border-slate-700/50 mb-4">
-          <p className="text-sm text-slate-300">Atendente: <span className="font-bold text-white capitalize">{cargo === 'adm' ? 'Chefe' : 'Ana Paula'}</span></p>
-          <p className="text-xs text-emerald-500 font-mono mt-1">Caixa 01 • Nível: {cargo.toUpperCase()}</p>
+          <p className="text-sm text-slate-300">
+            Atendente: <span className="font-bold text-white capitalize">{nomeUsuario}</span>
+          </p>
+          <p className="text-xs text-emerald-500 font-mono mt-1 uppercase">
+            Caixa 01 • Nível: {cargo}
+          </p>
         </div>
 
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
@@ -87,13 +121,8 @@ export default function Dashboard({ onLogout }) {
       {/* ÁREA CENTRAL */}
       <main className="flex-1 overflow-y-auto bg-[#0f172a]">
         {telaAtiva === 'entrada-os' && <Balcao abrirOSNaConsulta={abrirOSNaConsulta} />}
-        
-        {/* Passando a nova função para a ConsultaOS */}
         {telaAtiva === 'consultar-os' && <ConsultarOS cargo={cargo} osIdParaAbrir={osIdParaAbrir} setOsIdParaAbrir={setOsIdParaAbrir} abrirPDVComOS={abrirPDVComOS} />}
-        
-        {/* Passando a OS embalada para a tela de Vendas */}
         {telaAtiva === 'vendas' && <Vendas osParaPDV={osParaPDV} setOsParaPDV={setOsParaPDV} />}
-        
         {telaAtiva === 'configuracoes' && <Configuracoes />}
         {telaAtiva === 'usuarios' && <Usuarios />}
         {telaAtiva === 'admin-home' && <AdminDashboard />}

@@ -16,8 +16,17 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
   }, []);
 
 const carregarOrdens = async () => {
+    // 👉 ADICIONADO: Pega o crachá
+    const token = localStorage.getItem('techlab_token');
+
     try {
-      const resposta = await fetch('http://localhost:8000/ordens-servico');
+      // 👉 ADICIONADO: Envia o crachá no cabeçalho (headers)
+      const resposta = await fetch('http://localhost:8000/ordens-servico', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
       if (resposta.ok) {
         const dados = await resposta.json();
         setOrdens(dados);
