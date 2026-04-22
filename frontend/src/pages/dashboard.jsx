@@ -128,7 +128,7 @@ export default function Dashboard({ onLogout }) {
         {telaAtiva === 'admin-home' && <AdminDashboard />}
         {telaAtiva === 'bancada' && <Bancada />}
         {telaAtiva === 'estoque' && <Estoque />}
-        {telaAtiva === 'financeiro' && <div className="p-8 text-slate-400">Gráficos do ADM entrarão aqui.</div>}
+        {telaAtiva === 'financeiro' && <Financeiro />}
       </main>
 
     </div>

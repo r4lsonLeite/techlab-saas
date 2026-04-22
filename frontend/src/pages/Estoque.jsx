@@ -52,11 +52,18 @@ export default function Estoque() {
     } catch (e) { console.error(e); }
   };
 
-  // 3. ATUALIZAR STATUS DA COMPRA (Com a mágica do Atalho)
+// 3. ATUALIZAR STATUS DA COMPRA (Com a mágica do Atalho)
   const atualizarStatusCompra = async (solic, novoStatus) => {
+    // 🔴 1. PEGAR O TOKEN AQUI
+    const token = localStorage.getItem('techlab_token');
+    
     try {
       const res = await fetch(`http://localhost:8000/solicitacoes/${solic.id}/status?status=${novoStatus}`, {
-        method: 'PUT'
+        method: 'PUT',
+        // 🔴 2. INJETAR O TOKEN NO CABEÇALHO
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       if (res.ok) {
         carregarSolicitacoes(); // Atualiza a lista
@@ -80,6 +87,8 @@ export default function Estoque() {
             setModalAberto(true);
           }
         }
+      } else {
+        alert("Erro ao alterar status. Sem permissão ou sessão expirada.");
       }
     } catch (e) { console.error(e); }
   };
@@ -147,11 +156,26 @@ export default function Estoque() {
     }
   };
 
-  const excluirProduto = async (id, nome) => {
+const excluirProduto = async (id, nome) => {
     if (!window.confirm(`Tem certeza que deseja apagar "${nome}" do estoque?`)) return;
+    
+    // 🔴 1. PEGAR O TOKEN AQUI
+    const token = localStorage.getItem('techlab_token');
+    
     try {
-      const res = await fetch(`http://localhost:8000/produtos/${id}`, { method: 'DELETE' });
-      if (res.ok) carregarProdutos();
+      const res = await fetch(`http://localhost:8000/produtos/${id}`, { 
+        method: 'DELETE',
+        // 🔴 2. INJETAR O TOKEN NO CABEÇALHO
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        alert("Peça removida com sucesso!");
+        carregarProdutos();
+      } else {
+        alert("Erro ao excluir. Sem permissão ou sessão expirada.");
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -271,7 +295,7 @@ export default function Estoque() {
                         <td className="px-6 py-4 text-center text-xs"><p className="text-slate-300">{prod.marca || '-'}</p><p className="text-slate-500 text-[10px]">{prod.fornecedor}</p></td>
                         <td className="px-6 py-4 text-center text-slate-400 text-xs">{prod.localizacao || '-'}</td>
                         <td className="px-6 py-4 text-center"><span className={`font-bold px-2 py-1 rounded ${prod.estoque_atual === 0 ? 'bg-red-500/20 text-red-400' : prod.estoque_atual <= prod.estoque_minimo ? 'bg-amber-500/20 text-amber-400' : 'text-emerald-400'}`}>{prod.estoque_atual} un.</span></td>
-                        <td className="px-6 py-4 text-right text-emerald-400 font-bold">R$ {prod.preco_venda.toFixed(2)}</td>
+                        <td className="px-6 py-4 text-right text-emerald-400 font-bold">R$ {Number(prod.preco_venda).toFixed(2)}</td>
                         <td className="px-6 py-4 text-center"><button onClick={() => abrirModalEditar(prod)} className="text-blue-400 hover:text-blue-300 mx-2">✏️</button><button onClick={() => excluirProduto(prod.id, prod.nome)} className="text-red-500 hover:text-red-400 mx-2">🗑️</button></td>
                       </tr>
                     ))

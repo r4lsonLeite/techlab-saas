@@ -82,7 +82,7 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
   const removerDoCarrinho = (id) => { setCarrinho(prev => prev.filter(item => item.id !== id)); };
   const subtotal = carrinho.reduce((acc, item) => acc + (parseFloat(item.preco) * item.qtd), 0);
 
-  const finalizarVenda = async () => {
+const finalizarVenda = async () => {
     if (carrinho.length === 0) return;
     const itensFisicos = carrinho.filter(item => !item.isOS).map(item => ({
       produto_id: item.id, quantidade: item.qtd, preco_unitario: item.preco
@@ -95,21 +95,40 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
     };
 
     try {
-      const token = localStorage.getItem('techlab_token'); // 1. Pega o crachá
+      const token = localStorage.getItem('techlab_token'); 
       const resposta = await fetch('http://localhost:8000/vendas', {
-        headers: {'Authorization': `Bearer ${token}`
-      }
+        method: 'POST', // 🔴 Faltava o método POST aqui!
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payloadDaVenda)
       });
+      
       if (resposta.ok) {
+        // 🔴 A MÁGICA DO CHECKOUT: Se pagou uma OS, muda o status para Entregue!
+        if (os_id_final) {
+          await fetch(`http://localhost:8000/ordens-servico/${os_id_final}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ status: 'Entregue' })
+          });
+        }
+
         alert(`✅ Venda de R$ ${subtotal.toFixed(2)} finalizada com sucesso!`);
         setCarrinho([]); 
         if (setOsParaPDV) setOsParaPDV(null);
         carregarDadosBase(); 
-      } else { alert("Erro ao finalizar a venda."); }
+      } else { 
+        alert("Erro ao finalizar a venda."); 
+      }
     } catch (erro) { console.error(erro); }
   };
 
-  // --- FUNÇÃO DA VENDA PERDIDA / SUGESTÃO (NOVO) ---
+// --- FUNÇÃO DA VENDA PERDIDA / SUGESTÃO (NOVO) ---
   const enviarSugestao = async (e) => {
     e.preventDefault();
     const payload = {
@@ -121,15 +140,29 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
     };
 
     try {
+      // 🔴 1. PEGAR O TOKEN DO NAVEGADOR
+      const token = localStorage.getItem('techlab_token');
+
       const res = await fetch('http://localhost:8000/solicitacoes', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        method: 'POST', 
+        headers: { 
+          'Content-Type': 'application/json',
+          // 🔴 2. INJETAR O TOKEN NO CABEÇALHO PARA DESTRAVAR A ROTA
+          'Authorization': `Bearer ${token}` 
+        }, 
+        body: JSON.stringify(payload)
       });
+      
       if (res.ok) {
         alert("✅ Demanda anotada! O ADM verá isso na próxima compra.");
         setModalSugestaoAberto(false);
         setFormSugestao({ produto_solicitado: '', prioridade: 'Sugestão', observacao: '' });
-      } else { alert("Erro ao enviar sugestão."); }
-    } catch (e) { console.error(e); }
+      } else { 
+        alert("Erro ao enviar sugestão. O servidor recusou."); 
+      }
+    } catch (e) { 
+      console.error(e); 
+    }
   };
 
   return (
@@ -155,7 +188,6 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
                 className="w-full p-3 rounded-xl bg-[#1e293b] text-emerald-400 border border-emerald-500/30 font-semibold focus:border-emerald-500 outline-none appearance-none cursor-pointer"
               >
                 <option value="Ana Paula">👤 Vend: Ana Paula</option>
-                <option value="Carlos">👤 Vend: Carlos (Téc)</option>
                 <option value="Ralison">👤 Vend: Ralison (ADM)</option>
               </select>
             </div>
@@ -179,9 +211,9 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
               ))}
             </div>
             
-            {/* NOVO ESTILO: Formato de "Pílula" igual às categorias */}
+           {/* NOVO ESTILO: Formato de "Pílula" igual às categorias */}
             <button 
-              onClick={() => setModalSugestaoAberto(true)}
+              onClick={() => setModalSugestaoAberto(true)} // ✅ AGORA SIM! Ele abre o modal.
               className="px-4 py-1.5 rounded-full whitespace-nowrap text-sm font-medium transition-all bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white border border-purple-500/30 flex items-center gap-2 mb-1"
               title="Anotar produto que o cliente pediu e não tinha"
             >
@@ -207,7 +239,7 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
                 </div>
                 
                 <div className="flex justify-between items-end mt-4">
-                  <span className="text-xl font-bold text-white">R$ {(produto.preco_venda || produto.preco).toFixed(2)}</span>
+                  <span className="text-xl font-bold text-white">R$ {Number(produto.preco_venda || produto.preco).toFixed(2)}</span>
                   <button 
                     onClick={() => adicionarAoCarrinho(produto)}
                     disabled={produto.estoque_atual <= 0}
@@ -260,15 +292,16 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
 
         <div className="p-4 bg-[#0f172a] border-t border-slate-700">
           <div className="flex justify-between items-center mb-1 text-slate-400 text-sm">
-            <span>Subtotal</span><span>R$ {subtotal.toFixed(2)}</span>
+            <span>Subtotal</span><span>R$ {Number(subtotal).toFixed(2)}</span>
           </div>
           <div className="flex justify-between items-center mb-4 text-white text-xl font-bold">
             <span>Total</span><span className="text-emerald-400">R$ {subtotal.toFixed(2)}</span>
           </div>
           <div className="grid grid-cols-3 gap-2 mb-4">
-            {['PIX', 'Cartão', 'Dinheiro'].map(metodo => (
+            {['PIX', 'Cartão', 'Dinheiro'].map((metodo) => (
               <button 
-                key={metodo} onClick={() => setFormPagamento(metodo)}
+                key={metodo} 
+                onClick={() => setFormaPagamento(metodo)} 
                 className={`py-2 rounded-lg text-xs font-bold border transition-all ${
                   formaPagamento === metodo 
                   ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)]' 

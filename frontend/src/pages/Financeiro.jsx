@@ -1,10 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
 
 export default function Financeiro() {
   const [filtro, setFiltro] = useState('Este Ano');
+  
+  // 🔴 1. ESTADO PARA OS DADOS REAIS DO BACKEND
+  const [metricas, setMetricas] = useState({
+    faturamento_total: 0,
+    total_vendas_balcao: 0,
+    total_servicos_os: 0,
+    os_pendentes: 0,
+    alertas_estoque: 0
+  });
 
-  // Dados Mockados baseados no Figma
+  // 🔴 2. FUNÇÃO QUE BUSCA OS DADOS AO ABRIR A TELA
+  useEffect(() => {
+    const carregarMetricas = async () => {
+      const token = localStorage.getItem('techlab_token');
+      try {
+        const res = await fetch('http://localhost:8000/dashboard/metricas', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          setMetricas(await res.json());
+        }
+      } catch (error) {
+        console.error("Erro ao carregar métricas:", error);
+      }
+    };
+    carregarMetricas();
+  }, []);
+
+  // Dados Mockados baseados no Figma (Vamos substituir no futuro)
   const dadosMensais = [
     { mes: 'Jan', receita: 45000, despesas: 27000, lucro: 18000, margem: '40%', ordens: 84 },
     { mes: 'Fev', receita: 52000, despesas: 31000, lucro: 21000, margem: '40%', ordens: 92 },
@@ -53,34 +80,37 @@ export default function Financeiro() {
           ))}
         </div>
 
-        {/* 1º ANDAR: CARDS COLORIDOS VIBRANTES (Igual ao Figma) */}
+        {/* 1º ANDAR: CARDS CONECTADOS AO BACKEND */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          
           <div className="bg-blue-600 p-6 rounded-2xl shadow-lg shadow-blue-500/20 text-white">
-            <p className="text-blue-200 text-sm font-medium flex items-center gap-2 mb-2">💎 Receita Total</p>
-            <h2 className="text-3xl font-bold">R$ 328.000</h2>
-            <p className="text-blue-300 text-xs mt-2">Jan - Jun 2026</p>
+            <p className="text-blue-200 text-sm font-medium flex items-center gap-2 mb-2">💎 Faturamento Total</p>
+            <h2 className="text-3xl font-bold">R$ {Number(metricas.faturamento_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
+            <p className="text-blue-300 text-xs mt-2">Vendas + Serviços</p>
           </div>
           
-          <div className="bg-red-600 p-6 rounded-2xl shadow-lg shadow-red-500/20 text-white">
-            <p className="text-red-200 text-sm font-medium flex items-center gap-2 mb-2">📉 Despesas Totais</p>
-            <h2 className="text-3xl font-bold">R$ 194.000</h2>
-            <p className="text-red-300 text-xs mt-2">59% da receita</p>
-          </div>
-
           <div className="bg-emerald-600 p-6 rounded-2xl shadow-lg shadow-emerald-500/20 text-white">
-            <p className="text-emerald-200 text-sm font-medium flex items-center gap-2 mb-2">💵 Lucro Líquido</p>
-            <h2 className="text-3xl font-bold">R$ 134.000</h2>
-            <p className="text-emerald-300 text-xs mt-2">Margem de 41%</p>
+            <p className="text-emerald-200 text-sm font-medium flex items-center gap-2 mb-2">💵 Receita de Serviços</p>
+            <h2 className="text-3xl font-bold">R$ {Number(metricas.total_servicos_os).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
+            <p className="text-emerald-300 text-xs mt-2">Ordens Concluídas</p>
           </div>
 
           <div className="bg-purple-600 p-6 rounded-2xl shadow-lg shadow-purple-500/20 text-white">
-            <p className="text-purple-200 text-sm font-medium flex items-center gap-2 mb-2">🎫 Ticket Médio</p>
-            <h2 className="text-3xl font-bold">R$ 568</h2>
-            <p className="text-purple-300 text-xs mt-2">+12% a/m anterior</p>
+            <p className="text-purple-200 text-sm font-medium flex items-center gap-2 mb-2">🛍️ Vendas de Balcão</p>
+            <h2 className="text-3xl font-bold">R$ {Number(metricas.total_vendas_balcao).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
+            <p className="text-purple-300 text-xs mt-2">Acessórios e Avulsos</p>
           </div>
+
+          {/* Transformamos o card vermelho em um painel de alertas da oficina */}
+          <div className="bg-red-600 p-6 rounded-2xl shadow-lg shadow-red-500/20 text-white">
+            <p className="text-red-200 text-sm font-medium flex items-center gap-2 mb-2">⚠️ Atenção Necessária</p>
+            <h2 className="text-3xl font-bold">{metricas.os_pendentes} <span className="text-lg font-normal">OS</span></h2>
+            <p className="text-red-300 text-xs mt-2">{metricas.alertas_estoque} peças em falta no estoque</p>
+          </div>
+
         </div>
 
-        {/* 2º ANDAR: GRÁFICO DE ÁREA MENSAL */}
+        {/* 2º ANDAR: GRÁFICO DE ÁREA MENSAL (Mockado) */}
         <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
           <h3 className="text-slate-300 font-bold mb-6">Análise Financeira Mensal</h3>
           <div className="h-80 w-full">
@@ -110,10 +140,9 @@ export default function Financeiro() {
           </div>
         </div>
 
-        {/* 3º ANDAR: GRÁFICO DE BARRAS E MARGEM (Dividido no meio) */}
+        {/* 3º ANDAR: GRÁFICO DE BARRAS E MARGEM (Mockado) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          {/* Receita por Categoria */}
           <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
             <h3 className="text-slate-300 font-bold mb-6">Receita por Categoria</h3>
             <div className="h-64 w-full">
@@ -131,7 +160,6 @@ export default function Financeiro() {
             </div>
           </div>
 
-          {/* Margem por Categoria (Barras de Progresso Horizontais) */}
           <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
             <h3 className="text-slate-300 font-bold mb-6">Margem por Categoria</h3>
             <div className="space-y-5">
@@ -150,7 +178,7 @@ export default function Financeiro() {
           </div>
         </div>
 
-        {/* 4º ANDAR: TABELA DE DETALHAMENTO */}
+        {/* 4º ANDAR: TABELA DE DETALHAMENTO (Mockado) */}
         <div className="bg-[#1e293b] rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
           <div className="p-6 border-b border-slate-700">
             <h3 className="text-slate-300 font-bold">Detalhamento Mensal</h3>

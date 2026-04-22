@@ -5,6 +5,8 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
   const [osAtiva, setOsAtiva] = useState(null);
   const [busca, setBusca] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const [modalCrmAberto, setModalCrmAberto] = useState(false);
+  const [dadosCrm, setDadosCrm] = useState(null);
   
   const [obsBalcao, setObsBalcao] = useState("");
   const [valorDigitado, setValorDigitado] = useState("");
@@ -56,6 +58,17 @@ const carregarOrdens = async () => {
       (os.imei && os.imei.toLowerCase().includes(termo))
     );
   });
+  const verPerfilCliente = async (clienteId) => {
+  const token = localStorage.getItem('techlab_token');
+  const res = await fetch(`http://localhost:8000/clientes/${clienteId}/resumo`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (res.ok) {
+    const dados = await res.json();
+    setDadosCrm(dados);
+    setModalCrmAberto(true);
+  }
+};
 
   const imprimirComprovante = (dadosOs, idOs) => {
     const iframe = document.createElement('iframe');
@@ -113,17 +126,33 @@ const carregarOrdens = async () => {
     };
   };
 
-  const handleExcluir = async (id) => {
+ const handleExcluir = async (id) => {
     const confirmar = window.confirm(`Tem certeza que deseja EXCLUIR a OS #${id}?`);
     if (!confirmar) return;
+
+    // 🔴 1. Pega o token do utilizador logado
+    const token = localStorage.getItem('techlab_token'); 
+
     try {
-      const resposta = await fetch(`http://localhost:8000/ordens-servico/${id}`, { method: 'DELETE' });
+      const resposta = await fetch(`http://localhost:8000/ordens-servico/${id}`, { 
+        method: 'DELETE',
+        // 🔴 2. Envia o token no cabeçalho (headers) da requisição
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
       if (resposta.ok) {
         setOrdens(ordens.filter(os => os.id !== id));
         setOsAtiva(null);
-        alert("OS excluída com sucesso!");
+        alert("OS excluída/cancelada com sucesso!");
+      } else {
+        const erroDetalhe = await resposta.json();
+        alert(`Erro: ${erroDetalhe.detail || "Sem permissão para excluir."}`);
       }
-    } catch (erro) { console.error(erro); }
+    } catch (erro) { 
+      console.error(erro); 
+    }
   };
 
   const handleAtualizarStatus = async (novoStatus) => {
@@ -272,12 +301,29 @@ const carregarOrdens = async () => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* --- DADOS DO CLIENTE --- */}
               <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
                 <h3 className="text-emerald-400 font-bold mb-4 border-b border-slate-700 pb-2">👤 Dados do Cliente</h3>
-                <p className="text-slate-500 text-xs uppercase font-bold tracking-wider">Nome</p>
-                <p className="text-white font-medium text-lg">{osAtiva.cliente_nome}</p>
+                
+                <div className="mb-4">
+                  <p className="text-slate-500 text-xs uppercase font-bold tracking-wider mb-1">Nome</p>
+                  
+                  {/* Container flexível que coloca o nome e o botão na mesma linha */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-white font-medium text-lg">{osAtiva.cliente_nome}</span>
+                    <button 
+                      onClick={() => verPerfilCliente(osAtiva.cliente_id)}
+                      className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500 hover:text-white transition-all text-xs font-bold shadow-sm"
+                    >
+                      🔍 Ver Perfil
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              {/* --- DADOS DO APARELHO --- */}
               <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
                 <h3 className="text-blue-400 font-bold mb-4 border-b border-slate-700 pb-2">📱 Dados do Aparelho</h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -288,11 +334,13 @@ const carregarOrdens = async () => {
                   <div>
                     <p className="text-slate-500 text-xs uppercase font-bold tracking-wider">Valor Cobrado</p>
                     <p className="text-white font-semibold text-lg">
-                      {isTecnico ? <span className="text-slate-500 italic">🔒 Restrito</span> : `R$ ${osAtiva.valor_orcamento || "0.00"}`}
+                      {/* Blindado com Number() para evitar telas brancas! */}
+                      {isTecnico ? <span className="text-slate-500 italic">🔒 Restrito</span> : `R$ ${Number(osAtiva.valor_orcamento || 0).toFixed(2)}`}
                     </p>
                   </div>
                 </div>
               </div>
+
             </div>
 
             {/* ========================================== */}

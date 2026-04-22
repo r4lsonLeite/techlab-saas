@@ -141,18 +141,20 @@ export default function Balcao({ abrirOSNaConsulta }) {
 
       const dadosCliente = await resCliente.json();
 
-      const resOS = await fetch('http://localhost:8000/ordens-servico', {
+const resOS = await fetch('http://localhost:8000/ordens-servico', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          aparelho: `${os.marca} ${os.modelo}`,
+          // 🔴 CORREÇÃO: Enviando marca e modelo separados e senha_aparelho correto!
+          marca: os.marca,
+          modelo: os.modelo,
           defeito: os.defeito,
           cliente_id: dadosCliente.id,
           imei: os.imei,
-          senha: os.senha,
+          senha_aparelho: os.senha, 
           acessorios: os.acessorios,
           prioridade: os.prioridade
         })
