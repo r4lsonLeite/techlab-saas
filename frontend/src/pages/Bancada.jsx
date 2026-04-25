@@ -1,20 +1,18 @@
 import { useState, useEffect } from 'react';
+import { apiFetch, apiUpload } from '../services/api'; // Ajuste o caminho conforme onde você salvou o api.js
 
 export default function Bancada() {
-  // --- ESTADOS ORIGINAIS DA OS ---
   const [ordens, setOrdens] = useState([]);
   const [osAtiva, setOsAtiva] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [laudo, setLaudo] = useState("");
-  const [pecasUsadasTexto, setPecasUsadasTexto] = useState(""); // Campo de texto livre antigo
+  const [pecasUsadasTexto, setPecasUsadasTexto] = useState(""); 
   const [foto, setFoto] = useState(null); 
 
-  // --- NOVOS ESTADOS DO ESTOQUE E CARRINHO (PEÇAS INVISÍVEIS) ---
   const [estoquePecas, setEstoquePecas] = useState([]);
   const [buscaPeca, setBuscaPeca] = useState('');
-  const [pecasSelecionadas, setPecasSelecionadas] = useState([]); // O "Carrinho" do técnico
+  const [pecasSelecionadas, setPecasSelecionadas] = useState([]); 
   
-  // --- ESTADOS DO MODAL DE SOLICITAÇÃO ---
   const [modalAberto, setModalAberto] = useState(false);
   const [osParaSolicitacao, setOsParaSolicitacao] = useState(null);
   const [formSolicitacao, setFormSolicitacao] = useState({
@@ -26,84 +24,53 @@ export default function Bancada() {
     carregarEstoque();
   }, []);
 
-  // 1. Carrega as OS
   const carregarOrdens = async () => {
-    const token = localStorage.getItem('techlab_token');
     try {
-      const resposta = await fetch('http://localhost:8000/ordens-servico', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (resposta.ok) {
-        const dados = await resposta.json();
-        const osBancada = dados.filter(o => 
-          o.status === 'Aguardando Análise' || 
-          o.status === 'APROVADO - Fila de Conserto' ||
-          o.status === 'Aguardando Peça'
-        );
-        setOrdens(osBancada);
-      }
+      // 🚨 2. CÓDIGO DUPLICADO ELIMINADO
+      const dados = await apiFetch('/ordens-servico');
+      const osBancada = dados.filter(o => 
+        o.status === 'Aguardando Análise' || 
+        o.status === 'APROVADO - Fila de Conserto' ||
+        o.status === 'Aguardando Peça'
+      );
+      setOrdens(osBancada);
     } catch (erro) { console.error(erro); } 
     finally { setCarregando(false); }
   };
 
-  // 2. Carrega as Peças para a Lupa
   const carregarEstoque = async () => {
-    const token = localStorage.getItem('techlab_token');
     try {
-      const resposta = await fetch('http://localhost:8000/produtos', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (resposta.ok) {
-        const dados = await resposta.json();
-        setEstoquePecas(dados.filter(p => p.categoria === 'Peças'));
-      }
+      const dados = await apiFetch('/produtos');
+      setEstoquePecas(dados.filter(p => p.categoria === 'Peças'));
     } catch (erro) { console.error(erro); }
   };
 
-  // 3. Seleção de OS e Inicialização do Carrinho
   const selecionarOS = (os) => {
     setOsAtiva(os);
     setLaudo(os.laudo_tecnico || "");
-    setPecasUsadasTexto(os.pecas_necessarias || ""); // Mantém compatibilidade antiga
+    setPecasUsadasTexto(os.pecas_necessarias || ""); 
     setFoto(null);
     
-    // Se a OS já tiver peças selecionadas salvas no banco (JSON), carrega-as. Se não, inicia vazio.
-    if (os.pecas_selecionadas && Array.isArray(os.pecas_selecionadas)) {
-        setPecasSelecionadas(os.pecas_selecionadas);
-    } else {
-        setPecasSelecionadas([]);
-    }
+    setPecasSelecionadas(Array.isArray(os.pecas_selecionadas) ? os.pecas_selecionadas : []);
     
-    // VERIFICAÇÃO DE TEMPO: Se a OS já foi aprovada para conserto e o técnico clicou nela, 
-    // mas ela ainda não tem "data_inicio_reparo", significa que ele acabou de pegar a OS.
+    // 🚨 5. PREVENÇÃO DE DUPLA CHAMADA DO RELÓGIO
     if (os.status === 'APROVADO - Fila de Conserto' && !os.data_inicio_reparo) {
          iniciarRelogio(os.id);
     }
   };
 
-  // 3.1 Função oculta para marcar a hora que o técnico pegou o aparelho
   const iniciarRelogio = async (osId) => {
-      const token = localStorage.getItem('techlab_token');
-      const payload = { data_inicio_reparo: new Date().toISOString() };
-      
       try {
-          await fetch(`http://localhost:8000/ordens-servico/${osId}`, {
+          await apiFetch(`/ordens-servico/${osId}`, {
               method: 'PUT',
-              headers: { 
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify(payload)
+              body: JSON.stringify({ data_inicio_reparo: new Date().toISOString() })
           });
-          // Não precisa de alertar o técnico, é só um registo interno
       } catch (e) { console.error("Falha ao iniciar relógio", e); }
   };
 
-
-  // --- FUNÇÕES DO CARRINHO DE PEÇAS ---
   const adicionarPecaAoCarrinho = (peca) => {
       if (peca.estoque_atual <= 0) {
-          alert("Atenção: Esta peça está sem stock. Adicione à OS e solicite ao ADM.");
+          alert("Atenção: Esta peça está sem estoque. Adicione à OS e solicite ao ADM.");
       }
       
       setPecasSelecionadas(prev => {
@@ -111,9 +78,12 @@ export default function Bancada() {
           if (itemExiste) {
               return prev.map(item => item.produto_id === peca.id ? { ...item, qtd: item.qtd + 1 } : item);
           } else {
-              // Gravamos o NOME (para o balcão ver) e o ID (para abater do estoque futuramente)
-              // NOTA: O técnico não vê nem lida com o preço!
-              return [...prev, { produto_id: peca.id, nome: peca.nome, qtd: 1 }];
+              return [...prev, { 
+                produto_id: peca.id, 
+                nome: peca.nome, 
+                qtd: 1,
+                preco: Number(peca.preco_venda || peca.preco || 0)
+              }];
           }
       });
   };
@@ -122,57 +92,46 @@ export default function Bancada() {
       setPecasSelecionadas(prev => prev.filter(item => item.produto_id !== produtoId));
   };
 
-
-  // 4. Salvar OS e Fechar/Atualizar o status
   const handleAtualizarOS = async (novoStatus) => {
-    const token = localStorage.getItem('techlab_token');
-    
-    // Descobrir o ID do técnico (aqui pegamos do próprio token guardado, idealmente)
-    // Como simplificação, se o token existir, enviamos o pedido. O Backend saberá quem é pelo Token,
-    // mas se quiser forçar o envio, teria de descodificar o JWT. Para já, vamos mandar os dados básicos.
-    
     const payload = {
         status: novoStatus,
         laudo_tecnico: laudo,
-        pecas_necessarias: pecasUsadasTexto, // Texto livre antigo
-        pecas_selecionadas: pecasSelecionadas // Novo formato JSON estruturado
+        pecas_necessarias: pecasUsadasTexto, 
+        pecas_selecionadas: pecasSelecionadas 
     };
     
-    // Se o técnico concluiu o serviço, regista a hora de finalização!
     if (novoStatus === 'Pronto para Retirada') {
         payload.data_fim_reparo = new Date().toISOString();
-        // O Backend receberá isto e fará as contas das horas!
     }
 
     try {
-      const resposta = await fetch(`http://localhost:8000/ordens-servico/${osAtiva.id}`, {
+      await apiFetch(`/ordens-servico/${osAtiva.id}`, {
         method: 'PUT',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` 
-        },
         body: JSON.stringify(payload)
       });
 
-      if (resposta.ok) {
-        if (foto) {
+      // 🚨 4. PROTEÇÃO DO UPLOAD DE FOTO (Não quebra silenciosamente)
+      if (foto) {
+        try {
           const formData = new FormData();
           formData.append("file", foto);
-          await fetch(`http://localhost:8000/ordens-servico/${osAtiva.id}/foto`, { 
-              method: 'POST', 
-              headers: { 'Authorization': `Bearer ${token}` },
-              body: formData 
-          });
+          await apiUpload(`/ordens-servico/${osAtiva.id}/foto`, formData);
+        } catch (erroFoto) {
+          alert("A OS foi salva, mas ocorreu um erro ao enviar a foto de evidência.");
+          console.error(erroFoto);
         }
-        alert(`Sucesso! OS atualizada para: ${novoStatus}`);
-        setOsAtiva(null);
-        setFoto(null); 
-        carregarOrdens(); 
-      } else { alert("Erro ao guardar na base de dados."); }
-    } catch (erro) { console.error(erro); }
+      }
+
+      alert(`Sucesso! OS atualizada para: ${novoStatus}`);
+      setOsAtiva(null);
+      setFoto(null); 
+      carregarOrdens(); 
+    } catch (erro) { 
+      alert(`Erro ao salvar OS: ${erro.message}`);
+      console.error(erro); 
+    }
   };
 
-  // 5. Funções de Solicitação
   const abrirModalSolicitacao = (os = null) => {
     setOsParaSolicitacao(os);
     setFormSolicitacao({ produto_solicitado: '', prioridade: 'Normal', observacao: '' });
@@ -181,7 +140,6 @@ export default function Bancada() {
 
   const enviarSolicitacao = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('techlab_token');
     const payload = {
       produto_solicitado: formSolicitacao.produto_solicitado,
       quantidade: 1,
@@ -192,23 +150,20 @@ export default function Bancada() {
     };
 
     try {
-      const res = await fetch('http://localhost:8000/solicitacoes', {
+      await apiFetch('/solicitacoes', {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` 
-        },
         body: JSON.stringify(payload)
       });
 
-      if (res.ok) {
-        alert("✅ Solicitação enviada para o ADM com sucesso!");
-        setModalAberto(false);
-        if (osParaSolicitacao) {
-            handleAtualizarOS('Aguardando Peça');
-        }
-      } else { alert("Erro ao enviar solicitação."); }
-    } catch (e) { console.error(e); }
+      alert("✅ Solicitação enviada para o ADM com sucesso!");
+      setModalAberto(false);
+      if (osParaSolicitacao) {
+          handleAtualizarOS('Aguardando Peça');
+      }
+    } catch (e) { 
+      alert(`Erro ao enviar solicitação: ${e.message}`);
+      console.error(e); 
+    }
   };
 
   const pecasFiltradas = estoquePecas.filter(p => p.nome.toLowerCase().includes(buscaPeca.toLowerCase()));
@@ -219,19 +174,17 @@ export default function Bancada() {
       {/* PAINEL 1: LUPA DE PEÇAS E "CARRINHO DO TÉCNICO" */}
       <div className="w-1/4 bg-[#1e293b] border-r border-slate-700 flex flex-col z-10 shadow-xl overflow-hidden">
         
-        {/* Busca de Peças */}
         <div className="p-4 border-b border-slate-700">
           <h2 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
             <span>🔍</span> Procurar Peças
           </h2>
           <input 
             type="text" value={buscaPeca} onChange={(e) => setBuscaPeca(e.target.value)}
-            placeholder="Procurar ecrã, bateria..." 
+            placeholder="Procurar tela, bateria..." 
             className="w-full px-3 py-2 text-sm rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-blue-500 outline-none transition-colors"
           />
         </div>
         
-        {/* Lista de Resultados (Adicionar com Clique Único) */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar border-b border-slate-700/50">
           {pecasFiltradas.length === 0 ? (
             <p className="text-center text-slate-500 mt-4 text-xs">Nenhuma peça encontrada.</p>
@@ -250,21 +203,23 @@ export default function Bancada() {
                   <span className="opacity-0 group-hover:opacity-100 text-blue-500 text-xs font-bold transition-opacity">➕</span>
                 </div>
                 <div className="flex justify-between items-center mt-2">
-                  <span className="text-[10px] text-slate-400">📍 {peca.localizacao || '-'}</span>
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${peca.estoque_atual > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                    {peca.estoque_atual} un.
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400">📍 {peca.localizacao || '-'}</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${peca.estoque_atual > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                      {peca.estoque_atual} un.
+                    </span>
+                  </div>
                 </div>
               </div>
             ))
           )}
         </div>
 
-        {/* CARRINHO DO TÉCNICO (Peças vinculadas à OS selecionada) */}
+        {/* CARRINHO DO TÉCNICO */}
         {osAtiva && (
-            <div className="bg-slate-800/80 p-3 flex flex-col max-h-48 border-b border-slate-700 shadow-inner">
+            <div className="bg-slate-800/80 p-3 flex flex-col max-h-56 border-b border-slate-700 shadow-inner">
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 flex justify-between items-center">
-                    <span>📦 Peças nesta OS</span>
+                    <span>📦 Peças Vinculadas</span>
                     <span className="bg-slate-700 text-white px-2 py-0.5 rounded-full">{pecasSelecionadas.length}</span>
                 </h4>
                 
@@ -273,14 +228,16 @@ export default function Bancada() {
                         <p className="text-[10px] text-slate-500 italic text-center my-2">Nenhuma peça adicionada.</p>
                     ) : (
                         pecasSelecionadas.map(item => (
-                            <div key={item.produto_id} className="flex justify-between items-center bg-[#0f172a] p-2 rounded border border-slate-700/50">
-                                <div className="flex items-center gap-2 truncate">
-                                    <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-1.5 rounded">{item.qtd}x</span>
-                                    <span className="text-xs text-slate-300 truncate" title={item.nome}>{item.nome}</span>
+                            <div key={item.produto_id} className="flex flex-col bg-[#0f172a] p-2 rounded border border-slate-700/50 mb-1">
+                                <div className="flex justify-between items-start mb-1">
+                                    <div className="flex items-start gap-2 truncate pr-2">
+                                        <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-1.5 rounded mt-0.5">{item.qtd}x</span>
+                                        <span className="text-xs text-slate-300 truncate" title={item.nome}>{item.nome}</span>
+                                    </div>
+                                    <button onClick={() => removerPecaDoCarrinho(item.produto_id)} className="text-slate-500 hover:text-red-400 text-xs transition-colors shrink-0">
+                                        ✖
+                                    </button>
                                 </div>
-                                <button onClick={() => removerPecaDoCarrinho(item.produto_id)} className="text-slate-500 hover:text-red-400 text-xs px-2 transition-colors">
-                                    ✖
-                                </button>
                             </div>
                         ))
                     )}
@@ -306,7 +263,7 @@ export default function Bancada() {
 
         <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
           {carregando ? (
-            <div className="text-slate-500 text-center mt-10 text-sm">A carregar fila...</div>
+            <div className="text-slate-500 text-center mt-10 text-sm">Carregando fila...</div>
           ) : ordens.length === 0 ? (
             <div className="text-slate-500 text-center mt-10 text-sm">Nenhum aparelho na fila. 🎉</div>
           ) : (
@@ -328,7 +285,6 @@ export default function Bancada() {
                   <p className="text-slate-400 text-[10px] mt-0.5 truncate">{os.cliente_nome}</p>
                 </div>
 
-                {/* BOTÃO DE ALERTA (Faltou peça) */}
                 <button 
                   onClick={(e) => { e.stopPropagation(); abrirModalSolicitacao(os); }}
                   className="absolute -right-2 -top-2 bg-amber-500 text-amber-950 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-lg opacity-0 group-hover:opacity-100 hover:scale-110 transition-all"
@@ -365,7 +321,6 @@ export default function Bancada() {
                     <span className={`text-sm font-bold border px-3 py-1 rounded-full ${osAtiva.status === 'APROVADO - Fila de Conserto' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-blue-500/10 text-blue-400 border-blue-500/30'}`}>
                         {osAtiva.status}
                     </span>
-                    {/* Indicador visual de que o tempo está a correr */}
                     {osAtiva.status === 'APROVADO - Fila de Conserto' && (
                         <span className="text-[10px] font-bold text-blue-400 flex items-center gap-1 animate-pulse">
                             ⏱️ Tempo a contar...
@@ -389,11 +344,18 @@ export default function Bancada() {
                 <div className="text-slate-200 text-sm bg-[#0f172a] p-4 rounded-lg border border-slate-800 leading-relaxed shadow-inner">
                     {osAtiva.defeito}
                 </div>
+                
+                {/* 🚨 8. PROTEÇÃO MÍNIMA DA SENHA - SÓ MOSTRA SE O TÉCNICO PRECISAR E CLICAR (Poderia evoluir para ofuscação no backend) */}
                 {osAtiva.senha && (
-                  <p className="mt-4 text-slate-300 text-sm flex items-center gap-2">
-                      <span className="font-bold text-slate-500 uppercase text-xs">🔒 Senha do Aparelho:</span> 
-                      <span className="font-mono bg-slate-800 border border-slate-600 px-3 py-1 rounded text-lg text-emerald-400">{osAtiva.senha}</span>
-                  </p>
+                  <details className="mt-4 group">
+                      <summary className="text-slate-300 text-sm flex items-center gap-2 cursor-pointer list-none">
+                          <span className="font-bold text-slate-500 uppercase text-xs">🔒 Senha do Aparelho</span> 
+                          <span className="text-xs text-blue-400 group-open:hidden">(Clique para revelar)</span>
+                      </summary>
+                      <p className="mt-2 font-mono bg-slate-800 border border-slate-600 px-3 py-2 rounded text-lg text-emerald-400 inline-block">
+                          {osAtiva.senha}
+                      </p>
+                  </details>
                 )}
               </div>
 
@@ -431,7 +393,7 @@ export default function Bancada() {
                         value={pecasUsadasTexto} 
                         onChange={(e) => setPecasUsadasTexto(e.target.value)} 
                         className="w-full p-3 rounded-lg bg-[#0f172a] text-slate-300 border border-slate-600 focus:border-blue-500 outline-none text-sm" 
-                        placeholder="Ex: Usado pasta térmica, limpa contactos..." 
+                        placeholder="Ex: Usado pasta térmica, limpa contatos..." 
                     />
                     <p className="text-[10px] text-slate-500 mt-2">
                         Nota: As peças principais devem ser adicionadas clicando na lista de estoque à esquerda. Elas aparecerão magicamente para o Balcão cobrar.
@@ -440,7 +402,6 @@ export default function Bancada() {
                 </div>
               </div>
 
-              {/* BOTÕES DE AÇÃO */}
               <div className="pt-4 flex gap-4">
                 {osAtiva.status === 'Aguardando Análise' && (
                   <button onClick={() => handleAtualizarOS('Aguardando Cliente')} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all text-lg hover:-translate-y-1">
@@ -465,7 +426,6 @@ export default function Bancada() {
         )}
       </div>
 
-      {/* MODAL DE SOLICITAÇÃO (INTACTO) */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-[#1e293b] border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
@@ -486,7 +446,7 @@ export default function Bancada() {
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Prioridade</label>
                 <select value={formSolicitacao.prioridade} onChange={e => setFormSolicitacao({...formSolicitacao, prioridade: e.target.value})} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-blue-500 outline-none">
-                  <option value="Normal">Normal (Para stock)</option>
+                  <option value="Normal">Normal (Para estoque)</option>
                   <option value="Urgente">Urgente (Cliente a cobrar)</option>
                 </select>
               </div>

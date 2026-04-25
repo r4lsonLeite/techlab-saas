@@ -5,6 +5,8 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
   const [osAtiva, setOsAtiva] = useState(null);
   const [busca, setBusca] = useState("");
   const [carregando, setCarregando] = useState(true);
+  
+  // Estados do Mini-CRM
   const [modalCrmAberto, setModalCrmAberto] = useState(false);
   const [dadosCrm, setDadosCrm] = useState(null);
   
@@ -17,36 +19,25 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
     carregarOrdens();
   }, []);
 
-const carregarOrdens = async () => {
-    // 👉 ADICIONADO: Pega o crachá
+  const carregarOrdens = async () => {
     const token = localStorage.getItem('techlab_token');
-
     try {
-      // 👉 ADICIONADO: Envia o crachá no cabeçalho (headers)
       const resposta = await fetch('http://localhost:8000/ordens-servico', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (resposta.ok) {
         const dados = await resposta.json();
         setOrdens(dados);
         
-        // MÁGICA AQUI: Se veio um ID do Dashboard, acha a OS e abre na hora
         if (osIdParaAbrir) {
           const osDesejada = dados.find(o => o.id === osIdParaAbrir);
-          if (osDesejada) {
-            setOsAtiva(osDesejada);
-          }
-          setOsIdParaAbrir(null); // Limpa o ID para não prender a tela
+          if (osDesejada) setOsAtiva(osDesejada);
+          setOsIdParaAbrir(null);
         }
       }
-    } catch (erro) {
-      console.error("Erro ao buscar OS:", erro);
-    } finally {
-      setCarregando(false);
-    }
+    } catch (erro) { console.error("Erro ao buscar OS:", erro); } 
+    finally { setCarregando(false); }
   };
 
   const osFiltradas = ordens.filter(os => {
@@ -58,27 +49,24 @@ const carregarOrdens = async () => {
       (os.imei && os.imei.toLowerCase().includes(termo))
     );
   });
+
   const verPerfilCliente = async (clienteId) => {
-  const token = localStorage.getItem('techlab_token');
-  const res = await fetch(`http://localhost:8000/clientes/${clienteId}/resumo`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  if (res.ok) {
-    const dados = await res.json();
-    setDadosCrm(dados);
-    setModalCrmAberto(true);
-  }
-};
+    const token = localStorage.getItem('techlab_token');
+    const res = await fetch(`http://localhost:8000/clientes/${clienteId}/resumo`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const dados = await res.json();
+      setDadosCrm(dados);
+      setModalCrmAberto(true);
+    } else {
+        alert("Erro ao buscar perfil do cliente.");
+    }
+  };
 
   const imprimirComprovante = (dadosOs, idOs) => {
     const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-
+    iframe.style.display = 'none';
     document.body.appendChild(iframe);
 
     const htmlRecibo = `
@@ -130,16 +118,12 @@ const carregarOrdens = async () => {
     const confirmar = window.confirm(`Tem certeza que deseja EXCLUIR a OS #${id}?`);
     if (!confirmar) return;
 
-    // 🔴 1. Pega o token do utilizador logado
     const token = localStorage.getItem('techlab_token'); 
 
     try {
       const resposta = await fetch(`http://localhost:8000/ordens-servico/${id}`, { 
         method: 'DELETE',
-        // 🔴 2. Envia o token no cabeçalho (headers) da requisição
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       
       if (resposta.ok) {
@@ -150,9 +134,7 @@ const carregarOrdens = async () => {
         const erroDetalhe = await resposta.json();
         alert(`Erro: ${erroDetalhe.detail || "Sem permissão para excluir."}`);
       }
-    } catch (erro) { 
-      console.error(erro); 
-    }
+    } catch (erro) { console.error(erro); }
   };
 
   const handleAtualizarStatus = async (novoStatus) => {
@@ -171,10 +153,16 @@ const carregarOrdens = async () => {
       payload.observacoes_balcao = obsBalcao;
     }
 
+    // 🔴 O ERRO DE 401 RESOLVIDO: Pegamos o token e colocamos no cabeçalho
+    const token = localStorage.getItem('techlab_token'); 
+
     try {
       const resposta = await fetch(`http://localhost:8000/ordens-servico/${osAtiva.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
         body: JSON.stringify(payload)
       });
 
@@ -191,7 +179,7 @@ const carregarOrdens = async () => {
   };
 
   return (
-    <div className="flex h-full w-full bg-[#0f172a]">
+    <div className="flex h-full w-full bg-[#0f172a] relative">
       {/* BARRA DE BUSCA E LISTA */}
       <div className="w-1/3 bg-[#1e293b] border-r border-slate-700 flex flex-col z-10 shadow-xl">
         <div className="p-6 border-b border-slate-700">
@@ -253,7 +241,6 @@ const carregarOrdens = async () => {
               </span>
             </h1>
 
-            {/* AQUI ESTÁ O "PASSO 1" CORRIGIDO: NENHUM DESTES BOTÕES APARECE PARA O TÉCNICO */}
             <div className="flex gap-3">
               {!isTecnico && (
                 <>
@@ -286,7 +273,7 @@ const carregarOrdens = async () => {
                 <div className="flex gap-3 w-full md:w-auto">
                   <button 
                     onClick={() => {
-                      const msg = `Olá ${osAtiva.cliente_nome}! Seu aparelho ${osAtiva.aparelho} já está pronto para retirada na TechLab. Valor: R$ ${osAtiva.valor_orcamento}. Aguardamos você!`;
+                      const msg = `Olá ${osAtiva.cliente_nome}! Seu aparelho ${osAtiva.aparelho} já está pronto para retirada na Tech Ninja. Valor: R$ ${osAtiva.valor_orcamento}. Aguardamos você!`;
                       window.open(`https://wa.me/55${(osAtiva.telefone || '').replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
                     }}
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg"
@@ -309,8 +296,6 @@ const carregarOrdens = async () => {
                 
                 <div className="mb-4">
                   <p className="text-slate-500 text-xs uppercase font-bold tracking-wider mb-1">Nome</p>
-                  
-                  {/* Container flexível que coloca o nome e o botão na mesma linha */}
                   <div className="flex items-center gap-3">
                     <span className="text-white font-medium text-lg">{osAtiva.cliente_nome}</span>
                     <button 
@@ -320,6 +305,10 @@ const carregarOrdens = async () => {
                       🔍 Ver Perfil
                     </button>
                   </div>
+                </div>
+                <div>
+                   <p className="text-slate-500 text-xs uppercase font-bold tracking-wider mb-1">Contato</p>
+                   <p className="text-white font-medium">{osAtiva.telefone}</p>
                 </div>
               </div>
 
@@ -334,7 +323,6 @@ const carregarOrdens = async () => {
                   <div>
                     <p className="text-slate-500 text-xs uppercase font-bold tracking-wider">Valor Cobrado</p>
                     <p className="text-white font-semibold text-lg">
-                      {/* Blindado com Number() para evitar telas brancas! */}
                       {isTecnico ? <span className="text-slate-500 italic">🔒 Restrito</span> : `R$ ${Number(osAtiva.valor_orcamento || 0).toFixed(2)}`}
                     </p>
                   </div>
@@ -343,9 +331,7 @@ const carregarOrdens = async () => {
 
             </div>
 
-            {/* ========================================== */}
-            {/* HISTÓRICO VISUAL COM LINHA RETA E FOTO     */}
-            {/* ========================================== */}
+            {/* HISTÓRICO VISUAL */}
             <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg mt-4">
               <h3 className="text-white font-bold mb-6 flex items-center gap-2 border-b border-slate-700 pb-3">
                 <span>📋</span> Histórico de Eventos
@@ -353,7 +339,7 @@ const carregarOrdens = async () => {
               
               <div className="relative border-l-2 border-slate-700 ml-4 space-y-8 pb-4 mt-4">
                 
-                {/* 1. Evento de Entrada */}
+                {/* Entrada */}
                 <div className="relative pl-8">
                   <div className="absolute -left-[1.12rem] top-0 flex items-center justify-center w-9 h-9 rounded-full bg-slate-600 border-4 border-[#1e293b] text-white shadow">
                     <span className="text-xs">📥</span>
@@ -364,7 +350,7 @@ const carregarOrdens = async () => {
                   </div>
                 </div>
 
-                {/* 2. Evento de Laudo */}
+                {/* Laudo */}
                 {osAtiva.laudo_tecnico && (
                   <div className="relative pl-8">
                     <div className="absolute -left-[1.12rem] top-0 flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 border-4 border-[#1e293b] text-white shadow-[0_0_8px_rgba(37,99,235,0.5)]">
@@ -373,8 +359,6 @@ const carregarOrdens = async () => {
                     <div className="bg-[#0f172a] p-4 rounded-xl border border-slate-700">
                       <h4 className="font-bold text-blue-400 text-sm">Diagnóstico Técnico</h4>
                       <p className="text-slate-300 text-xs mt-1 italic">"{osAtiva.laudo_tecnico}"</p>
-                      
-{/* A FOTO APARECE AQUI SE O TÉCNICO ENVIOU */}
                       {osAtiva.foto_url && (
                         <div className="mt-4">
                           <p className="text-[10px] text-slate-500 font-bold uppercase mb-2">📸 Foto Anexada à OS:</p>
@@ -389,7 +373,7 @@ const carregarOrdens = async () => {
                   </div>
                 )}
 
-                {/* 3. Evento de Aprovação */}
+                {/* Aprovação */}
                 {osAtiva.valor_orcamento > 0 && (
                   <div className="relative pl-8">
                     <div className="absolute -left-[1.12rem] top-0 flex items-center justify-center w-9 h-9 rounded-full bg-amber-500 border-4 border-[#1e293b] text-white shadow-[0_0_8px_rgba(245,158,11,0.5)]">
@@ -405,7 +389,7 @@ const carregarOrdens = async () => {
                   </div>
                 )}
 
-                {/* 4. Evento de Finalização */}
+                {/* Finalização */}
                 {['Pronto para Retirada', 'Entregue'].includes(osAtiva.status) && (
                   <div className="relative pl-8">
                     <div className="absolute -left-[1.12rem] top-0 flex items-center justify-center w-9 h-9 rounded-full bg-emerald-500 border-4 border-[#1e293b] text-white shadow-[0_0_8px_rgba(16,185,129,0.5)]">
@@ -457,6 +441,100 @@ const carregarOrdens = async () => {
         </div>
         )}
       </div>
+
+      {/* 🔴 TELA DE CRM SOBREPOSTA (MODAL) */}
+      {modalCrmAberto && dadosCrm && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1e293b] border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            
+            {/* Cabeçalho do Modal */}
+            <div className="p-6 bg-[#0f172a] border-b border-slate-700 flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <span className="text-blue-500">👤</span> Perfil do Cliente
+                </h2>
+                <p className="text-slate-400 text-sm mt-1">{dadosCrm.cliente.nome}</p>
+              </div>
+              <button 
+                onClick={() => setModalCrmAberto(false)}
+                className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 w-10 h-10 rounded-full flex justify-center items-center font-bold transition-colors"
+              >✕</button>
+            </div>
+
+            {/* Corpo do Modal (Rola se for grande) */}
+            <div className="p-6 overflow-y-auto space-y-6">
+              
+              {/* Indicadores do CRM */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-[#0f172a] border border-slate-700 p-4 rounded-xl text-center">
+                  <p className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Investimento Total</p>
+                  <p className="text-emerald-400 font-bold text-2xl">R$ {Number(dadosCrm.metricas.investimento_total).toFixed(2)}</p>
+                </div>
+                <div className="bg-[#0f172a] border border-slate-700 p-4 rounded-xl text-center">
+                  <p className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">OS Abertas</p>
+                  <p className="text-white font-bold text-2xl">{dadosCrm.metricas.total_os}</p>
+                </div>
+                <div className="bg-[#0f172a] border border-slate-700 p-4 rounded-xl text-center">
+                  <p className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Compras Avulsas</p>
+                  <p className="text-white font-bold text-2xl">{dadosCrm.metricas.total_compras}</p>
+                </div>
+              </div>
+
+              {/* Informações de Contato e Aparelhos */}
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-slate-300 font-bold mb-3 border-b border-slate-700 pb-2">Contatos</h3>
+                  <p className="text-slate-400 text-sm mb-2"><strong className="text-white">Telefone:</strong> {dadosCrm.cliente.telefone}</p>
+                  <p className="text-slate-400 text-sm"><strong className="text-white">E-mail:</strong> {dadosCrm.cliente.email}</p>
+                </div>
+                <div>
+                  <h3 className="text-slate-300 font-bold mb-3 border-b border-slate-700 pb-2">Aparelhos Frequentes</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {dadosCrm.aparelhos_frequentes.map((ap, i) => (
+                      <span key={i} className="bg-blue-500/10 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-full text-xs font-bold">
+                        📱 {ap}
+                      </span>
+                    ))}
+                    {dadosCrm.aparelhos_frequentes.length === 0 && <span className="text-slate-500 text-sm">Nenhum histórico</span>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabela de Histórico */}
+              <div>
+                <h3 className="text-slate-300 font-bold mb-3 border-b border-slate-700 pb-2">Últimas Visitas (OS)</h3>
+                <div className="bg-[#0f172a] rounded-xl border border-slate-700 overflow-hidden">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-[#1e293b]">
+                      <tr>
+                        <th className="p-3 text-slate-400 font-bold">OS</th>
+                        <th className="p-3 text-slate-400 font-bold">Aparelho</th>
+                        <th className="p-3 text-slate-400 font-bold">Valor</th>
+                        <th className="p-3 text-slate-400 font-bold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700">
+                      {dadosCrm.ultimas_os.length === 0 && (
+                        <tr><td colSpan="4" className="p-4 text-center text-slate-500">Nenhuma OS encontrada.</td></tr>
+                      )}
+                      {dadosCrm.ultimas_os.map((os) => (
+                        <tr key={os.id} className="hover:bg-slate-800/50">
+                          <td className="p-3 text-slate-300 font-bold">#{os.id}</td>
+                          <td className="p-3 text-slate-300">{os.marca} {os.modelo}</td>
+                          <td className="p-3 text-emerald-400 font-bold">R$ {Number(os.valor_orcamento).toFixed(2)}</td>
+                          <td className="p-3 text-slate-400 text-xs">{os.status}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

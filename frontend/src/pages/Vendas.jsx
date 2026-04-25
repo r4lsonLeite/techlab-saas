@@ -342,7 +342,7 @@ const finalizarVenda = async () => {
                 <p className="text-white font-semibold text-sm truncate" title={aparelho.cliente_nome}>{aparelho.cliente_nome}</p>
                 <p className="text-slate-400 text-xs truncate mt-0.5">{aparelho.aparelho}</p>
                 <p className="text-emerald-500 font-bold text-xs mt-2 border-t border-slate-700 pt-1">
-                  R$ {aparelho.valor_orcamento.toFixed(2)}
+                  R$ {Number(aparelho.valor_orcamento || 0).toFixed(2)}
                 </p>
               </div>
             ))

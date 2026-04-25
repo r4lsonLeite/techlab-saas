@@ -370,38 +370,76 @@ def deletar_produto(id: int, db: Session = Depends(get_db), admin=Depends(admin_
 # VENDAS
 # ==============================
 @app.post("/vendas")
-def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
-    if not venda.itens:
-        raise HTTPException(status_code=400, detail="Impossível finalizar: Venda sem itens registrados.")
+def finalizar_venda(
+    venda: schemas.VendaCreate,
+    db: Session = Depends(get_db),
+    user=Depends(obter_usuario_logado)
+):
+    if not venda.itens and not venda.os_id:
+        raise HTTPException(status_code=400, detail="Impossível finalizar: Venda vazia.")
 
     try:
-        dados_venda = {
-            "valor_total": venda.valor_total,
-            "forma_pagamento": venda.forma_pagamento,
-            "loja_id": user.loja_id,
-            "usuario_id": user.id
-        }
-        
-        nova_venda = models.Venda(**dados_venda)
+        valor_total = 0
+
+        # Validação da OS
+        if venda.os_id:
+            os = db.query(models.OrdemServico).filter(
+                models.OrdemServico.id == venda.os_id,
+                models.OrdemServico.loja_id == user.loja_id
+            ).first()
+
+            if not os:
+                raise HTTPException(404, "OS não encontrada")
+
+        nova_venda = models.Venda(
+            valor_total=0,  # temporário
+            forma_pagamento=venda.forma_pagamento,
+            loja_id=user.loja_id,
+            usuario_id=user.id,
+            os_id=venda.os_id if venda.os_id else None
+        )
+
         db.add(nova_venda)
         db.flush()
 
-        for item in venda.itens:
-            produto = db.query(models.Produto).filter(models.Produto.id == item.produto_id, models.Produto.loja_id == user.loja_id).first()
-            if not produto:
-                raise HTTPException(404, f"Produto ID {item.produto_id} não encontrado")
-            if produto.estoque_atual < item.quantidade:
-                raise HTTPException(400, f"Estoque insuficiente para {produto.nome}")
+        if venda.itens:
+            for item in venda.itens:
+                produto = db.query(models.Produto)\
+                    .filter(
+                        models.Produto.id == item.produto_id,
+                        models.Produto.loja_id == user.loja_id
+                    )\
+                    .with_for_update()\
+                    .first()
 
-            produto.estoque_atual -= item.quantidade
-            db.add(models.ItemVenda(venda_id=nova_venda.id, produto_id=item.produto_id, quantidade=item.quantidade, preco_unitario=item.preco_unitario))
+                if not produto:
+                    raise HTTPException(404, f"Produto ID {item.produto_id} não encontrado")
+
+                if produto.estoque_atual < item.quantidade:
+                    raise HTTPException(400, f"Estoque insuficiente para {produto.nome}")
+
+                produto.estoque_atual -= item.quantidade
+                valor_total += produto.preco * item.quantidade
+
+                db.add(models.ItemVenda(
+                    venda_id=nova_venda.id,
+                    produto_id=item.produto_id,
+                    quantidade=item.quantidade,
+                    preco_unitario=produto.preco
+                ))
+
+        nova_venda.valor_total = valor_total
 
         db.commit()
+
         return {"mensagem": "Venda concluída", "venda_id": nova_venda.id}
 
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Erro interno no processamento da venda: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro interno no processamento da venda")
 
 # ==============================
 # SOLICITAÇÕES
