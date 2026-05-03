@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../services/api'; // 🛡️ MOTOR BLINDADO IMPORTADO!
 
 export default function Balcao({ abrirOSNaConsulta }) {
   const estadoInicial = {
@@ -112,21 +113,10 @@ export default function Balcao({ abrirOSNaConsulta }) {
     e.preventDefault();
     setStatus('Salvando...');
 
-    const token = localStorage.getItem('techlab_token');
-
-    if (!token) {
-      alert("Sessão expirada. Faça login novamente.");
-      setStatus('');
-      return;
-    }
-
     try {
-      const resCliente = await fetch('http://localhost:8000/clientes', {
+      // 1. Criar o Cliente usando a nova API limpa
+      const dadosCliente = await apiFetch('/clientes', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
         body: JSON.stringify({
           nome: os.nome,
           telefone: os.telefone,
@@ -134,21 +124,10 @@ export default function Balcao({ abrirOSNaConsulta }) {
         })
       });
 
-      if (!resCliente.ok) {
-        const erro = await resCliente.text();
-        throw new Error(erro);
-      }
-
-      const dadosCliente = await resCliente.json();
-
-const resOS = await fetch('http://localhost:8000/ordens-servico', {
+      // 2. Criar a OS ligada ao cliente
+      const osCriada = await apiFetch('/ordens-servico', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({
-          // 🔴 CORREÇÃO: Enviando marca e modelo separados e senha_aparelho correto!
           marca: os.marca,
           modelo: os.modelo,
           defeito: os.defeito,
@@ -159,13 +138,6 @@ const resOS = await fetch('http://localhost:8000/ordens-servico', {
           prioridade: os.prioridade
         })
       });
-
-      if (!resOS.ok) {
-        const erro = await resOS.text();
-        throw new Error(erro);
-      }
-
-      const osCriada = await resOS.json();
 
       imprimirComprovante(os, osCriada.id);
 
@@ -180,30 +152,20 @@ const resOS = await fetch('http://localhost:8000/ordens-servico', {
     } catch (erro) {
       console.error("Erro real:", erro);
       setStatus('erro');
+      alert(`Erro ao criar OS: ${erro.message}`);
     }
   };
 
   const carregarListasLaterais = async () => {
-    const token = localStorage.getItem('techlab_token');
-
-    if (!token) return;
-
     try {
-      const resposta = await fetch('http://localhost:8000/ordens-servico', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!resposta.ok) throw new Error("Erro ao carregar OS");
-
-      const dados = await resposta.json();
+      // Busca limpa sem precisar passar token manual
+      const dados = await apiFetch('/ordens-servico');
 
       setAparelhosProntos(dados.filter(o => o.status === 'Pronto para Retirada'));
       setAparelhosAprovacao(dados.filter(o => o.status === 'Aguardando Cliente'));
 
     } catch (erro) {
-      console.error(erro);
+      console.error("Erro ao carregar listas laterais:", erro);
     }
   };
 
@@ -382,9 +344,9 @@ const resOS = await fetch('http://localhost:8000/ordens-servico', {
                     <span className="text-emerald-500">✅</span>
                   </div>
                   <h3 className="text-white font-semibold text-sm">{ordem.cliente_nome || "Cliente"}</h3>
-                  <p className="text-slate-400 text-xs mb-2">{ordem.aparelho}</p>
+                  <p className="text-slate-400 text-xs mb-2">{ordem.marca} {ordem.modelo}</p>
                   <p className="text-slate-500 text-[10px] uppercase tracking-wider font-bold text-emerald-500/70">
-                    Cobrado: R$ {ordem.valor_orcamento ? ordem.valor_orcamento : "0.00"}
+                    Cobrado: R$ {ordem.valor_orcamento ? Number(ordem.valor_orcamento).toFixed(2) : "0.00"}
                   </p>
                 </div>
               ))
@@ -407,7 +369,7 @@ const resOS = await fetch('http://localhost:8000/ordens-servico', {
                     <span className="text-amber-500 animate-pulse">⏱️</span>
                   </div>
                   <h3 className="text-white font-semibold text-sm">{ordem.cliente_nome || "Cliente"}</h3>
-                  <p className="text-slate-400 text-xs mb-3">{ordem.aparelho}</p>
+                  <p className="text-slate-400 text-xs mb-3">{ordem.marca} {ordem.modelo}</p>
                   
                   <div className="bg-[#1e293b] p-2 rounded border border-slate-700">
                     <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Laudo do Técnico:</p>

@@ -126,6 +126,7 @@ class OSResponse(BaseModel):
     pecas_necessarias: Optional[str] = None
     observacoes_balcao: Optional[str] = None
     foto_url: Optional[str] = None
+   
     
     class Config:
         from_attributes = True

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../services/api'; // 🛡️ MOTOR BLINDADO IMPORTADO!
 
 export default function Vendas({ osParaPDV, setOsParaPDV }) {
   // --- ESTADOS DO PDV ---
@@ -6,7 +7,7 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
   const [filtroCategoria, setFiltroCategoria] = useState('Todos');
   const [busca, setBusca] = useState('');
   const [vendedor, setVendedor] = useState('Ana Paula'); 
-  const [formaPagamento, setFormaPagamento] = useState('PIX');
+  const [formaPagamento, setFormPagamento] = useState('PIX');
 
   // --- ESTADOS DO BANCO DE DADOS ---
   const [produtos, setProdutos] = useState([]);
@@ -20,27 +21,22 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
 
   const categorias = ['Todos', 'Capinhas', 'Carregadores', 'Cabos', 'Películas', 'Fones', 'Suportes', 'Outros'];
 
-  // 1. CARREGAR DADOS
+  // 1. CARREGAR DADOS (Via API Centralizada)
   useEffect(() => { carregarDadosBase(); }, []);
 
   const carregarDadosBase = async () => {
-    const token = localStorage.getItem('techlab_token');
     try {
-      const resOs = await fetch('http://localhost:8000/ordens-servico', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (resOs.ok) {
-        const ordens = await resOs.json();
-        setAparelhosProntos(ordens.filter(o => o.status === 'Pronto para Retirada'));
-      }
+      // Fazemos as duas buscas simultaneamente para ser mais rápido!
+      const [ordens, prods] = await Promise.all([
+        apiFetch('/ordens-servico'),
+        apiFetch('/produtos')
+      ]);
       
-      const resProd = await fetch('http://localhost:8000/produtos', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (resProd.ok) {
-        setProdutos(await resProd.json());
-      }
-    } catch (erro) { console.error(erro); }
+      setAparelhosProntos(ordens.filter(o => o.status === 'Pronto para Retirada'));
+      setProdutos(prods);
+    } catch (erro) { 
+      console.error("Erro ao carregar PDV:", erro); 
+    }
   };
 
   // 2. O ÍMÃ DE OS
@@ -48,7 +44,7 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
     if (osParaPDV) adicionarOSAoCarrinho(osParaPDV);
   }, [osParaPDV]);
 
-  // --- FUNÇÕES DO CARRINHO (Mantidas exatamentes iguais) ---
+  // --- FUNÇÕES DO CARRINHO ---
   const produtosFiltrados = produtos.filter(p => {
     const bateCategoria = filtroCategoria === 'Todos' || p.categoria === filtroCategoria;
     const bateBusca = p.nome.toLowerCase().includes(busca.toLowerCase());
@@ -82,8 +78,9 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
   const removerDoCarrinho = (id) => { setCarrinho(prev => prev.filter(item => item.id !== id)); };
   const subtotal = carrinho.reduce((acc, item) => acc + (parseFloat(item.preco) * item.qtd), 0);
 
-const finalizarVenda = async () => {
+  const finalizarVenda = async () => {
     if (carrinho.length === 0) return;
+    
     const itensFisicos = carrinho.filter(item => !item.isOS).map(item => ({
       produto_id: item.id, quantidade: item.qtd, preco_unitario: item.preco
     }));
@@ -95,73 +92,53 @@ const finalizarVenda = async () => {
     };
 
     try {
-      const token = localStorage.getItem('techlab_token'); 
-      const resposta = await fetch('http://localhost:8000/vendas', {
-        method: 'POST', // 🔴 Faltava o método POST aqui!
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+      // Registar a Venda
+      await apiFetch('/vendas', {
+        method: 'POST',
         body: JSON.stringify(payloadDaVenda)
       });
       
-      if (resposta.ok) {
-        // 🔴 A MÁGICA DO CHECKOUT: Se pagou uma OS, muda o status para Entregue!
-        if (os_id_final) {
-          await fetch(`http://localhost:8000/ordens-servico/${os_id_final}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ status: 'Entregue' })
-          });
-        }
-
-        alert(`✅ Venda de R$ ${subtotal.toFixed(2)} finalizada com sucesso!`);
-        setCarrinho([]); 
-        if (setOsParaPDV) setOsParaPDV(null);
-        carregarDadosBase(); 
-      } else { 
-        alert("Erro ao finalizar a venda."); 
+      // A MÁGICA DO CHECKOUT: Se pagou uma OS, muda o status para Entregue!
+      if (os_id_final) {
+        await apiFetch(`/ordens-servico/${os_id_final}`, {
+          method: 'PUT',
+          body: JSON.stringify({ status: 'Entregue' })
+        });
       }
-    } catch (erro) { console.error(erro); }
+
+      alert(`✅ Venda de R$ ${subtotal.toFixed(2)} finalizada com sucesso!`);
+      setCarrinho([]); 
+      if (setOsParaPDV) setOsParaPDV(null);
+      carregarDadosBase(); 
+    } catch (erro) { 
+      console.error(erro);
+      alert(`Erro ao finalizar a venda: ${erro.message}`);
+    }
   };
 
-// --- FUNÇÃO DA VENDA PERDIDA / SUGESTÃO (NOVO) ---
+  // --- FUNÇÃO DA VENDA PERDIDA / SUGESTÃO ---
   const enviarSugestao = async (e) => {
     e.preventDefault();
     const payload = {
       produto_solicitado: formSugestao.produto_solicitado,
       quantidade: 1,
-      origem: 'Balcao', // Diferencia do pedido do técnico
+      origem: 'Balcao', 
       prioridade: formSugestao.prioridade,
       observacao: formSugestao.observacao
     };
 
     try {
-      // 🔴 1. PEGAR O TOKEN DO NAVEGADOR
-      const token = localStorage.getItem('techlab_token');
-
-      const res = await fetch('http://localhost:8000/solicitacoes', {
+      await apiFetch('/solicitacoes', {
         method: 'POST', 
-        headers: { 
-          'Content-Type': 'application/json',
-          // 🔴 2. INJETAR O TOKEN NO CABEÇALHO PARA DESTRAVAR A ROTA
-          'Authorization': `Bearer ${token}` 
-        }, 
         body: JSON.stringify(payload)
       });
       
-      if (res.ok) {
-        alert("✅ Demanda anotada! O ADM verá isso na próxima compra.");
-        setModalSugestaoAberto(false);
-        setFormSugestao({ produto_solicitado: '', prioridade: 'Sugestão', observacao: '' });
-      } else { 
-        alert("Erro ao enviar sugestão. O servidor recusou."); 
-      }
+      alert("✅ Demanda anotada! O ADM verá isso na próxima compra.");
+      setModalSugestaoAberto(false);
+      setFormSugestao({ produto_solicitado: '', prioridade: 'Sugestão', observacao: '' });
     } catch (e) { 
       console.error(e); 
+      alert(`Erro ao enviar sugestão: ${e.message}`);
     }
   };
 
@@ -193,7 +170,7 @@ const finalizarVenda = async () => {
             </div>
           </div>
 
-{/* Barra Inferior do Topo (Categorias + Botão de Falta) */}
+          {/* Barra Inferior do Topo (Categorias + Botão de Falta) */}
           <div className="flex justify-between items-center bg-[#1e293b]/50 p-2 rounded-xl border border-slate-700/50">
             
             <div className="flex gap-2 overflow-x-auto custom-scrollbar flex-1 mr-4 pb-1">
@@ -211,9 +188,8 @@ const finalizarVenda = async () => {
               ))}
             </div>
             
-           {/* NOVO ESTILO: Formato de "Pílula" igual às categorias */}
             <button 
-              onClick={() => setModalSugestaoAberto(true)} // ✅ AGORA SIM! Ele abre o modal.
+              onClick={() => setModalSugestaoAberto(true)}
               className="px-4 py-1.5 rounded-full whitespace-nowrap text-sm font-medium transition-all bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white border border-purple-500/30 flex items-center gap-2 mb-1"
               title="Anotar produto que o cliente pediu e não tinha"
             >
@@ -222,7 +198,7 @@ const finalizarVenda = async () => {
             
           </div>
             
-          </div>
+        </div>
 
         {/* GRADE DE PRODUTOS */}
         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
@@ -301,7 +277,7 @@ const finalizarVenda = async () => {
             {['PIX', 'Cartão', 'Dinheiro'].map((metodo) => (
               <button 
                 key={metodo} 
-                onClick={() => setFormaPagamento(metodo)} 
+                onClick={() => setFormPagamento(metodo)} 
                 className={`py-2 rounded-lg text-xs font-bold border transition-all ${
                   formaPagamento === metodo 
                   ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)]' 
@@ -350,7 +326,7 @@ const finalizarVenda = async () => {
         </div>
       </div>
 
-      {/* MODAL DE VENDA PERDIDA / SUGESTÃO (NOVO) */}
+      {/* MODAL DE VENDA PERDIDA / SUGESTÃO */}
       {modalSugestaoAberto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-[#1e293b] border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">

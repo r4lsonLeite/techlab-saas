@@ -10,6 +10,10 @@ export default function Usuarios() {
     nome: '', email: '', senha: '', cargo: 'tecnico'
   });
 
+  // 🔴 NOVOS ESTADOS PARA GESTÃO DE COMISSÃO
+  const [editandoComissaoId, setEditandoComissaoId] = useState(null);
+  const [novaComissao, setNovaComissao] = useState("");
+
   // Busca os dados reais assim que o ecrã abre
   useEffect(() => {
     carregarUsuarios();
@@ -37,7 +41,6 @@ export default function Usuarios() {
         console.log("🔍 Dados recebidos da Base de Dados:", dados); // Ajuda a depurar no F12
         
         if (Array.isArray(dados)) {
-          // Agora vamos ver absolutamente tudo o que o Python enviar!
           setUsuarios(dados); 
         } else {
           console.error("Formato de dados inesperado do servidor:", dados);
@@ -91,6 +94,32 @@ export default function Usuarios() {
     }
   };
 
+  // 🔴 NOVA FUNÇÃO PARA SALVAR A COMISSÃO DO FUNCIONÁRIO
+  const salvarComissao = async (idUsuario) => {
+    const token = localStorage.getItem('techlab_token');
+    try {
+      const res = await fetch(`http://localhost:8000/usuarios/${idUsuario}/comissao`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ taxa_comissao: parseFloat(novaComissao || 0) })
+      });
+
+      if (res.ok) {
+        alert("✅ Comissão atualizada com sucesso!");
+        setEditandoComissaoId(null);
+        carregarUsuarios(); // Atualiza a tela com o valor novo
+      } else {
+        alert("Erro ao tentar atualizar a comissão.");
+      }
+    } catch (e) {
+      console.error("Erro ao salvar comissão:", e);
+      alert("Erro de ligação com o servidor.");
+    }
+  };
+
   const revogarAcesso = async (id, nome) => {
     if(id === 1) {
       alert("⚠️ Proteção do Sistema: O Administrador Principal não pode ser removido!");
@@ -122,7 +151,6 @@ export default function Usuarios() {
     const token = localStorage.getItem('techlab_token');
 
     try {
-      // Usamos uma rota PUT no backend para atualizar apenas o campo 'ativo'
       const res = await fetch(`http://localhost:8000/usuarios/${id}/reativar`, { 
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -132,7 +160,6 @@ export default function Usuarios() {
         carregarUsuarios(); 
         alert(`✅ Acesso de ${nome} reativado com sucesso!`);
       } else if (res.status === 404) {
-        // Se o erro for 404, significa que a rota ainda não existe no Python!
         alert("⚠️ O Backend ainda não sabe como reativar utilizadores! Precisa de adicionar a rota '/reativar' no seu ficheiro Python.");
       } else {
         alert("Erro ao tentar reativar acesso.");
@@ -180,7 +207,6 @@ export default function Usuarios() {
   };
 
   const totalUsuarios = usuarios.length;
-  // Apenas conta os técnicos que não foram eliminados
   const tecnicosAtivos = usuarios.filter(u => String(u?.cargo || '').toLowerCase() === 'tecnico' && u?.ativo !== false).length;
 
   return (
@@ -232,7 +258,6 @@ export default function Usuarios() {
             const cargoStr = String(user?.cargo || '').toLowerCase();
             const isAdmin = cargoStr === 'admin' || cargoStr === 'adm';
             
-            // Identifica se o utilizador está desativado na base de dados
             const inativo = user?.ativo === false;
 
             return (
@@ -301,6 +326,44 @@ export default function Usuarios() {
                       </div>
                     )}
                   </div>
+
+                  {/* 🔴 NOVA ÁREA: GESTÃO DE COMISSÃO */}
+                  {!isAdmin && !inativo && (
+                    <div className="pt-4 border-t border-slate-700">
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Taxa de Comissão (%)</p>
+                        {editandoComissaoId !== user.id && (
+                          <button 
+                            onClick={() => { setEditandoComissaoId(user.id); setNovaComissao(user.taxa_comissao || 0); }} 
+                            className="text-[10px] bg-slate-800 text-blue-400 border border-slate-600 px-2 py-1 rounded hover:text-white transition-colors"
+                          >
+                            ✏️ Editar
+                          </button>
+                        )}
+                      </div>
+
+                      {editandoComissaoId === user.id ? (
+                        <div className="flex gap-2 h-8">
+                          <input 
+                            type="number" 
+                            value={novaComissao} 
+                            onChange={(e) => setNovaComissao(e.target.value)}
+                            className="w-full bg-[#0f172a] border border-emerald-500/50 rounded px-2 text-sm outline-none text-white focus:border-emerald-500"
+                            placeholder="Ex: 30"
+                            autoFocus
+                          />
+                          <button onClick={() => salvarComissao(user.id)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 rounded text-xs font-bold transition-colors">OK</button>
+                          <button onClick={() => setEditandoComissaoId(null)} className="bg-slate-700 hover:bg-slate-600 text-white px-2 rounded text-xs font-bold transition-colors">✕</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-end gap-1">
+                          <p className="text-2xl font-bold text-white leading-none">{user.taxa_comissao || 0}</p>
+                          <span className="text-slate-400 text-sm font-bold pb-0.5">%</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                 </div>
 
                 {/* Rodapé do Card */}

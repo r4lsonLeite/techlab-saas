@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react'; // 🟢 Adicionado useMemo para performance
+import { apiFetch } from '../services/api'; 
 
 export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, abrirPDVComOS }) {
   const [ordens, setOrdens] = useState([]);
@@ -15,172 +16,126 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
   
   const isTecnico = String(cargo).toLowerCase().trim() === 'tecnico';
 
+  // 🟠 1. Correção de dependência do useEffect para carregar OS externa
   useEffect(() => {
     carregarOrdens();
-  }, []);
+  }, [osIdParaAbrir]); 
 
   const carregarOrdens = async () => {
-    const token = localStorage.getItem('techlab_token');
+    setCarregando(true);
     try {
-      const resposta = await fetch('http://localhost:8000/ordens-servico', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (resposta.ok) {
-        const dados = await resposta.json();
-        setOrdens(dados);
-        
-        if (osIdParaAbrir) {
-          const osDesejada = dados.find(o => o.id === osIdParaAbrir);
-          if (osDesejada) setOsAtiva(osDesejada);
-          setOsIdParaAbrir(null);
-        }
+      const dados = await apiFetch('/ordens-servico');
+      setOrdens(dados);
+      
+      // 🟠 2. Comparação segura de ID (Garantindo Number)
+      if (osIdParaAbrir) {
+        const osDesejada = dados.find(o => Number(o.id) === Number(osIdParaAbrir));
+        if (osDesejada) setOsAtiva(osDesejada);
+        setOsIdParaAbrir(null);
       }
-    } catch (erro) { console.error("Erro ao buscar OS:", erro); } 
-    finally { setCarregando(false); }
-  };
-
-  const osFiltradas = ordens.filter(os => {
-    const termo = busca.toLowerCase();
-    return (
-      String(os.id).includes(termo) ||
-      (os.cliente_nome && os.cliente_nome.toLowerCase().includes(termo)) ||
-      (os.aparelho && os.aparelho.toLowerCase().includes(termo)) ||
-      (os.imei && os.imei.toLowerCase().includes(termo))
-    );
-  });
-
-  const verPerfilCliente = async (clienteId) => {
-    const token = localStorage.getItem('techlab_token');
-    const res = await fetch(`http://localhost:8000/clientes/${clienteId}/resumo`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (res.ok) {
-      const dados = await res.json();
-      setDadosCrm(dados);
-      setModalCrmAberto(true);
-    } else {
-        alert("Erro ao buscar perfil do cliente.");
+    } catch (erro) { 
+      console.error("Erro ao buscar OS:", erro); 
+    } finally { 
+      setCarregando(false); 
     }
   };
 
-  const imprimirComprovante = (dadosOs, idOs) => {
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    document.body.appendChild(iframe);
+  // 🟢 7. Otimização com useMemo (Evita processamento inútil a cada render)
+  const osFiltradas = useMemo(() => {
+    const termo = busca.toLowerCase();
+    return ordens.filter(os => {
+      const aparelhoCompleto = `${os.marca || ''} ${os.modelo || ''}`.toLowerCase();
+      return (
+        String(os.id).includes(termo) ||
+        (os.cliente_nome && os.cliente_nome.toLowerCase().includes(termo)) ||
+        aparelhoCompleto.includes(termo) ||
+        (os.imei && os.imei.toLowerCase().includes(termo))
+      );
+    });
+  }, [ordens, busca]);
 
+  const verPerfilCliente = async (clienteId) => {
+    try {
+      const dados = await apiFetch(`/clientes/${clienteId}/resumo`);
+      setDadosCrm(dados);
+      setModalCrmAberto(true);
+    } catch (erro) {
+      alert(`Erro ao buscar perfil do cliente: ${erro.message}`);
+    }
+  };
+
+  // 🟡 5. Impressão via Window Open (Mais estável que iframe oculto)
+  const imprimirComprovante = (dadosOs, idOs) => {
+    const win = window.open('', '_blank');
     const htmlRecibo = `
       <html>
         <head>
           <title>OS #${idOs}</title>
           <style>
-            body { font-family: 'Courier New', monospace; margin: 0 auto; padding: 0; font-size: 12px; max-width: 300px; }
+            body { font-family: monospace; padding: 10px; font-size: 12px; max-width: 300px; }
             .center { text-align: center; }
             .bold { font-weight: bold; }
-            .divider { border-top: 1px dashed #000; margin: 8px 0; }
-            .linha { margin: 4px 0; }
-            .os-numero { font-size: 22px; font-weight: bold; text-align: center; margin: 10px 0; }
           </style>
         </head>
         <body>
-          <div class="center">
-            <h2>TECHLAB</h2>
-            <p>Assistência Técnica</p>
-          </div>
-          <div class="os-numero">OS #${idOs}</div>
-          <div class="divider"></div>
-          <p class="linha"><span class="bold">Cliente:</span> ${dadosOs.cliente_nome || '---'}</p>
-          <p class="linha"><span class="bold">Telefone:</span> ${dadosOs.telefone || '---'}</p>
-          <div class="divider"></div>
-          <p class="linha"><span class="bold">Aparelho:</span> ${dadosOs.aparelho || '---'}</p>
-          <p class="linha"><span class="bold">Defeito:</span> ${dadosOs.defeito || '---'}</p>
-          <div class="divider"></div>
-          <p class="linha"><span class="bold">Valor:</span> R$ ${dadosOs.valor_orcamento || '0.00'}</p>
-          <div class="divider"></div>
+          <div class="center"><h2>TECHLAB</h2><p>Assistência Técnica</p></div>
+          <div class="center bold" style="font-size: 18px;">OS #${idOs}</div>
+          <hr>
+          <p><b>Cliente:</b> ${dadosOs.cliente_nome || '---'}</p>
+          <p><b>Aparelho:</b> ${dadosOs.marca} ${dadosOs.modelo}</p>
+          <p><b>Valor:</b> R$ ${dadosOs.valor_orcamento || '0.00'}</p>
+          <hr>
           <p class="center">Obrigado pela preferência!</p>
         </body>
       </html>
     `;
-
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(htmlRecibo);
-    doc.close();
-
-    iframe.onload = () => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      setTimeout(() => { document.body.removeChild(iframe); }, 1000);
-    };
+    win.document.write(htmlRecibo);
+    win.document.close();
+    win.print();
   };
 
- const handleExcluir = async (id) => {
+  const handleExcluir = async (id) => {
     const confirmar = window.confirm(`Tem certeza que deseja EXCLUIR a OS #${id}?`);
     if (!confirmar) return;
-
-    const token = localStorage.getItem('techlab_token'); 
-
     try {
-      const resposta = await fetch(`http://localhost:8000/ordens-servico/${id}`, { 
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (resposta.ok) {
-        setOrdens(ordens.filter(os => os.id !== id));
-        setOsAtiva(null);
-        alert("OS excluída/cancelada com sucesso!");
-      } else {
-        const erroDetalhe = await resposta.json();
-        alert(`Erro: ${erroDetalhe.detail || "Sem permissão para excluir."}`);
-      }
-    } catch (erro) { console.error(erro); }
+      await apiFetch(`/ordens-servico/${id}`, { method: 'DELETE' });
+      setOrdens(ordens.filter(os => os.id !== id));
+      setOsAtiva(null);
+      alert("OS excluída/cancelada com sucesso!");
+    } catch (erro) { alert(`Erro: ${erro.message}`); }
   };
 
   const handleAtualizarStatus = async (novoStatus) => {
     let payload = { status: novoStatus };
-
     if (novoStatus.includes('APROVADO')) {
-      if (!valorDigitado || valorDigitado <= 0) {
+      // 🟡 4. Conversão correta de valor para Float (Segurança)
+      const valor = parseFloat(valorDigitado);
+      if (!valor || valor <= 0) {
         alert("Por favor, digite o valor do orçamento antes de aprovar!");
         return;
       }
-      payload.valor_orcamento = parseFloat(valorDigitado);
+      payload.valor_orcamento = valor;
       payload.observacoes_balcao = obsBalcao;
     }
-    
     if (novoStatus.includes('Recusado')) {
       payload.observacoes_balcao = obsBalcao;
     }
-
-    // 🔴 O ERRO DE 401 RESOLVIDO: Pegamos o token e colocamos no cabeçalho
-    const token = localStorage.getItem('techlab_token'); 
-
     try {
-      const resposta = await fetch(`http://localhost:8000/ordens-servico/${osAtiva.id}`, {
+      await apiFetch(`/ordens-servico/${osAtiva.id}`, {
         method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
         body: JSON.stringify(payload)
       });
-
-      if (resposta.ok) {
-        alert(`OS atualizada para: ${novoStatus}`);
-        setOsAtiva(null); 
-        setValorDigitado(""); 
-        setObsBalcao(""); 
-        carregarOrdens(); 
-      } else {
-        alert("O servidor encontrou um erro ao tentar salvar.");
-      }
-    } catch (erro) { console.error("Erro ao atualizar:", erro); }
+      alert(`OS atualizada para: ${novoStatus}`);
+      setValorDigitado(""); 
+      setObsBalcao(""); 
+      carregarOrdens(); 
+    } catch (erro) { 
+      alert(`Erro ao atualizar: ${erro.message}`);
+    }
   };
 
   return (
     <div className="flex h-full w-full bg-[#0f172a] relative">
-      {/* BARRA DE BUSCA E LISTA */}
       <div className="w-1/3 bg-[#1e293b] border-r border-slate-700 flex flex-col z-10 shadow-xl">
         <div className="p-6 border-b border-slate-700">
           <h2 className="text-2xl font-bold text-white mb-4">Consultar OS</h2>
@@ -214,7 +169,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                   )}
                 </div>
                 <h3 className="text-emerald-400 font-bold">{os.cliente_nome || "Cliente"}</h3>
-                <p className="text-slate-300 text-sm">{os.aparelho}</p>
+                <p className="text-slate-300 text-sm">{os.marca} {os.modelo}</p>
                 <p className="text-slate-500 text-xs mt-2 font-bold">{os.status}</p>
               </div>
             ))
@@ -222,7 +177,6 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
         </div>
       </div>
 
-      {/* DETALHES DA OS */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0f172a]">
         {!osAtiva ? (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
@@ -232,7 +186,6 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
         ) : (
           
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          
           <div className="flex justify-between items-center border-b border-slate-700 pb-6 mb-6 mt-2">
             <h1 className="text-3xl font-bold text-white flex items-center gap-3">
               OS #{osAtiva.id}
@@ -273,7 +226,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                 <div className="flex gap-3 w-full md:w-auto">
                   <button 
                     onClick={() => {
-                      const msg = `Olá ${osAtiva.cliente_nome}! Seu aparelho ${osAtiva.aparelho} já está pronto para retirada na Tech Ninja. Valor: R$ ${osAtiva.valor_orcamento}. Aguardamos você!`;
+                      const msg = `Olá ${osAtiva.cliente_nome}! Seu aparelho ${osAtiva.marca} ${osAtiva.modelo} já está pronto para retirada na Tech Ninja. Valor: R$ ${osAtiva.valor_orcamento}. Aguardamos você!`;
                       window.open(`https://wa.me/55${(osAtiva.telefone || '').replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
                     }}
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg"
@@ -289,11 +242,8 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
             )}
 
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* --- DADOS DO CLIENTE --- */}
               <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
                 <h3 className="text-emerald-400 font-bold mb-4 border-b border-slate-700 pb-2">👤 Dados do Cliente</h3>
-                
                 <div className="mb-4">
                   <p className="text-slate-500 text-xs uppercase font-bold tracking-wider mb-1">Nome</p>
                   <div className="flex items-center gap-3">
@@ -312,13 +262,12 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                 </div>
               </div>
 
-              {/* --- DADOS DO APARELHO --- */}
               <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
                 <h3 className="text-blue-400 font-bold mb-4 border-b border-slate-700 pb-2">📱 Dados do Aparelho</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-slate-500 text-xs uppercase font-bold tracking-wider">Aparelho</p>
-                    <p className="text-white font-medium">{osAtiva.aparelho}</p>
+                    <p className="text-white font-medium">{osAtiva.marca} {osAtiva.modelo}</p>
                   </div>
                   <div>
                     <p className="text-slate-500 text-xs uppercase font-bold tracking-wider">Valor Cobrado</p>
@@ -328,8 +277,51 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                   </div>
                 </div>
               </div>
-
             </div>
+
+            {/* 🔴 3. Tabela Protegida com Array.isArray */}
+            <div className="bg-[#1e293b] p-6 rounded-2xl border border-purple-500/30 shadow-lg">
+              <h3 className="text-purple-400 font-bold mb-4 border-b border-slate-700 pb-2 flex items-center gap-2">
+                <span>🔧</span> Peças e Serviços Inclusos no Orçamento
+              </h3>
+              
+              {/* Testamos se 'itens' existe e tem conteúdo */}
+  {osAtiva && Array.isArray(osAtiva.itens) && osAtiva.itens.length > 0 ? (
+    <div className="bg-[#0f172a] rounded-xl border border-slate-700 overflow-hidden">
+      <table className="w-full text-left text-sm text-slate-300">
+        <thead className="bg-slate-800 text-slate-400 text-xs uppercase">
+          <tr>
+            <th className="p-3">Qtd</th>
+            <th className="p-3">Descrição da Peça/Serviço</th>
+            <th className="p-3 text-right">Valor Unit.</th>
+            <th className="p-3 text-right">Total</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-700">
+          {osAtiva.itens.map((item, idx) => {
+            // Garantimos que os valores são números para não dar NaN
+            const qtd = Number(item.quantidade || 0);
+            const preco = Number(item.preco_unitario || 0);
+            return (
+              <tr key={idx} className="hover:bg-slate-800/50">
+                <td className="p-3 font-bold text-white">{qtd}x</td>
+                <td className="p-3 text-white">{item.nome_produto || "Item sem nome"}</td>
+                <td className="p-3 text-right">R$ {preco.toFixed(2)}</td>
+                <td className="p-3 text-right font-bold text-emerald-400">
+                  R$ {(qtd * preco).toFixed(2)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  ) : (
+    <p className="text-slate-500 text-sm italic">
+      Nenhuma peça ou serviço adicionado pelo técnico ainda.
+    </p>
+  )}
+</div>
 
             {/* HISTÓRICO VISUAL */}
             <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg mt-4">
@@ -338,8 +330,6 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
               </h3>
               
               <div className="relative border-l-2 border-slate-700 ml-4 space-y-8 pb-4 mt-4">
-                
-                {/* Entrada */}
                 <div className="relative pl-8">
                   <div className="absolute -left-[1.12rem] top-0 flex items-center justify-center w-9 h-9 rounded-full bg-slate-600 border-4 border-[#1e293b] text-white shadow">
                     <span className="text-xs">📥</span>
@@ -350,7 +340,6 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                   </div>
                 </div>
 
-                {/* Laudo */}
                 {osAtiva.laudo_tecnico && (
                   <div className="relative pl-8">
                     <div className="absolute -left-[1.12rem] top-0 flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 border-4 border-[#1e293b] text-white shadow-[0_0_8px_rgba(37,99,235,0.5)]">
@@ -361,35 +350,12 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                       <p className="text-slate-300 text-xs mt-1 italic">"{osAtiva.laudo_tecnico}"</p>
                       {osAtiva.foto_url && (
                         <div className="mt-4">
-                          <p className="text-[10px] text-slate-500 font-bold uppercase mb-2">📸 Foto Anexada à OS:</p>
-                          <img 
-                            src={osAtiva.foto_url} 
-                            alt="Evidência do Técnico" 
-                            className="max-h-48 w-auto object-contain rounded-lg border border-slate-600 shadow-md bg-[#1e293b]" 
-                          />
+                          <img src={osAtiva.foto_url} alt="Evidência" className="max-h-48 rounded-lg border border-slate-600 bg-[#1e293b]" />
                         </div>
                       )}
                     </div>
                   </div>
                 )}
-
-                {/* Aprovação */}
-                {osAtiva.valor_orcamento > 0 && (
-                  <div className="relative pl-8">
-                    <div className="absolute -left-[1.12rem] top-0 flex items-center justify-center w-9 h-9 rounded-full bg-amber-500 border-4 border-[#1e293b] text-white shadow-[0_0_8px_rgba(245,158,11,0.5)]">
-                      <span className="text-xs">💰</span>
-                    </div>
-                    <div className="bg-[#0f172a] p-4 rounded-xl border border-slate-700">
-                      <h4 className="font-bold text-amber-400 text-sm">Orçamento Aprovado</h4>
-                      <p className="text-slate-300 text-xs mt-1">
-                        Valor negociado: {isTecnico ? <span className="text-slate-500 italic font-bold">🔒 Restrito</span> : `R$ ${osAtiva.valor_orcamento}`}
-                      </p>
-                      {osAtiva.observacoes_balcao && <p className="text-purple-400 text-xs mt-2 border-t border-slate-700 pt-2">Obs: {osAtiva.observacoes_balcao}</p>}
-                    </div>
-                  </div>
-                )}
-
-                {/* Finalização */}
                 {['Pronto para Retirada', 'Entregue'].includes(osAtiva.status) && (
                   <div className="relative pl-8">
                     <div className="absolute -left-[1.12rem] top-0 flex items-center justify-center w-9 h-9 rounded-full bg-emerald-500 border-4 border-[#1e293b] text-white shadow-[0_0_8px_rgba(16,185,129,0.5)]">
@@ -398,21 +364,17 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                     <div className="bg-[#0f172a] p-4 rounded-xl border border-emerald-500/30">
                       <h4 className="font-bold text-emerald-400 text-sm">Serviço Concluído</h4>
                       <p className="text-slate-300 text-xs mt-1">O aparelho foi finalizado na bancada.</p>
-                      {osAtiva.status === 'Entregue' && <span className="mt-3 inline-block bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded">ENTREGUE AO CLIENTE</span>}
                     </div>
                   </div>
                 )}
-
               </div>
             </div>
 
-            {/* PAINEL DE NEGOCIAÇÃO (Balcão) */}
             {(osAtiva.status === 'Aguardando Cliente' || osAtiva.status === 'Aguardando Reavaliação') && !isTecnico && (
               <div className="mt-8 bg-[#1e293b] p-8 rounded-2xl border border-purple-500/40 shadow-xl">
                 <h3 className="text-white font-bold text-xl mb-6 border-b border-slate-700 pb-3 flex items-center gap-3">
                   <span className="text-2xl">📞</span> Resposta do Cliente
                 </h3>
-                
                 <div className="mb-6 w-full">
                   <label className="block text-slate-400 text-sm font-bold mb-2 uppercase">Observações / Recados para o Técnico</label>
                   <textarea 
@@ -421,7 +383,6 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                     placeholder="Ex: Cliente aprovou mas pediu para guardar a peça velha..." rows="2"
                   />
                 </div>
-
                 <div className="flex flex-col md:flex-row gap-6 items-end">
                   <div className="flex-1 w-full">
                     <label className="block text-slate-400 text-sm font-bold mb-3 uppercase tracking-wider">Valor Final Negociado (R$)</label>
@@ -436,105 +397,55 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                 </div>
               </div>
             )}
-
           </div>
         </div>
         )}
       </div>
 
-      {/* 🔴 TELA DE CRM SOBREPOSTA (MODAL) */}
       {modalCrmAberto && dadosCrm && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-[#1e293b] border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-            
-            {/* Cabeçalho do Modal */}
             <div className="p-6 bg-[#0f172a] border-b border-slate-700 flex justify-between items-center">
               <div>
-                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                  <span className="text-blue-500">👤</span> Perfil do Cliente
-                </h2>
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">👤 Perfil do Cliente</h2>
                 <p className="text-slate-400 text-sm mt-1">{dadosCrm.cliente.nome}</p>
               </div>
-              <button 
-                onClick={() => setModalCrmAberto(false)}
-                className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 w-10 h-10 rounded-full flex justify-center items-center font-bold transition-colors"
-              >✕</button>
+              <button onClick={() => setModalCrmAberto(false)} className="text-slate-400 hover:text-white bg-slate-800 w-10 h-10 rounded-full flex justify-center items-center font-bold">✕</button>
             </div>
-
-            {/* Corpo do Modal (Rola se for grande) */}
             <div className="p-6 overflow-y-auto space-y-6">
-              
-              {/* Indicadores do CRM */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-[#0f172a] border border-slate-700 p-4 rounded-xl text-center">
-                  <p className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Investimento Total</p>
+                  <p className="text-slate-400 text-xs font-bold uppercase mb-1">Investimento Total</p>
                   <p className="text-emerald-400 font-bold text-2xl">R$ {Number(dadosCrm.metricas.investimento_total).toFixed(2)}</p>
                 </div>
                 <div className="bg-[#0f172a] border border-slate-700 p-4 rounded-xl text-center">
-                  <p className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">OS Abertas</p>
+                  <p className="text-slate-400 text-xs font-bold uppercase mb-1">OS Abertas</p>
                   <p className="text-white font-bold text-2xl">{dadosCrm.metricas.total_os}</p>
                 </div>
                 <div className="bg-[#0f172a] border border-slate-700 p-4 rounded-xl text-center">
-                  <p className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Compras Avulsas</p>
+                  <p className="text-slate-400 text-xs font-bold uppercase mb-1">Compras Avulsas</p>
                   <p className="text-white font-bold text-2xl">{dadosCrm.metricas.total_compras}</p>
                 </div>
               </div>
-
-              {/* Informações de Contato e Aparelhos */}
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <h3 className="text-slate-300 font-bold mb-3 border-b border-slate-700 pb-2">Contatos</h3>
-                  <p className="text-slate-400 text-sm mb-2"><strong className="text-white">Telefone:</strong> {dadosCrm.cliente.telefone}</p>
-                  <p className="text-slate-400 text-sm"><strong className="text-white">E-mail:</strong> {dadosCrm.cliente.email}</p>
+                  <p className="text-slate-400 text-sm mb-2"><strong className="text-white">Tel:</strong> {dadosCrm.cliente.telefone}</p>
+                  <p className="text-slate-400 text-sm"><strong className="text-white">Email:</strong> {dadosCrm.cliente.email}</p>
                 </div>
                 <div>
                   <h3 className="text-slate-300 font-bold mb-3 border-b border-slate-700 pb-2">Aparelhos Frequentes</h3>
                   <div className="flex flex-wrap gap-2">
                     {dadosCrm.aparelhos_frequentes.map((ap, i) => (
-                      <span key={i} className="bg-blue-500/10 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-full text-xs font-bold">
-                        📱 {ap}
-                      </span>
+                      <span key={i} className="bg-blue-500/10 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-full text-xs font-bold">📱 {ap}</span>
                     ))}
-                    {dadosCrm.aparelhos_frequentes.length === 0 && <span className="text-slate-500 text-sm">Nenhum histórico</span>}
                   </div>
                 </div>
               </div>
-
-              {/* Tabela de Histórico */}
-              <div>
-                <h3 className="text-slate-300 font-bold mb-3 border-b border-slate-700 pb-2">Últimas Visitas (OS)</h3>
-                <div className="bg-[#0f172a] rounded-xl border border-slate-700 overflow-hidden">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-[#1e293b]">
-                      <tr>
-                        <th className="p-3 text-slate-400 font-bold">OS</th>
-                        <th className="p-3 text-slate-400 font-bold">Aparelho</th>
-                        <th className="p-3 text-slate-400 font-bold">Valor</th>
-                        <th className="p-3 text-slate-400 font-bold">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700">
-                      {dadosCrm.ultimas_os.length === 0 && (
-                        <tr><td colSpan="4" className="p-4 text-center text-slate-500">Nenhuma OS encontrada.</td></tr>
-                      )}
-                      {dadosCrm.ultimas_os.map((os) => (
-                        <tr key={os.id} className="hover:bg-slate-800/50">
-                          <td className="p-3 text-slate-300 font-bold">#{os.id}</td>
-                          <td className="p-3 text-slate-300">{os.marca} {os.modelo}</td>
-                          <td className="p-3 text-emerald-400 font-bold">R$ {Number(os.valor_orcamento).toFixed(2)}</td>
-                          <td className="p-3 text-slate-400 text-xs">{os.status}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

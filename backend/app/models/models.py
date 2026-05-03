@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Tex
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from core.database import Base
-
+from sqlalchemy.sql import func
 class ItemOS(Base):
     __tablename__ = "itens_os"
 
@@ -10,7 +10,7 @@ class ItemOS(Base):
     os_id = Column(Integer, ForeignKey("ordens_servico.id", ondelete="CASCADE"), nullable=False)
     produto_id = Column(Integer, ForeignKey("produtos.id"), nullable=False)
     
-    nome_produto = Column(String, nullable=False)
+    nome_produto = Column(String, nullable=True)
     quantidade = Column(Integer, nullable=False, default=1)
     preco_unitario = Column(Numeric(10,2), nullable=False)
 
@@ -33,6 +33,7 @@ class Usuario(Base):
     cargo = Column(String, nullable=False, default="tecnico")
     ativo = Column(Boolean, default=True)
     loja_id = Column(Integer, ForeignKey("lojas.id"), nullable=False)
+    taxa_comissao = Column(Numeric(5, 2), default=0.00)
 
     loja = relationship("Loja")
 
@@ -50,7 +51,8 @@ class OrdemServico(Base):
     __tablename__ = "ordens_servico"
 
     id = Column(Integer, primary_key=True, index=True)
-    
+    data_inicio_reparo = Column(DateTime(timezone=True), nullable=True)
+    data_fim_reparo = Column(DateTime(timezone=True), nullable=True)
     itens = relationship(
         "ItemOS",
         back_populates="os",
@@ -108,7 +110,7 @@ class Produto(Base):
     fornecedor = Column(String, nullable=True)
     categoria = Column(String, default="Outros") 
     localizacao = Column(String, nullable=True)  
-    preco_custo = Column(Float, default=0.0)
+    preco_custo = Column(Numeric(10, 2))
     preco_venda = Column(Float, nullable=False)
     estoque_atual = Column(Integer, default=0)
     estoque_minimo = Column(Integer, default=5)
@@ -153,6 +155,9 @@ class Venda(Base):
     id = Column(Integer, primary_key=True, index=True)
     valor_total = Column(Numeric(10,2), nullable=False)
     forma_pagamento = Column(String, nullable=False, default="Dinheiro")
+    
+    # 🔴 A NOSSA NOVA COLUNA DE DATA!
+    data_venda = Column(DateTime(timezone=True), server_default=func.now())
     
     # Vínculos para histórico e PDV
     cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=True)

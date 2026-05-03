@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../services/api'; // O NOSSO MOTOR BLINDADO 🛡️
 
 export default function Estoque() {
   // --- CONTROLE DE ABAS ---
@@ -30,67 +31,58 @@ export default function Estoque() {
   }, []);
 
   // 1. BUSCA O ESTOQUE
-  // 1. BUSCA O ESTOQUE
   const carregarProdutos = async () => {
-    const token = localStorage.getItem('techlab_token');
     try {
-      const res = await fetch('http://localhost:8000/produtos', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) setProdutos(await res.json());
-    } catch (e) { console.error(e); } finally { setCarregando(false); }
+      const dados = await apiFetch('/produtos');
+      setProdutos(dados);
+    } catch (e) { 
+      console.error("Erro ao carregar estoque:", e); 
+    } finally { 
+      setCarregando(false); 
+    }
   };
 
   // 2. BUSCA AS SOLICITAÇÕES DE COMPRA
   const carregarSolicitacoes = async () => {
-    const token = localStorage.getItem('techlab_token');
     try {
-      const res = await fetch('http://localhost:8000/solicitacoes', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) setSolicitacoes(await res.json());
-    } catch (e) { console.error(e); }
+      const dados = await apiFetch('/solicitacoes');
+      setSolicitacoes(dados);
+    } catch (e) { 
+      console.error("Erro ao carregar solicitações:", e); 
+    }
   };
 
-// 3. ATUALIZAR STATUS DA COMPRA (Com a mágica do Atalho)
+// 3. ATUALIZAR STATUS DA COMPRA
   const atualizarStatusCompra = async (solic, novoStatus) => {
-    // 🔴 1. PEGAR O TOKEN AQUI
-    const token = localStorage.getItem('techlab_token');
-    
     try {
-      const res = await fetch(`http://localhost:8000/solicitacoes/${solic.id}/status?status=${novoStatus}`, {
-        method: 'PUT',
-        // 🔴 2. INJETAR O TOKEN NO CABEÇALHO
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      // 🔴 CORREÇÃO AQUI: Mudamos de ?status= para ?status_novo=
+      await apiFetch(`/solicitacoes/${solic.id}/status?status_novo=${novoStatus}`, {
+        method: 'PUT'
       });
-      if (res.ok) {
-        carregarSolicitacoes(); // Atualiza a lista
-        
-        if (novoStatus === 'Entregue') {
-          // A MÁGICA: Pergunta se quer dar entrada no estoque na hora
-          if (window.confirm(`O item "${solic.produto_solicitado}" chegou! Deseja dar entrada nele no estoque agora?`)) {
-            // Muda para a aba de estoque
-            setAbaAtiva('estoque');
-            
-            // Abre o modal de Novo Produto já com os dados pré-preenchidos!
-            setProdutoEditando(null);
-            setFormData({
-              nome: solic.produto_solicitado, 
-              categoria: solic.origem === 'Bancada' ? 'Peças' : 'Outros', // Já adivinha a categoria!
-              localizacao: '', marca: '', codigo_barras: '', codigo_modelo: '', fornecedor: '',
-              preco_custo: '', preco_venda: '', 
-              estoque_atual: solic.quantidade || 1, // Já coloca a quantidade
-              estoque_minimo: '5'
-            });
-            setModalAberto(true);
-          }
+      
+      carregarSolicitacoes(); // Atualiza a lista
+      
+      if (novoStatus === 'Entregue') {
+        // A MÁGICA: Pergunta se quer dar entrada no estoque na hora
+        if (window.confirm(`O item "${solic.produto_solicitado}" chegou! Deseja dar entrada nele no estoque agora?`)) {
+          setAbaAtiva('estoque');
+          
+          // Abre o modal de Novo Produto já com os dados pré-preenchidos!
+          setProdutoEditando(null);
+          setFormData({
+            nome: solic.produto_solicitado, 
+            categoria: solic.origem === 'Bancada' ? 'Peças' : 'Outros',
+            localizacao: '', marca: '', codigo_barras: '', codigo_modelo: '', fornecedor: '',
+            preco_custo: '', preco_venda: '', 
+            estoque_atual: solic.quantidade || 1, 
+            estoque_minimo: '5'
+          });
+          setModalAberto(true);
         }
-      } else {
-        alert("Erro ao alterar status. Sem permissão ou sessão expirada.");
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      alert(`Erro ao alterar status: ${e.message}`);
+    }
   };
 
   // --- FUNÇÕES DE CRUD DO ESTOQUE ---
@@ -113,11 +105,9 @@ export default function Estoque() {
     setModalAberto(true);
   };
 
- const salvarProduto = async (e) => {
+const salvarProduto = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('techlab_token');
 
-    // Usando formData (o nome correto do seu estado)
     const payload = {
       nome: formData.nome,
       categoria: formData.categoria,
@@ -128,55 +118,33 @@ export default function Estoque() {
       localizacao: formData.localizacao,
       estoque_atual: Number(formData.estoque_atual),
       estoque_minimo: Number(formData.estoque_minimo),
-      preco_custo: Number(formData.preco_custo),
-      preco_venda: Number(formData.preco_venda)
+      preco_custo: Number(formData.preco_custo || 0),
+      preco_venda: Number(formData.preco_venda),
+      loja_id: 1  // 🔴 A CORREÇÃO: O Python exigia este campo para deixar passar!
     };
 
     try {
-      const res = await fetch('http://localhost:8000/produtos', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        alert("✅ Produto salvo com sucesso!");
-        setModalAberto(false);
-        carregarProdutos();
+      if (produtoEditando) {
+        // ✏️ MODO EDIÇÃO: Tem ID, então fazemos PUT para atualizar a peça existente
+        await apiFetch(`/produtos/${produtoEditando}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload)
+        });
+        alert("✅ Produto atualizado com sucesso!");
       } else {
-        const err = await res.json();
-        console.error("Erro do backend:", err);
-        alert("Erro ao salvar produto. Verifique a consola (F12).");
+        // 📦 MODO CRIAÇÃO: Não tem ID, fazemos POST para criar uma peça nova
+        await apiFetch('/produtos', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        alert("✅ Novo produto salvo com sucesso!");
       }
+
+      setModalAberto(false);
+      carregarProdutos();
     } catch (erro) {
-      console.error("Erro de requisição:", erro);
+      alert(`Erro ao salvar produto: ${erro.message}`);
     }
-  };
-
-const excluirProduto = async (id, nome) => {
-    if (!window.confirm(`Tem certeza que deseja apagar "${nome}" do estoque?`)) return;
-    
-    // 🔴 1. PEGAR O TOKEN AQUI
-    const token = localStorage.getItem('techlab_token');
-    
-    try {
-      const res = await fetch(`http://localhost:8000/produtos/${id}`, { 
-        method: 'DELETE',
-        // 🔴 2. INJETAR O TOKEN NO CABEÇALHO
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (res.ok) {
-        alert("Peça removida com sucesso!");
-        carregarProdutos();
-      } else {
-        alert("Erro ao excluir. Sem permissão ou sessão expirada.");
-      }
-    } catch (e) { console.error(e); }
   };
 
   // Lógica dos Alertas do Estoque
