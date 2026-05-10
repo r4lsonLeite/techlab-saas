@@ -3,13 +3,15 @@ import jwt
 import os
 from datetime import datetime, timedelta
 from typing import Optional
+from dotenv import load_dotenv
 
 # ==============================
 # CONFIG SEGURA (ENV FIRST)
 # ==============================
-SECRET_KEY = os.getenv("SECRET_KEY", "uma_chave_secreta_muito_longa_e_dificil_de_descobrir_techlab")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY", "fallback_perigoso_so_para_dev")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
 
 # ==============================
 # HASH DE SENHA

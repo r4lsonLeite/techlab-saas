@@ -8,6 +8,9 @@ from typing import List
 import os
 import jwt
 from datetime import datetime, timedelta, timezone
+from enum import Enum
+from collections import defaultdict
+
 # IMPORTS DO SISTEMA
 from core.database import engine, get_db
 from core import security
@@ -37,6 +40,16 @@ SECRET_KEY = getattr(security, "SECRET_KEY", "techlab_secreto_123")
 ALGORITHM = getattr(security, "ALGORITHM", "HS256")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+class StatusOS(str, Enum):
+    AGUARDANDO_ANALISE = "Aguardando Análise"
+    AGUARDANDO_CLIENTE = "Aguardando Cliente"
+    AGUARDANDO_REAVALIACAO = "Aguardando Reavaliação"
+    AGUARDANDO_PECA = "Aguardando Peça"
+    APROVADO = "APROVADO - Fila de Conserto"
+    PRONTO = "Pronto para Retirada"
+    ENTREGUE = "Entregue"
+    CANCELADA = "Cancelada"
 
 # ==============================
 # DEPENDÊNCIAS DE AUTENTICAÇÃO E PERMISSÕES
@@ -165,19 +178,18 @@ def listar_usuarios_com_metricas(skip: int = 0, limit: int = 50, db: Session = D
         func.sum(models.OrdemServico.valor_mao_de_obra).label('soma_mao_obra')
     ).filter(
         models.OrdemServico.tecnico_id.in_(user_ids),
-        models.OrdemServico.status == "Pronto para Retirada"
+        models.OrdemServico.status == StatusOS.PRONTO.value
     ).group_by(models.OrdemServico.tecnico_id).all()
     os_tec_map = {row.tecnico_id: {'qtd': row.qtd_reparos, 'horas': row.soma_horas or 0, 'mao_obra': row.soma_mao_obra or 0} for row in os_tec_bulk}
 
     resultado = []
     for u in usuarios:
-        # 🔴 AGORA ELE LÊ A COMISSÃO REAL DO BANCO DE DADOS (em decimal. Ex: 5% = 0.05)
         taxa = float(u.taxa_comissao or 0) / 100.0
 
         user_dict = {
             "id": u.id, "nome": u.nome, "email": u.email, 
             "cargo": u.cargo, "ativo": u.ativo, 
-            "taxa_comissao": float(u.taxa_comissao or 0) # Envia para o React mostrar
+            "taxa_comissao": float(u.taxa_comissao or 0) 
         }
         
         if u.cargo == "balcao":
@@ -196,7 +208,6 @@ def listar_usuarios_com_metricas(skip: int = 0, limit: int = 50, db: Session = D
         
     return resultado
 
-# 🔴 NOVA ROTA PARA O ADM SALVAR A COMISSÃO DO FUNCIONÁRIO
 from pydantic import BaseModel
 class ComissaoUpdate(BaseModel):
     taxa_comissao: float
@@ -223,8 +234,9 @@ def criar_cliente(cliente: schemas.ClienteCreate, db: Session = Depends(get_db),
     db.refresh(novo)
     return novo
 
+
 # ==============================
-# ORDENS DE SERVIÇO
+# ORDENS DE SERVIÇO (BLINDADO ERP)
 # ==============================
 @app.get("/ordens-servico")
 def listar_os(
@@ -233,9 +245,9 @@ def listar_os(
     db: Session = Depends(get_db),
     user=Depends(obter_usuario_logado)
 ):
-    # 1. Busca otimizada trazendo Cliente e Itens em uma única query
+    # N+1 Resolvido: Traz OS, Cliente e Itens de uma vez
     resultados = db.query(models.OrdemServico).options(
-        joinedload(models.OrdemServico.itens),
+        joinedload(models.OrdemServico.itens).joinedload(models.ItemOS.produto),
         joinedload(models.OrdemServico.cliente)
     ).filter(
         models.OrdemServico.loja_id == user.loja_id,
@@ -243,140 +255,246 @@ def listar_os(
     ).order_by(desc(models.OrdemServico.id)).offset(skip).limit(limit).all()
 
     ordens_formatadas = []
-
     for os_obj in resultados:
-        # Transforma colunas da OS em dicionário
         os_dict = {c.name: getattr(os_obj, c.name) for c in os_obj.__table__.columns}
 
-        # Dados de conveniência para o Balcão
         os_dict["cliente_nome"] = os_obj.cliente.nome if os_obj.cliente else "Sem Cliente"
         os_dict["telefone"] = os_obj.cliente.telefone if os_obj.cliente else ""
 
-        # 🔧 PADRONIZAÇÃO DOS ITENS (O SEGREDO)
-        # Enviamos 'itens' que é o que o React percorre no .map()
         os_dict["itens"] = [
             {
                 "id": item.id,
-                "nome_produto": item.nome_produto, # Nome real da peça
+                "nome_produto": item.nome_produto or (item.produto.nome if item.produto else "Item sem nome"),
                 "quantidade": int(item.quantidade),
                 "preco_unitario": float(item.preco_unitario),
                 "total": float(item.quantidade * item.preco_unitario)
             }
             for item in os_obj.itens
         ]
-
         ordens_formatadas.append(os_dict)
 
     return ordens_formatadas
 
+
 @app.post("/ordens-servico", response_model=schemas.OSResponse)
 def criar_os(os_data: schemas.OSCreate, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
-    dados = os_data.model_dump() if hasattr(os_data, 'model_dump') else os_data.dict()
-    colunas_reais = [c.name for c in models.OrdemServico.__table__.columns]
-    dados_limpos = {k: v for k, v in dados.items() if k in colunas_reais}
+    try:
+        dados = os_data.model_dump() if hasattr(os_data, 'model_dump') else os_data.dict()
+        colunas_reais = [c.name for c in models.OrdemServico.__table__.columns]
+        dados_limpos = {k: v for k, v in dados.items() if k in colunas_reais}
 
-    nova = models.OrdemServico(**dados_limpos, status="Aguardando Análise", loja_id=user.loja_id, usuario_id=user.id, ativo=True)
-    if "atendente_id" in colunas_reais:
-        nova.atendente_id = user.id
+        nova = models.OrdemServico(
+            **dados_limpos, 
+            status=StatusOS.AGUARDANDO_ANALISE.value, 
+            loja_id=user.loja_id, 
+            usuario_id=user.id, 
+            ativo=True
+        )
+        if "atendente_id" in colunas_reais:
+            nova.atendente_id = user.id
 
-    db.add(nova)
-    db.commit()
-    db.refresh(nova)
-    
-    os_dict = {c.name: getattr(nova, c.name) for c in nova.__table__.columns}
-    cliente = db.query(models.Cliente).filter(models.Cliente.id == nova.cliente_id).first()
-    os_dict["cliente_nome"] = cliente.nome if cliente else "Sem Cliente"
-    
-    return schemas.OSResponse(**os_dict)
+        db.add(nova)
+        db.commit()
+        db.refresh(nova)
+        
+        os_dict = {c.name: getattr(nova, c.name) for c in nova.__table__.columns}
+        cliente = db.query(models.Cliente).filter(models.Cliente.id == nova.cliente_id).first()
+        os_dict["cliente_nome"] = cliente.nome if cliente else "Sem Cliente"
+        os_dict["itens"] = []
+        
+        return schemas.OSResponse(**os_dict)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.put("/ordens-servico/{os_id}", response_model=schemas.OSResponse)
 def atualizar_os(os_id: int, payload: schemas.OSUpdate, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
-    os_db = db.query(models.OrdemServico).filter(
-        models.OrdemServico.id == os_id, 
-        models.OrdemServico.loja_id == user.loja_id,
-        models.OrdemServico.ativo == True
-    ).first()
-    
-    if not os_db:
-        raise HTTPException(status_code=404, detail="OS não encontrada")
-    
-    payload_dict = payload.model_dump(exclude_unset=True) if hasattr(payload, 'model_dump') else payload.dict(exclude_unset=True)
-    for key, value in payload_dict.items():
-        if hasattr(os_db, key):
-            setattr(os_db, key, value)
-            
-    db.commit()
-    db.refresh(os_db)
-    
-    os_dict = {c.name: getattr(os_db, c.name) for c in os_db.__table__.columns}
-    if os_db.cliente_id:
-        cliente = db.query(models.Cliente).filter(models.Cliente.id == os_db.cliente_id).first()
-        os_dict["cliente_nome"] = cliente.nome if cliente else "Sem Cliente"
-    else:
-        os_dict["cliente_nome"] = "Sem Cliente"
+    try:
+        os_db = db.query(models.OrdemServico).filter(
+            models.OrdemServico.id == os_id, 
+            models.OrdemServico.loja_id == user.loja_id,
+            models.OrdemServico.ativo == True
+        ).with_for_update().first()
         
-    return schemas.OSResponse(**os_dict)
+        if not os_db:
+            raise HTTPException(status_code=404, detail="OS não encontrada")
+        
+        dados = payload.model_dump(exclude_unset=True) if hasattr(payload, 'model_dump') else payload.dict(exclude_unset=True)
+        
+        if "pecas_selecionadas" in dados:
+            pecas_front = dados.pop("pecas_selecionadas")
+
+            # 1. DEVOLVE AS RESERVAS ANTIGAS
+            itens_antigos = db.query(models.ItemOS).filter(models.ItemOS.os_id == os_id).all()
+            for item in itens_antigos:
+                produto_antigo = db.query(models.Produto).filter(models.Produto.id == item.produto_id).with_for_update().first()
+                if produto_antigo:
+                    produto_antigo.estoque_reservado -= item.quantidade
+                    if produto_antigo.estoque_reservado < 0: produto_antigo.estoque_reservado = 0
+                    
+                    db.add(models.MovimentacaoEstoque(
+                        produto_id=produto_antigo.id, usuario_id=user.id, tipo="ESTORNO_RESERVA", 
+                        quantidade=item.quantidade, observacao=f"Orçamento alterado/cancelado OS #{os_id}"
+                    ))
+                db.delete(item)
+
+            db.flush()
+
+            # 2. AGRUPA E CRIA NOVAS RESERVAS
+            pecas_agrupadas = defaultdict(lambda: {"qtd": 0, "preco": 0.0})
+            for peca in pecas_front:
+                pid = peca.get("produto_id")
+                pecas_agrupadas[pid]["qtd"] += int(peca.get("qtd", 1))
+                pecas_agrupadas[pid]["preco"] = float(peca.get("preco", 0))
+
+            for produto_id, info in pecas_agrupadas.items():
+                quantidade = info["qtd"]
+
+                produto = db.query(models.Produto).filter(
+                    models.Produto.id == produto_id,
+                    models.Produto.loja_id == user.loja_id,
+                    models.Produto.ativo == True
+                ).with_for_update().first()
+
+                if not produto: continue
+
+                estoque_disponivel = produto.estoque_atual - (produto.estoque_reservado or 0)
+                if estoque_disponivel < quantidade:
+                    raise HTTPException(status_code=400, detail=f"Estoque insuficiente para {produto.nome}. Livre: {estoque_disponivel}")
+
+                produto.estoque_reservado = (produto.estoque_reservado or 0) + quantidade
+
+                novo_item = models.ItemOS(
+                    os_id=os_id, produto_id=produto.id, nome_produto=produto.nome, 
+                    quantidade=quantidade, preco_unitario=info["preco"]
+                )
+                db.add(novo_item)
+
+                db.add(models.MovimentacaoEstoque(
+                    produto_id=produto.id, usuario_id=user.id, tipo="RESERVA", 
+                    quantidade=quantidade, observacao=f"Reserva para OS #{os_id}"
+                ))
+
+        # Assinatura do Técnico (Carimba quando manda pro Balcão)
+        if "status" in dados:
+            if str(dados["status"]) == StatusOS.AGUARDANDO_CLIENTE.value and not os_db.tecnico_id:
+                os_db.tecnico_id = user.id
+
+        campos_permitidos = {"status", "valor_orcamento", "observacoes_balcao", "laudo_tecnico", "pecas_necessarias", "data_inicio_reparo", "data_fim_reparo"}
+        for key, value in dados.items():
+            if key in campos_permitidos:
+                if key == "valor_orcamento" and value is not None: value = float(value)
+                setattr(os_db, key, value)
+
+        db.commit()
+        db.refresh(os_db)
+
+        os_atualizada = db.query(models.OrdemServico).options(joinedload(models.OrdemServico.itens)).filter(models.OrdemServico.id == os_id).first()
+        os_dict = {c.name: getattr(os_atualizada, c.name) for c in os_atualizada.__table__.columns}
+        os_dict["itens"] = [{"id": i.id, "nome_produto": i.nome_produto, "quantidade": i.quantidade, "preco_unitario": float(i.preco_unitario)} for i in os_atualizada.itens]
+        os_dict["cliente_nome"] = os_atualizada.cliente.nome if os_atualizada.cliente else "Sem Cliente"
+        
+        return os_dict
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.delete("/ordens-servico/{id}")
 def deletar_os(id: int, db: Session = Depends(get_db), admin=Depends(admin_required)):
-    os_db = db.query(models.OrdemServico).filter(
-        models.OrdemServico.id == id,
-        models.OrdemServico.loja_id == admin.loja_id
-    ).first()
-    
-    if not os_db:
-        raise HTTPException(status_code=404, detail="OS não encontrada")
-    
-    if os_db.status in ["Aguardando Análise", "Aguardando Cliente"]:
-        db.delete(os_db) 
-    else:
-        os_db.status = "Cancelada"
-        os_db.ativo = False 
+    try:
+        os_db = db.query(models.OrdemServico).filter(
+            models.OrdemServico.id == id,
+            models.OrdemServico.loja_id == admin.loja_id
+        ).with_for_update().first()
         
-    db.commit()
-    return {"mensagem": "OS excluída ou cancelada com sucesso"}
+        if not os_db:
+            raise HTTPException(status_code=404, detail="OS não encontrada")
+        
+        # Devolver estoque antes de inativar/apagar
+        itens_reservados = db.query(models.ItemOS).filter(models.ItemOS.os_id == os_db.id).all()
+        for item in itens_reservados:
+            produto = db.query(models.Produto).filter(models.Produto.id == item.produto_id).with_for_update().first()
+            if produto:
+                produto.estoque_reservado -= item.quantidade
+                if produto.estoque_reservado < 0: produto.estoque_reservado = 0
+                
+                db.add(models.MovimentacaoEstoque(
+                    produto_id=produto.id, usuario_id=admin.id, tipo="ESTORNO_CANCELAMENTO", 
+                    quantidade=item.quantidade, observacao=f"OS #{id} foi cancelada/excluída"
+                ))
+            
+            if os_db.status in [StatusOS.AGUARDANDO_ANALISE.value, StatusOS.AGUARDANDO_CLIENTE.value]:
+                db.delete(item)
 
-# 🔴 ROTA ADICIONAR PEÇA NA OS
+        if os_db.status in [StatusOS.AGUARDANDO_ANALISE.value, StatusOS.AGUARDANDO_CLIENTE.value]:
+            db.delete(os_db) 
+        else:
+            os_db.status = StatusOS.CANCELADA.value
+            os_db.ativo = False 
+            
+        db.commit()
+        return {"mensagem": "OS excluída ou cancelada com sucesso, reservas estornadas."}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/ordens-servico/{os_id}/itens", response_model=schemas.ItemOSResponse)
 def adicionar_peca_os(os_id: int, item_in: schemas.ItemOSCreate, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
-    os_db = db.query(models.OrdemServico).filter(
-        models.OrdemServico.id == os_id, 
-        models.OrdemServico.loja_id == user.loja_id,
-        models.OrdemServico.ativo == True
-    ).first()
-    
-    produto = db.query(models.Produto).filter(
-        models.Produto.id == item_in.produto_id, 
-        models.Produto.loja_id == user.loja_id,
-        models.Produto.ativo == True
-    ).first()
-    
-    if not os_db:
-        raise HTTPException(status_code=404, detail="Ordem de Serviço não encontrada")
-    if not produto:
-        raise HTTPException(status_code=404, detail="Produto não encontrado ou inativo")
-    
-    if produto.estoque_atual < item_in.quantidade:
-        raise HTTPException(status_code=400, detail=f"Estoque insuficiente. Temos apenas {produto.estoque_atual} un. de {produto.nome}")
+    try:
+        os_db = db.query(models.OrdemServico).filter(
+            models.OrdemServico.id == os_id, 
+            models.OrdemServico.loja_id == user.loja_id,
+            models.OrdemServico.ativo == True
+        ).first()
+        
+        produto = db.query(models.Produto).filter(
+            models.Produto.id == item_in.produto_id, 
+            models.Produto.loja_id == user.loja_id,
+            models.Produto.ativo == True
+        ).with_for_update().first()
+        
+        if not os_db: raise HTTPException(status_code=404, detail="OS não encontrada")
+        if not produto: raise HTTPException(status_code=404, detail="Produto não encontrado")
+        
+        estoque_disponivel = produto.estoque_atual - (produto.estoque_reservado or 0)
+        if estoque_disponivel < item_in.quantidade:
+            raise HTTPException(status_code=400, detail=f"Estoque insuficiente. Temos apenas {estoque_disponivel} livres.")
 
-    novo_item = models.ItemOS(
-        os_id=os_id,
-        produto_id=produto.id,
-        nome_produto=produto.nome,
-        quantidade=item_in.quantidade,
-        preco_unitario=produto.preco_venda
-    )
-    
-    produto.estoque_atual -= item_in.quantidade
-    
-    valor_adicional = float(produto.preco_venda) * item_in.quantidade
-    os_db.valor_orcamento = float(os_db.valor_orcamento or 0) + valor_adicional
-    
-    db.add(novo_item)
-    db.commit()
-    db.refresh(novo_item)
-    
-    return novo_item
+        produto.estoque_reservado = (produto.estoque_reservado or 0) + item_in.quantidade
+        
+        db.add(models.MovimentacaoEstoque(
+            produto_id=produto.id, usuario_id=user.id, tipo="RESERVA_AVULSA", 
+            quantidade=item_in.quantidade, observacao=f"Adição manual em OS #{os_id}"
+        ))
+
+        novo_item = models.ItemOS(
+            os_id=os_id, produto_id=produto.id, nome_produto=produto.nome,
+            quantidade=item_in.quantidade, preco_unitario=produto.preco_venda
+        )
+        
+        valor_adicional = float(produto.preco_venda) * item_in.quantidade
+        os_db.valor_orcamento = float(os_db.valor_orcamento or 0) + valor_adicional
+        
+        db.add(novo_item)
+        db.commit()
+        db.refresh(novo_item)
+        
+        return novo_item
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ==============================
 # PRODUTOS
@@ -436,10 +554,8 @@ def atualizar_produto(id: int, payload: schemas.ProdutoCreate, db: Session = Dep
     
     return produto_db
 
-# ... (imports e configurações iniciais permanecem iguais)
-
 # ==============================
-# VENDAS (COM LOCK E SUPORTE A OS)
+# VENDAS / PDV (EFETIVAÇÃO FINAL DO ESTOQUE E SPLIT)
 # ==============================
 @app.post("/vendas")
 def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
@@ -455,9 +571,22 @@ def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db), u
             ).with_for_update().first()
             if os_vinculada:
                 valor_total += float(os_vinculada.valor_orcamento or 0)
+                
+                # EFETIVAÇÃO DO ESTOQUE
+                for item_os in os_vinculada.itens:
+                    prod = db.query(models.Produto).filter(models.Produto.id == item_os.produto_id).first()
+                    if prod:
+                        prod.estoque_reservado -= item_os.quantidade
+                        if prod.estoque_reservado < 0: prod.estoque_reservado = 0
+                        prod.estoque_atual -= item_os.quantidade
+                        
+                        db.add(models.MovimentacaoEstoque(
+                            produto_id=prod.id, usuario_id=user.id, tipo="BAIXA_VENDA_OS", 
+                            quantidade=item_os.quantidade, observacao=f"Baixa física OS #{os_vinculada.id}"
+                        ))
 
         nova_venda = models.Venda(
-            valor_total=0, # Atualizado no final
+            valor_total=0,
             forma_pagamento=venda.forma_pagamento,
             loja_id=user.loja_id,
             usuario_id=user.id,
@@ -467,7 +596,6 @@ def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db), u
         db.add(nova_venda)
         db.flush()
 
-        # Processa itens do estoque (capinhas, películas, etc)
         for item in venda.itens:
             produto = db.query(models.Produto).filter(
                 models.Produto.id == item.produto_id,
@@ -477,25 +605,27 @@ def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db), u
             if not produto:
                 raise HTTPException(404, f"Produto {item.produto_id} não encontrado")
 
-            if produto.estoque_atual < item.quantidade:
+            estoque_disponivel = produto.estoque_atual - (produto.estoque_reservado or 0)
+            if estoque_disponivel < item.quantidade:
                 raise HTTPException(400, f"Estoque insuficiente para {produto.nome}")
 
             produto.estoque_atual -= item.quantidade
             valor_total += float(produto.preco_venda) * item.quantidade
 
-            # Registra os itens da venda para a DRE
             db.add(models.ItemVenda(
-                venda_id=nova_venda.id,
-                produto_id=produto.id,
-                quantidade=item.quantidade,
-                preco_unitario=produto.preco_venda
+                venda_id=nova_venda.id, produto_id=produto.id,
+                quantidade=item.quantidade, preco_unitario=produto.preco_venda
+            ))
+            
+            db.add(models.MovimentacaoEstoque(
+                produto_id=produto.id, usuario_id=user.id, tipo="BAIXA_VENDA_DIRETA", 
+                quantidade=item.quantidade, observacao=f"Venda Balcão #{nova_venda.id}"
             ))
 
         nova_venda.valor_total = valor_total
         
-        # Se for venda de OS, muda o status para Entregue
         if os_vinculada:
-            os_vinculada.status = "Entregue"
+            os_vinculada.status = StatusOS.ENTREGUE.value
             os_vinculada.data_conclusao = datetime.now(timezone.utc)
 
         db.commit()
@@ -506,10 +636,9 @@ def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db), u
         raise
     except Exception as e:
         db.rollback()
-        print(f"Erro Crítico na Venda: {str(e)}") # Log para debug
+        print(f"Erro Crítico na Venda: {str(e)}")
         raise HTTPException(500, detail="Erro interno no processamento do checkout")
 
-# ... (restante do código permanece igual)
 # ==============================
 # SOLICITAÇÕES
 # ==============================
@@ -539,28 +668,28 @@ def mudar_status(id: int, status_novo: str, db: Session = Depends(get_db), user=
     solicitacao.status = status_novo
     db.commit()
     return {"mensagem": f"Status alterado para {status_novo}"}
+
 # ==============================
 # MINI-CRM: RESUMO DO CLIENTE
 # ==============================
 @app.get("/clientes/{cliente_id}/resumo")
 def resumo_cliente(cliente_id: int, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
-    # 1. Busca os dados básicos
     cliente = db.query(models.Cliente).filter(
         models.Cliente.id == cliente_id, 
         models.Cliente.loja_id == user.loja_id
     ).first()
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente não encontrado")
-    # 2. Histórico de Ordens de Serviço
+    
     historico_os = db.query(models.OrdemServico).filter(
         models.OrdemServico.cliente_id == cliente_id
     ).order_by(models.OrdemServico.data_entrada.desc()).all()
-    # 3. Histórico de Compras no Balcão
+    
     historico_vendas = db.query(models.Venda).filter(
         models.Venda.cliente_id == cliente_id
     ).order_by(models.Venda.id.desc()).all()
-    # 4. Cálculos de Fidelidade
-    total_gasto_servicos = sum([float(os.valor_orcamento or 0) for os in historico_os if os.status == "Entregue"])
+    
+    total_gasto_servicos = sum([float(os.valor_orcamento or 0) for os in historico_os if os.status == StatusOS.ENTREGUE.value])
     total_gasto_produtos = sum([float(v.valor_total or 0) for v in historico_vendas])
     
     return {
@@ -576,32 +705,29 @@ def resumo_cliente(cliente_id: int, db: Session = Depends(get_db), user=Depends(
             "investimento_total": total_gasto_servicos + total_gasto_produtos
         },
         "aparelhos_frequentes": list(set([f"{os.marca} {os.modelo}" for os in historico_os])),
-        "ultimas_os": historico_os[:5], # Últimas 5 OS
-        "ultimas_vendas": historico_vendas[:5] # Últimas 5 compras
+        "ultimas_os": historico_os[:5], 
+        "ultimas_vendas": historico_vendas[:5] 
     }
+
 # ==============================
 # DASHBOARD / FINANCEIRO (ADM)
 # ==============================
 @app.get("/dashboard/metricas")
 def obter_metricas_dashboard(db: Session = Depends(get_db), admin=Depends(admin_required)):
-    # 1. Soma das Vendas de Balcão (Apenas pagas/finalizadas)
     total_vendas = db.query(func.sum(models.Venda.valor_total)).filter(
         models.Venda.loja_id == admin.loja_id
     ).scalar() or 0
 
-    # 2. Soma das Ordens de Serviço (Apenas status ENTREGUE = Dinheiro no caixa)
     total_os = db.query(func.sum(models.OrdemServico.valor_orcamento)).filter(
         models.OrdemServico.loja_id == admin.loja_id,
-        models.OrdemServico.status == "Entregue"
+        models.OrdemServico.status == StatusOS.ENTREGUE.value
     ).scalar() or 0
 
-    # 3. Contagem de OS Pendentes (Dinheiro preso)
     os_pendentes = db.query(func.count(models.OrdemServico.id)).filter(
         models.OrdemServico.loja_id == admin.loja_id,
-        models.OrdemServico.status.notin_(["Entregue", "Cancelada"])
+        models.OrdemServico.status.notin_([StatusOS.ENTREGUE.value, StatusOS.CANCELADA.value])
     ).scalar() or 0
 
-    # 4. Alerta de Estoque (Performance otimizada)
     baixo_estoque = db.query(func.count(models.Produto.id)).filter(
         models.Produto.loja_id == admin.loja_id,
         models.Produto.estoque_atual <= models.Produto.estoque_minimo,
@@ -621,13 +747,9 @@ def obter_metricas_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
 # ==============================
 @app.get("/dashboard/graficos")
 def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_required)):
-    # USO CORRETO DE TIMEZONE (UTC)
     hoje = datetime.now(timezone.utc)
     seis_meses_atras = hoje - timedelta(days=180)
 
-    # ==========================================
-    # 1. DRE MENSAL E TICKET MÉDIO (GROUP BY NO BANCO + ORDENAÇÃO TEMPORAL)
-    # ==========================================
     vendas_mensais = db.query(
         func.to_char(models.Venda.data_venda, 'MM/YYYY').label('mes'),
         func.sum(models.Venda.valor_total).label('receita'),
@@ -638,11 +760,9 @@ def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
     ).group_by(
         func.to_char(models.Venda.data_venda, 'MM/YYYY')
     ).order_by(
-        func.min(models.Venda.data_venda) # GARANTE A ORDENAÇÃO CRONOLÓGICA (Ex: Jan, Fev, Mar...)
+        func.min(models.Venda.data_venda) 
     ).all()
 
-    # Cálculo do Custo Real (Sem invenção de lucro)
-    # Requer que a coluna 'preco_custo' exista em 'produtos'. Se não houver, o custo volta 0.
     custos_mensais = db.query(
         func.to_char(models.Venda.data_venda, 'MM/YYYY').label('mes'),
         func.sum(models.ItemVenda.quantidade * getattr(models.Produto, 'preco_custo', 0)).label('custo_total')
@@ -667,7 +787,7 @@ def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
         mes = v.mes
         receita = float(v.receita or 0)
         custo = mapa_custos.get(mes, 0.0)
-        lucro_real = receita - custo # Lucro Real e não inventado!
+        lucro_real = receita - custo 
         
         ticket_medio = receita / v.qtd_vendas if v.qtd_vendas > 0 else 0
         total_receita += receita
@@ -683,9 +803,6 @@ def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
 
     ticket_medio_geral = total_receita / total_vendas if total_vendas > 0 else 0
 
-    # ==========================================
-    # 2. VENDAS POR CATEGORIA (GROUP BY OTIMIZADO)
-    # ==========================================
     categorias = db.query(
         models.Produto.categoria,
         func.sum(models.ItemVenda.quantidade * models.ItemVenda.preco_unitario).label('valor')
@@ -702,9 +819,6 @@ def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
 
     dados_categorias = [{"name": c.categoria or "Outros", "value": float(c.valor or 0)} for c in categorias]
 
-    # ==========================================
-    # 3. RANKING DE PRODUTOS (GROUP BY)
-    # ==========================================
     ranking = db.query(
         models.Produto.nome,
         func.sum(models.ItemVenda.quantidade).label('qtd'),
@@ -723,16 +837,13 @@ def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
 
     dados_ranking = [{"nome": r.nome, "qtd": int(r.qtd), "receita": float(r.receita or 0)} for r in ranking]
 
-    # ==========================================
-    # 4. TEMPO MÉDIO DE REPARO (Extraído das colunas nativas existentes)
-    # ==========================================
     media_segundos = db.query(
         func.avg(func.extract('epoch', models.OrdemServico.data_conclusao - models.OrdemServico.data_entrada))
     ).filter(
         models.OrdemServico.loja_id == admin.loja_id,
         models.OrdemServico.data_entrada.isnot(None),
         models.OrdemServico.data_conclusao.isnot(None),
-        models.OrdemServico.status == "Entregue"  # Tempo real apenas de serviços já finalizados!
+        models.OrdemServico.status == StatusOS.ENTREGUE.value 
     ).scalar()
 
     tempo_medio_horas = round(media_segundos / 3600, 1) if media_segundos else 0.0

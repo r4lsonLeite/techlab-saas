@@ -100,6 +100,7 @@ class OSUpdate(BaseModel):
     observacoes_balcao: Optional[str] = None
     valor_orcamento: Optional[Decimal] = None
     foto_url: Optional[str] = None
+    pecas_selecionadas: Optional[List[dict]] = None
 
     data_inicio_reparo: Optional[datetime] = None
     data_fim_reparo: Optional[datetime] = None

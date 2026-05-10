@@ -5,12 +5,12 @@ from core.database import Base
 from sqlalchemy.sql import func
 class ItemOS(Base):
     __tablename__ = "itens_os"
-
     id = Column(Integer, primary_key=True, index=True)
     os_id = Column(Integer, ForeignKey("ordens_servico.id", ondelete="CASCADE"), nullable=False)
     produto_id = Column(Integer, ForeignKey("produtos.id"), nullable=False)
     
-    nome_produto = Column(String, nullable=True)
+    nome_produto = Column(String, nullable=True) # 🔴 AQUI: O nome para o balcão enxergar
+    
     quantidade = Column(Integer, nullable=False, default=1)
     preco_unitario = Column(Numeric(10,2), nullable=False)
 
@@ -112,8 +112,11 @@ class Produto(Base):
     localizacao = Column(String, nullable=True)  
     preco_custo = Column(Numeric(10, 2))
     preco_venda = Column(Float, nullable=False)
+    
     estoque_atual = Column(Integer, default=0)
+    estoque_reservado = Column(Integer, default=0) # 🔴 AQUI: O sistema de reserva do Técnico!
     estoque_minimo = Column(Integer, default=5)
+    
     ativo = Column(Boolean, default=True)
     loja_id = Column(Integer, ForeignKey("lojas.id"))
     
