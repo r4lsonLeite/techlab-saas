@@ -1,6 +1,9 @@
 import urllib.parse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+import os
+from sqlalchemy.ext.declarative import declarative_base
+from dotenv import load_dotenv
 
 # 1. Coloque aqui os dados exatos do seu DBeaver
 usuario = "postgres"
