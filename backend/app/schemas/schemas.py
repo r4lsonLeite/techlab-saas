@@ -108,7 +108,6 @@ class OSUpdate(BaseModel):
 
 class OSResponse(BaseModel):
     id: int
-    # 🔴 TORNAMOS OPCIONAL PARA NÃO QUEBRAR COM AS OS ANTIGAS
     marca: Optional[str] = "Não informada"
     modelo: Optional[str] = "Não informado"
     
@@ -145,6 +144,7 @@ class ProdutoBase(BaseModel):
     codigo_barras: Optional[str] = None
     codigo_modelo: Optional[str] = None
     fornecedor: Optional[str] = None
+    is_servico: bool = False
 
     preco_custo: Decimal = 0
     preco_venda: Decimal
@@ -211,6 +211,7 @@ class VendaCreate(BaseModel):
     forma_pagamento: str
     itens: List[ItemVendaCreate]
     os_id: Optional[int] = None
+    usuario_id: Optional[int] = None
 
 
 class VendaResponse(BaseModel):

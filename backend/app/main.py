@@ -193,9 +193,22 @@ def listar_os(skip: int = 0, limit: int = 50, db: Session = Depends(get_db), use
     ordens = []
     for o in res:
         d = {c.name: getattr(o, c.name) for c in o.__table__.columns}
-        d.update({"cliente_nome": o.cliente.nome if o.cliente else "Sem Cliente", "itens": [{"nome_produto": i.nome_produto, "quantidade": i.quantidade, "preco_unitario": float(i.preco_unitario)} for i in o.itens]})
+        d.update({
+            "cliente_nome": o.cliente.nome if o.cliente else "Sem Cliente", 
+            # 👇 A CORREÇÃO ESTÁ AQUI: Incluímos o produto_id no dicionário
+            "itens": [{"id": i.id, "produto_id": i.produto_id, "nome_produto": i.nome_produto, "quantidade": i.quantidade, "preco_unitario": float(i.preco_unitario)} for i in o.itens]
+        })
         ordens.append(d)
     return ordens
+
+def atualizar_os_retorno_helper(os_db):
+    d = {c.name: getattr(os_db, c.name) for c in os_db.__table__.columns}
+    d.update({
+        # 👇 A CORREÇÃO ESTÁ AQUI TAMBÉM:
+        "itens": [{"id": i.id, "produto_id": i.produto_id, "nome_produto": i.nome_produto, "quantidade": i.quantidade, "preco_unitario": float(i.preco_unitario)} for i in os_db.itens], 
+        "cliente_nome": os_db.cliente.nome if os_db.cliente else "Sem Cliente"
+    })
+    return d
 
 @app.post("/ordens-servico", response_model=schemas.OSResponse)
 def criar_os(os_data: schemas.OSCreate, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
@@ -257,10 +270,21 @@ def deletar_os(id: int, db: Session = Depends(get_db), admin=Depends(admin_requi
 def listar_produtos(db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
     return db.query(models.Produto).filter(models.Produto.loja_id == user.loja_id, models.Produto.ativo == True).all()
 
-@app.post("/produtos", response_model=schemas.ProdutoResponse)
+@app.post("/produtos")
 def criar_produto(produto: schemas.ProdutoCreate, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
-    novo = models.Produto(**produto.model_dump(), loja_id=user.loja_id)
-    db.add(novo); db.commit(); db.refresh(novo); return novo
+    # 1. Transformamos os dados que vieram do Frontend num dicionário
+    dados_produto = produto.model_dump()
+    
+    # 2. Removemos o loja_id do pacote (se ele existir) para evitar a duplicação
+    dados_produto.pop("loja_id", None)
+    
+    # 3. Criamos o produto forçando o loja_id seguro do usuário logado
+    novo = models.Produto(**dados_produto, loja_id=user.loja_id)
+    
+    db.add(novo)
+    db.commit()
+    db.refresh(novo)
+    return novo
 
 @app.delete("/produtos/{id}")
 def deletar_produto(id: int, db: Session = Depends(get_db), admin=Depends(admin_required)):
@@ -278,8 +302,9 @@ def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db), u
         if hasattr(venda, 'os_id') and venda.os_id:
             os_v = db.query(models.OrdemServico).filter(models.OrdemServico.id == venda.os_id, models.OrdemServico.loja_id == user.loja_id).with_for_update().first()
             if not os_v or os_v.status == StatusOS.ENTREGUE.value: raise HTTPException(400, "OS inválida ou já paga")
-
-        nova_venda = models.Venda(valor_total=0, forma_pagamento=venda.forma_pagamento, loja_id=user.loja_id, usuario_id=user.id, os_id=venda.os_id)
+            
+        vendedor_final_id = getattr(venda, 'usuario_id', None) or user.id
+        nova_venda = models.Venda(valor_total=0, forma_pagamento=venda.forma_pagamento, loja_id=user.loja_id, usuario_id=vendedor_final_id, os_id=getattr(venda, 'os_id', None) )
         db.add(nova_venda); db.flush()
         total = 0.0
 
@@ -293,8 +318,19 @@ def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db), u
             total += float(p.preco_venda) * i.quantidade
             db.add(models.ItemVenda(venda_id=nova_venda.id, produto_id=p.id, quantidade=i.quantidade, preco_unitario=p.preco_venda))
 
-        nova_venda.valor_total = total; db.commit(); return {"venda_id": nova_venda.id}
-    except Exception as e: db.rollback(); raise HTTPException(500, str(e))
+        nova_venda.valor_total = total
+        db.commit()
+        
+        # 👇 Retorno atualizado para bater com o que o teste espera
+        return {"venda_id": nova_venda.id, "mensagem": "Venda concluída com sucesso"}
+        
+    # 👇 Deixamos os erros intencionais do EstoqueService (Erro 400) passarem!
+    except HTTPException as http_exc:
+        db.rollback()
+        raise http_exc
+    except Exception as e: 
+        db.rollback()
+        raise HTTPException(500, str(e))
 
 # ==============================
 # MÓDULO: SOLICITAÇÕES E DASHBOARD
@@ -313,9 +349,122 @@ def obter_metricas_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
     o = db.query(func.sum(models.OrdemServico.valor_orcamento)).filter(models.OrdemServico.loja_id == admin.loja_id, models.OrdemServico.status == StatusOS.ENTREGUE.value).scalar() or 0
     return {"faturamento_total": float(v) + float(o), "os_pendentes": db.query(func.count(models.OrdemServico.id)).filter(models.OrdemServico.loja_id == admin.loja_id, models.OrdemServico.status.notin_([StatusOS.ENTREGUE.value, StatusOS.CANCELADA.value])).scalar()}
 
+# ==============================
+# DASHBOARD ERP / INTELIGÊNCIA DE NEGÓCIO
+# ==============================
 @app.get("/dashboard/graficos")
 def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_required)):
-    # Lógica de agrupamento mensal para gráficos do React
-    hoje = datetime.now(timezone.utc); seis_meses = hoje - timedelta(days=180)
-    vendas = db.query(func.to_char(models.Venda.data_venda, 'MM/YYYY').label('mes'), func.sum(models.Venda.valor_total).label('rec')).filter(models.Venda.loja_id == admin.loja_id, models.Venda.data_venda >= seis_meses).group_by('mes').all()
-    return {"financeiro": [{"name": v.mes, "Receita": float(v.rec)} for v in vendas]}
+    hoje = datetime.now(timezone.utc)
+    seis_meses_atras = hoje - timedelta(days=180)
+
+    # 1. DRE MENSAL E TICKET MÉDIO
+    vendas_mensais = db.query(
+        func.to_char(models.Venda.data_venda, 'MM/YYYY').label('mes'),
+        func.sum(models.Venda.valor_total).label('receita'),
+        func.count(models.Venda.id).label('qtd_vendas')
+    ).filter(
+        models.Venda.loja_id == admin.loja_id,
+        models.Venda.data_venda >= seis_meses_atras
+    ).group_by(
+        func.to_char(models.Venda.data_venda, 'MM/YYYY')
+    ).order_by(
+        func.min(models.Venda.data_venda) 
+    ).all()
+
+    custos_mensais = db.query(
+        func.to_char(models.Venda.data_venda, 'MM/YYYY').label('mes'),
+        func.sum(models.ItemVenda.quantidade * getattr(models.Produto, 'preco_custo', 0)).label('custo_total')
+    ).select_from(models.Venda).join(
+        models.ItemVenda, models.ItemVenda.venda_id == models.Venda.id
+    ).join(
+        models.Produto, models.ItemVenda.produto_id == models.Produto.id
+    ).filter(
+        models.Venda.loja_id == admin.loja_id,
+        models.Venda.data_venda >= seis_meses_atras
+    ).group_by(
+        func.to_char(models.Venda.data_venda, 'MM/YYYY')
+    ).all()
+
+    mapa_custos = {c.mes: float(c.custo_total or 0) for c in custos_mensais}
+
+    dados_financeiros = []
+    total_receita = 0
+    total_vendas = 0
+
+    for v in vendas_mensais:
+        mes = v.mes
+        receita = float(v.receita or 0)
+        custo = mapa_custos.get(mes, 0.0)
+        lucro_real = receita - custo 
+        
+        ticket_medio = receita / v.qtd_vendas if v.qtd_vendas > 0 else 0
+        total_receita += receita
+        total_vendas += v.qtd_vendas
+
+        dados_financeiros.append({
+            "name": mes,
+            "Receita": receita,
+            "Custo": custo,
+            "Lucro": lucro_real,
+            "TicketMedio": ticket_medio
+        })
+
+    ticket_medio_geral = total_receita / total_vendas if total_vendas > 0 else 0
+
+    # 2. VENDAS POR CATEGORIA
+    categorias = db.query(
+        models.Produto.categoria,
+        func.sum(models.ItemVenda.quantidade * models.ItemVenda.preco_unitario).label('valor')
+    ).join(
+        models.ItemVenda, models.ItemVenda.produto_id == models.Produto.id
+    ).join(
+        models.Venda, models.ItemVenda.venda_id == models.Venda.id
+    ).filter(
+        models.Venda.loja_id == admin.loja_id,
+        models.Venda.data_venda >= seis_meses_atras
+    ).group_by(
+        models.Produto.categoria
+    ).all()
+
+    dados_categorias = [{"name": c.categoria or "Outros", "value": float(c.valor or 0)} for c in categorias]
+
+    # 3. RANKING DE PRODUTOS
+    ranking = db.query(
+        models.Produto.nome,
+        func.sum(models.ItemVenda.quantidade).label('qtd'),
+        func.sum(models.ItemVenda.quantidade * models.ItemVenda.preco_unitario).label('receita')
+    ).join(
+        models.ItemVenda, models.ItemVenda.produto_id == models.Produto.id
+    ).join(
+        models.Venda, models.ItemVenda.venda_id == models.Venda.id
+    ).filter(
+        models.Venda.loja_id == admin.loja_id
+    ).group_by(
+        models.Produto.id
+    ).order_by(
+        desc('qtd')
+    ).limit(5).all()
+
+    dados_ranking = [{"nome": r.nome, "qtd": int(r.qtd), "receita": float(r.receita or 0)} for r in ranking]
+
+    # 4. TEMPO MÉDIO DE REPARO
+    media_segundos = db.query(
+        func.avg(func.extract('epoch', models.OrdemServico.data_conclusao - models.OrdemServico.data_entrada))
+    ).filter(
+        models.OrdemServico.loja_id == admin.loja_id,
+        models.OrdemServico.data_entrada.isnot(None),
+        models.OrdemServico.data_conclusao.isnot(None),
+        models.OrdemServico.status == StatusOS.ENTREGUE.value 
+    ).scalar()
+
+    tempo_medio_horas = round(media_segundos / 3600, 1) if media_segundos else 0.0
+
+    return {
+        "financeiro": dados_financeiros,
+        "categorias": dados_categorias if dados_categorias else [{"name": "Sem dados", "value": 1}],
+        "ranking_produtos": dados_ranking,
+        "kpis_extras": {
+            "ticket_medio_geral": round(ticket_medio_geral, 2),
+            "tempo_medio_reparo_horas": tempo_medio_horas
+        }
+    }

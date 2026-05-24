@@ -108,13 +108,14 @@ class Produto(Base):
     codigo_barras = Column(String, index=True, nullable=True)
     codigo_modelo = Column(String, nullable=True)
     fornecedor = Column(String, nullable=True)
-    categoria = Column(String, default="Outros") 
+    categoria = Column(String, default="Outros")
+    is_servico = Column(Boolean, default=False) 
     localizacao = Column(String, nullable=True)  
     preco_custo = Column(Numeric(10, 2))
     preco_venda = Column(Float, nullable=False)
     
     estoque_atual = Column(Integer, default=0)
-    estoque_reservado = Column(Integer, default=0) # 🔴 AQUI: O sistema de reserva do Técnico!
+    estoque_reservado = Column(Integer, default=0) 
     estoque_minimo = Column(Integer, default=5)
     
     ativo = Column(Boolean, default=True)

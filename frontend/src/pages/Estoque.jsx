@@ -146,6 +146,23 @@ const salvarProduto = async (e) => {
       alert(`Erro ao salvar produto: ${erro.message}`);
     }
   };
+  // 👇 O MOTOR DA LIXEIRA
+  const excluirProduto = async (id, nome) => {
+    const confirmar = window.confirm(
+      `Tem certeza que deseja EXCLUIR o item "${nome}"?\n\nAtenção: Se esta peça já foi usada em alguma venda no passado, o sistema pode bloquear a exclusão para proteger o seu relatório financeiro.`
+    );
+    if (!confirmar) return;
+
+    try {
+      await apiFetch(`/produtos/${id}`, {
+        method: 'DELETE'
+      });
+      alert("✅ Produto excluído com sucesso!");
+      carregarProdutos(); // Atualiza a tabela imediatamente
+    } catch (erro) {
+      alert(`Não foi possível excluir: ${erro.message}`);
+    }
+  };
 
   // Lógica dos Alertas do Estoque
   const qtdEsgotados = produtos.filter(p => p.estoque_atual === 0).length;

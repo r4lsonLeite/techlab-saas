@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '../services/api'; // 🛡️ MOTOR BLINDADO IMPORTADO!
+import { apiFetch } from '../services/api'; 
 
 export default function Balcao({ abrirOSNaConsulta }) {
   const estadoInicial = {
@@ -17,6 +17,9 @@ export default function Balcao({ abrirOSNaConsulta }) {
   const [abaLateral, setAbaLateral] = useState('prontos');
   const [aparelhosProntos, setAparelhosProntos] = useState([]);
   const [aparelhosAprovacao, setAparelhosAprovacao] = useState([]);
+  const [usuariosLoja, setUsuariosLoja] = useState([]);
+  const [vendedorSelecionado, setVendedorSelecionado] = useState(null);
+  const [menuVendedorAberto, setMenuVendedorAberto] = useState(false);
 
   const toggleChecklist = (item) => {
     setChecklistMarcados(prev =>
@@ -171,6 +174,14 @@ export default function Balcao({ abrirOSNaConsulta }) {
 
   useEffect(() => {
     carregarListasLaterais();
+    const carregarUsuarios = async () => {
+      try {
+        const res = await apiFetch('/usuarios');
+        setUsuariosLoja(res);
+        if (res.length > 0) setVendedorSelecionado(res[0]); // Deixa o primeiro selecionado
+      } catch (e) { console.error("Erro ao carregar vendedores", e); }
+    };
+    carregarUsuarios();
   }, []);
 
   return (

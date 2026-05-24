@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '../services/api'; // 🛡️ MOTOR BLINDADO IMPORTADO!
+import { apiFetch } from '../services/api'; 
 
 export default function Vendas({ osParaPDV, setOsParaPDV }) {
   // --- ESTADOS DO PDV ---
   const [carrinho, setCarrinho] = useState([]);
   const [filtroCategoria, setFiltroCategoria] = useState('Todos');
   const [busca, setBusca] = useState('');
-  const [vendedor, setVendedor] = useState('Ana Paula'); 
   const [formaPagamento, setFormPagamento] = useState('PIX');
+
+  // --- 🟢 ESTADOS DO VENDEDOR (NOVOS) ---
+  const [usuariosLoja, setUsuariosLoja] = useState([]);
+  const [vendedorSelecionado, setVendedorSelecionado] = useState(null);
+  const [menuVendedorAberto, setMenuVendedorAberto] = useState(false);
 
   // --- ESTADOS DO BANCO DE DADOS ---
   const [produtos, setProdutos] = useState([]);
   const [aparelhosProntos, setAparelhosProntos] = useState([]);
 
-  // --- ESTADOS DO MODAL DE VENDA PERDIDA (NOVO) ---
+  // --- ESTADOS DO MODAL DE VENDA PERDIDA ---
   const [modalSugestaoAberto, setModalSugestaoAberto] = useState(false);
   const [formSugestao, setFormSugestao] = useState({
     produto_solicitado: '', prioridade: 'Sugestão', observacao: ''
@@ -26,14 +30,21 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
 
   const carregarDadosBase = async () => {
     try {
-      // Fazemos as duas buscas simultaneamente para ser mais rápido!
-      const [ordens, prods] = await Promise.all([
+      // 🟢 Agora buscamos Ordens, Produtos E USUÁRIOS simultaneamente!
+      const [ordens, prods, usuarios] = await Promise.all([
         apiFetch('/ordens-servico'),
-        apiFetch('/produtos')
+        apiFetch('/produtos'),
+        apiFetch('/usuarios')
       ]);
       
       setAparelhosProntos(ordens.filter(o => o.status === 'Pronto para Retirada'));
       setProdutos(prods);
+      
+      // 🟢 Salva a lista de vendedores e seleciona o primeiro por padrão
+      setUsuariosLoja(usuarios);
+      if (usuarios.length > 0) {
+        setVendedorSelecionado(usuarios[0]);
+      }
     } catch (erro) { 
       console.error("Erro ao carregar PDV:", erro); 
     }
@@ -87,18 +98,21 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
     const itemOS = carrinho.find(item => item.isOS);
     const os_id_final = itemOS ? itemOS.originalOsId : null;
 
+    // 🟢 O PULO DO GATO: Enviando o ID do vendedor selecionado
     const payloadDaVenda = {
-      valor_total: subtotal, forma_pagamento: formaPagamento, itens: itensFisicos, os_id: os_id_final
+      valor_total: subtotal, 
+      forma_pagamento: formaPagamento, 
+      itens: itensFisicos, 
+      os_id: os_id_final,
+      usuario_id: vendedorSelecionado?.id 
     };
 
     try {
-      // Registar a Venda
       await apiFetch('/vendas', {
         method: 'POST',
         body: JSON.stringify(payloadDaVenda)
       });
       
-      // A MÁGICA DO CHECKOUT: Se pagou uma OS, muda o status para Entregue!
       if (os_id_final) {
         await apiFetch(`/ordens-servico/${os_id_final}`, {
           method: 'PUT',
@@ -159,20 +173,38 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#1e293b] text-white border border-slate-700 focus:border-emerald-500 outline-none shadow-sm"
               />
             </div>
-            <div className="w-64">
-              <select 
-                value={vendedor} onChange={(e) => setVendedor(e.target.value)}
-                className="w-full p-3 rounded-xl bg-[#1e293b] text-emerald-400 border border-emerald-500/30 font-semibold focus:border-emerald-500 outline-none appearance-none cursor-pointer"
+
+            {/* 🟢 O MENU DE VENDEDORES DINÂMICO */}
+            <div className="relative z-50">
+              <button 
+                onClick={() => setMenuVendedorAberto(!menuVendedorAberto)}
+                className="flex items-center gap-2 bg-[#1e293b] border border-emerald-500/30 px-4 py-2 rounded-xl text-emerald-400 font-bold hover:bg-slate-800 transition h-[50px]"
               >
-                <option value="Ana Paula">👤 Vend: Ana Paula</option>
-                <option value="Ralison">👤 Vend: Ralison (ADM)</option>
-              </select>
+                👨‍💼 Vend: {vendedorSelecionado?.nome || 'Carregando...'}
+              </button>
+
+              {menuVendedorAberto && (
+                <div className="absolute right-0 mt-2 w-48 bg-[#1e293b] border border-slate-600 rounded-xl shadow-2xl overflow-hidden">
+                  {usuariosLoja.map(u => (
+                    <div 
+                      key={u.id} 
+                      onClick={() => {
+                        setVendedorSelecionado(u);
+                        setMenuVendedorAberto(false);
+                      }}
+                      className="px-4 py-3 text-slate-300 hover:bg-slate-700 hover:text-white cursor-pointer border-b border-slate-700 last:border-0 font-medium"
+                    >
+                      {u.nome}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
           </div>
 
           {/* Barra Inferior do Topo (Categorias + Botão de Falta) */}
           <div className="flex justify-between items-center bg-[#1e293b]/50 p-2 rounded-xl border border-slate-700/50">
-            
             <div className="flex gap-2 overflow-x-auto custom-scrollbar flex-1 mr-4 pb-1">
               {categorias.map(cat => (
                 <button 
@@ -195,9 +227,7 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
             >
               <span>📝</span> Anotar
             </button>
-            
           </div>
-            
         </div>
 
         {/* GRADE DE PRODUTOS */}
@@ -218,14 +248,14 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
                   <span className="text-xl font-bold text-white">R$ {Number(produto.preco_venda || produto.preco).toFixed(2)}</span>
                   <button 
                     onClick={() => adicionarAoCarrinho(produto)}
-                    disabled={produto.estoque_atual <= 0}
+                    disabled={produto.estoque_atual <= 0 && !produto.is_servico}
                     className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-                      produto.estoque_atual > 0 
+                      produto.estoque_atual > 0 || produto.is_servico
                       ? 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white' 
                       : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
                     }`}
                   >
-                    {produto.estoque_atual > 0 ? 'Adicionar' : 'Esgotado'}
+                    {produto.estoque_atual > 0 || produto.is_servico ? 'Adicionar' : 'Esgotado'}
                   </button>
                 </div>
               </div>
@@ -379,7 +409,6 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
           </div>
         </div>
       )}
-
     </div>
   );
 }
