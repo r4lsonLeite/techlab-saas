@@ -281,7 +281,7 @@ export default function Bancada() {
                       {os.status}
                     </span>
                   </div>
-                  <h3 className="text-white text-sm font-bold truncate">{os.aparelho}</h3>
+                  <h3 className="text-white text-sm font-bold truncate">{os.marca} {os.modelo}</h3>
                   <p className="text-slate-400 text-[10px] mt-0.5 truncate">{os.cliente_nome}</p>
                 </div>
 
@@ -313,7 +313,7 @@ export default function Bancada() {
               <div className="flex justify-between items-start border-b border-slate-700 pb-4 mb-2">
                 <div>
                   <h1 className="text-2xl font-bold text-white mb-1">
-                    {osAtiva.aparelho} <span className="text-slate-500 font-normal">| OS #{osAtiva.id}</span>
+                    {osAtiva.marca} {osAtiva.modelo} <span className="text-slate-500 font-normal">| OS #{osAtiva.id}</span>
                   </h1>
                   <p className="text-slate-400">Cliente: {osAtiva.cliente_nome}</p>
                 </div>

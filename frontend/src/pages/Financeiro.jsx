@@ -3,7 +3,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import { apiFetch } from '../services/api'; 
 
 export default function Financeiro() {
-  const [filtro, setFiltro] = useState('Este Ano');
+  const [filtro, setFiltro] = useState('Este Mês');
   
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
@@ -23,8 +23,9 @@ export default function Financeiro() {
     kpis_extras: { ticket_medio_geral: 0, tempo_medio_reparo_horas: 0 }
   });
 
-  // 🔴 NOVO ESTADO: FOLHA DE PAGAMENTO E COMISSÕES
+  // --- ESTADOS DA EQUIPE E FECHAMENTO DE MÊS ---
   const [equipe, setEquipe] = useState([]);
+  const [descontos, setDescontos] = useState({}); // Guarda os vales/quebras de cada funcionário
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -32,7 +33,6 @@ export default function Financeiro() {
       setErro(null);
       
       try {
-        // 🔴 AGORA BUSCAMOS AS 3 COISAS AO MESMO TEMPO (Métricas, Gráficos e Equipe)
         const [dadosMetricas, dadosGraficos, dadosEquipe] = await Promise.all([
           apiFetch('/dashboard/metricas'),
           apiFetch('/dashboard/graficos'),
@@ -51,7 +51,19 @@ export default function Financeiro() {
     };
     
     carregarDados();
-  }, []);
+  }, [filtro]); // Recarrega se o filtro mudar (se o backend já suportar)
+
+  // --- FUNÇÕES DE INTERAÇÃO ---
+  const handleExportar = () => {
+    window.print(); // Abre a tela de impressão do navegador (pode salvar como PDF)
+  };
+
+  const handleDescontoChange = (usuarioId, valor) => {
+    setDescontos(prev => ({
+      ...prev,
+      [usuarioId]: Number(valor)
+    }));
+  };
 
   if (carregando) {
     return (
@@ -78,8 +90,28 @@ export default function Financeiro() {
   const dadosFinanceiros = graficos.financeiro || [];
   const dadosCategoria = graficos.categorias || [];
 
+  // Cálculos Totais da Folha de Pagamento
+  let totalComissoesBrutas = 0;
+  let totalDescontosAplicados = 0;
+  let totalLiquidoAPagar = 0;
+
   return (
-    <div className="flex-1 p-8 overflow-y-auto bg-[#0f172a] text-white custom-scrollbar">
+    <div className="flex-1 p-8 overflow-y-auto bg-[#0f172a] text-white custom-scrollbar print-area">
+      
+      {/* Estilo embutido para limpar a tela na hora de imprimir / gerar PDF */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          .print-area, .print-area * { visibility: visible; }
+          .print-area { position: absolute; left: 0; top: 0; width: 100%; background: white !important; color: black !important; }
+          .no-print { display: none !important; }
+          .bg-\\[\\#1e293b\\] { background-color: #f1f5f9 !important; border-color: #cbd5e1 !important; color: black !important; }
+          .text-white { color: black !important; }
+          .text-slate-400 { color: #475569 !important; }
+          input { border: 1px solid #000 !important; }
+        }
+      `}</style>
+
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* CABEÇALHO E FILTROS */}
@@ -88,19 +120,19 @@ export default function Financeiro() {
             <h1 className="text-3xl font-bold text-white">Relatórios Financeiros</h1>
             <p className="text-slate-400 mt-1">Análise detalhada de DRE, receitas e comissões da equipe</p>
           </div>
-          <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg font-bold transition-colors shadow-lg shadow-emerald-500/20 flex items-center gap-2">
-            <span>📥</span> Exportar Relatório
+          <button onClick={handleExportar} className="no-print bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg font-bold transition-colors shadow-lg shadow-emerald-500/20 flex items-center gap-2">
+            <span>🖨️</span> Exportar / Imprimir
           </button>
         </div>
 
         {/* PÍLULAS DE FILTRO */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 no-print">
           {['Este Mês', 'Últimos 3 Meses', 'Últimos 6 Meses', 'Este Ano'].map(f => (
             <button 
               key={f} onClick={() => setFiltro(f)}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 filtro === f 
-                ? 'bg-[#1e293b] text-white border border-slate-500 shadow-md' 
+                ? 'bg-blue-600 text-white shadow-md border-blue-500' 
                 : 'bg-transparent text-slate-400 border border-slate-700 hover:border-slate-500 hover:text-white'
               }`}
             >
@@ -111,35 +143,138 @@ export default function Financeiro() {
 
         {/* 1º ANDAR: CARDS PRINCIPAIS */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          
           <div className="bg-blue-600 p-6 rounded-2xl shadow-lg shadow-blue-500/20 text-white">
             <p className="text-blue-200 text-sm font-medium flex items-center gap-2 mb-2">💎 Faturamento Total</p>
             <h2 className="text-3xl font-bold">R$ {Number(metricas.faturamento_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
             <p className="text-blue-300 text-xs mt-2">Balcão + Serviços</p>
           </div>
-          
           <div className="bg-emerald-600 p-6 rounded-2xl shadow-lg shadow-emerald-500/20 text-white">
             <p className="text-emerald-200 text-sm font-medium flex items-center gap-2 mb-2">💵 Receita de Serviços</p>
             <h2 className="text-3xl font-bold">R$ {Number(metricas.total_servicos_os).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
             <p className="text-emerald-300 text-xs mt-2">Vindo das OS Entregues</p>
           </div>
-
           <div className="bg-purple-600 p-6 rounded-2xl shadow-lg shadow-purple-500/20 text-white">
             <p className="text-purple-200 text-sm font-medium flex items-center gap-2 mb-2">🎫 Ticket Médio Geral</p>
             <h2 className="text-3xl font-bold">R$ {Number(graficos.kpis_extras?.ticket_medio_geral || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
             <p className="text-purple-300 text-xs mt-2">Gasto médio por cliente</p>
           </div>
-
           <div className="bg-[#1e293b] border border-slate-700 p-6 rounded-2xl shadow-lg text-white">
             <p className="text-slate-400 text-sm font-medium flex items-center gap-2 mb-2">⏱️ Tempo Médio de Reparo</p>
             <h2 className="text-3xl font-bold text-amber-400">{graficos.kpis_extras?.tempo_medio_reparo_horas || 0} <span className="text-lg font-normal text-slate-500">horas</span></h2>
             <p className="text-slate-500 text-xs mt-2">Da bancada à entrega</p>
           </div>
-
         </div>
 
-        {/* 2º ANDAR: GRÁFICO DE ÁREA MENSAL (DRE REAL) */}
-        <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
+        {/* 2º ANDAR: GESTÃO DE COMISSÕES DA EQUIPE (MOVIDO PARA CIMA PELA IMPORTÂNCIA) */}
+        <div className="bg-[#1e293b] rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
+          <div className="p-6 border-b border-slate-700 flex justify-between items-center">
+            <div>
+              <h3 className="text-slate-300 font-bold text-lg flex items-center gap-2"><span>👥</span> Folha de Pagamento & Fechamento de Comissões</h3>
+              <p className="text-slate-500 text-xs mt-1">Insira vales, adiantamentos ou peças quebradas na coluna de Descontos.</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Período de Apuração</p>
+              <p className="text-emerald-400 font-bold">{filtro}</p>
+            </div>
+          </div>
+          
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#0f172a] border-b border-slate-700">
+                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Funcionário</th>
+                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Desempenho</th>
+                  <th className="p-4 text-xs font-bold text-blue-400 uppercase tracking-wider">Comissão Bruta</th>
+                  <th className="p-4 text-xs font-bold text-red-400 uppercase tracking-wider">Vales / Quebras (R$)</th>
+                  <th className="p-4 text-xs font-bold text-emerald-400 uppercase tracking-wider text-right">Total a Pagar Líquido</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/50">
+                {equipe.length === 0 && (
+                  <tr><td colSpan="5" className="p-6 text-center text-slate-500">Nenhum funcionário encontrado.</td></tr>
+                )}
+                {equipe.map((membro) => {
+                  const isTecnico = membro.cargo === 'tecnico';
+                  const isBalcao = membro.cargo === 'balcao';
+                  
+                  let produtividade = 'Acesso Administrativo';
+                  let comissaoBruta = 0;
+
+                  // Lógica de visualização
+                  if (isTecnico) {
+                    produtividade = `${membro.reparos_concluidos || 0} reparos concluídos`;
+                    comissaoBruta = membro.comissao_reparos || 0;
+                  } else if (isBalcao) {
+                    produtividade = `${membro.vendas_realizadas || 0} vendas finalizadas`;
+                    comissaoBruta = membro.comissao_vendas || 0;
+                  }
+
+                  // Cálculos da linha
+                  const descontoAplicado = descontos[membro.id] || 0;
+                  const comissaoLiquida = Math.max(0, comissaoBruta - descontoAplicado);
+
+                  // Acumulando para o Rodapé
+                  totalComissoesBrutas += Number(comissaoBruta);
+                  totalDescontosAplicados += Number(descontoAplicado);
+                  totalLiquidoAPagar += Number(comissaoLiquida);
+
+                  return (
+                    <tr key={membro.id} className="hover:bg-slate-800/30 transition-colors">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center font-bold text-white border border-slate-600">
+                            {membro.nome ? membro.nome.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                          <div>
+                            <p className="text-white font-bold">{membro.nome}</p>
+                            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{membro.cargo}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4 text-sm text-slate-300">{produtividade}</td>
+                      <td className="p-4 text-sm font-bold text-blue-400">
+                        R$ {Number(comissaoBruta).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                      </td>
+                      <td className="p-4">
+                        <div className="relative w-32 no-print">
+                          <span className="absolute left-3 top-2.5 text-slate-500 text-sm">R$</span>
+                          <input 
+                            type="number" 
+                            min="0"
+                            step="0.01"
+                            placeholder="0,00"
+                            value={descontos[membro.id] || ''}
+                            onChange={(e) => handleDescontoChange(membro.id, e.target.value)}
+                            className="w-full pl-9 pr-3 py-2 rounded-lg bg-[#0f172a] text-red-400 font-bold border border-slate-600 focus:border-red-500 outline-none"
+                          />
+                        </div>
+                        {/* Texto apenas para impressão */}
+                        <span className="hidden print:block text-red-500 font-bold">
+                           - R$ {Number(descontoAplicado).toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="p-4 text-lg font-bold text-emerald-400 text-right">
+                        R$ {Number(comissaoLiquida).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+              {/* RODAPÉ COM OS TOTAIS GERAIS */}
+              <tfoot>
+                <tr className="bg-[#0f172a] border-t-2 border-slate-600">
+                  <td colSpan="2" className="p-4 text-right text-slate-400 font-bold uppercase text-xs tracking-wider">Totais da Folha:</td>
+                  <td className="p-4 text-sm font-black text-blue-400">R$ {totalComissoesBrutas.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                  <td className="p-4 text-sm font-black text-red-400">- R$ {totalDescontosAplicados.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                  <td className="p-4 text-xl font-black text-emerald-400 text-right">R$ {totalLiquidoAPagar.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        {/* 3º ANDAR: GRÁFICO DE ÁREA MENSAL (DRE REAL) */}
+        <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg mt-8">
           <h3 className="text-slate-300 font-bold mb-6">DRE Mensal (Receitas vs Custos)</h3>
           <div className="h-80 w-full">
             {dadosFinanceiros.length === 0 ? (
@@ -173,8 +308,8 @@ export default function Financeiro() {
           </div>
         </div>
 
-        {/* 3º ANDAR: CATEGORIAS E RANKING (Lado a Lado) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 4º ANDAR: CATEGORIAS E RANKING */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 page-break-before">
           <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
             <h3 className="text-slate-300 font-bold mb-6">Faturamento por Categoria</h3>
             <div className="h-64 w-full">
@@ -216,105 +351,6 @@ export default function Financeiro() {
                 ))
               )}
             </div>
-          </div>
-        </div>
-
-        {/* 4º ANDAR: TABELA DE DETALHAMENTO MENSAL DA DRE */}
-        <div className="bg-[#1e293b] rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
-          <div className="p-6 border-b border-slate-700">
-            <h3 className="text-slate-300 font-bold">Detalhamento da DRE (Demonstração do Resultado)</h3>
-          </div>
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-[#0f172a] border-b border-slate-700">
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Período</th>
-                  <th className="p-4 text-xs font-bold text-emerald-400 uppercase tracking-wider">Receita Bruta</th>
-                  <th className="p-4 text-xs font-bold text-red-400 uppercase tracking-wider">Custos (CMV)</th>
-                  <th className="p-4 text-xs font-bold text-blue-400 uppercase tracking-wider">Lucro Bruto</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Margem</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Ticket Médio</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700">
-                {dadosFinanceiros.length === 0 && (
-                  <tr><td colSpan="6" className="p-6 text-center text-slate-500">Sem dados computados.</td></tr>
-                )}
-                {[...dadosFinanceiros].reverse().map((row, index) => {
-                  const margemPercentual = row.Receita > 0 ? ((row.Lucro / row.Receita) * 100).toFixed(1) : 0;
-                  return (
-                    <tr key={index} className="hover:bg-slate-800/50 transition-colors">
-                      <td className="p-4 text-sm font-bold text-white">{row.name}</td>
-                      <td className="p-4 text-sm text-emerald-400">R$ {Number(row.Receita).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                      <td className="p-4 text-sm text-red-400">R$ {Number(row.Custo).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                      <td className="p-4 text-sm font-bold text-blue-400">R$ {Number(row.Lucro).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                      <td className="p-4 text-sm text-slate-300">{margemPercentual}%</td>
-                      <td className="p-4 text-sm text-slate-300">R$ {Number(row.TicketMedio).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* 🔴 5º ANDAR: GESTÃO DE COMISSÕES DA EQUIPE */}
-        <div className="bg-[#1e293b] rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
-          <div className="p-6 border-b border-slate-700 flex justify-between items-center">
-            <div>
-              <h3 className="text-slate-300 font-bold flex items-center gap-2"><span>👥</span> Folha de Pagamento & Comissões</h3>
-              <p className="text-slate-500 text-xs mt-1">Balcão | Técnico</p>
-            </div>
-          </div>
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-[#0f172a] border-b border-slate-700">
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Funcionário</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Cargo</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Produtividade</th>
-                  <th className="p-4 text-xs font-bold text-emerald-400 uppercase tracking-wider">Comissão a Pagar</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700">
-                {equipe.length === 0 && (
-                  <tr><td colSpan="4" className="p-6 text-center text-slate-500">Nenhum dado de equipe encontrado.</td></tr>
-                )}
-                {equipe.map((membro) => {
-                  const isTecnico = membro.cargo === 'tecnico';
-                  const isBalcao = membro.cargo === 'balcao';
-                  let produtividade = '-';
-                  let comissao = 0;
-
-                  if (isTecnico) {
-                    produtividade = `${membro.reparos_concluidos || 0} reparos (${membro.horas_tecnicas || 0}h técnicas)`;
-                    comissao = membro.comissao_reparos || 0;
-                  } else if (isBalcao) {
-                    produtividade = `${membro.vendas_realizadas || 0} vendas avulsas`;
-                    comissao = membro.comissao_vendas || 0;
-                  } else {
-                    produtividade = "Gestão / Administrativo";
-                  }
-
-                  return (
-                    <tr key={membro.id} className="hover:bg-slate-800/50 transition-colors">
-                      <td className="p-4 text-sm font-bold text-white flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs border border-slate-600">
-                          {membro.nome ? membro.nome.charAt(0).toUpperCase() : 'U'}
-                        </div>
-                        {membro.nome}
-                        {!membro.ativo && <span className="bg-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded font-bold uppercase">Inativo</span>}
-                      </td>
-                      <td className="p-4 text-sm text-slate-300 uppercase text-xs font-bold">{membro.cargo}</td>
-                      <td className="p-4 text-sm text-slate-300">{produtividade}</td>
-                      <td className="p-4 text-sm font-bold text-emerald-400">
-                        {comissao > 0 ? `R$ ${Number(comissao).toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : '-'}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
           </div>
         </div>
 

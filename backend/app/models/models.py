@@ -22,6 +22,12 @@ class Loja(Base):
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String, index=True)
     cnpj = Column(String, unique=True, index=True)
+    telefone = Column(String, nullable=True)
+    endereco = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    website = Column(String, nullable=True)
+    logo_url = Column(String, nullable=True)
+    termos_garantia = Column(Text, nullable=True)
 
 class Usuario(Base):
     __tablename__ = "usuarios"

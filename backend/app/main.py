@@ -5,13 +5,14 @@ from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc
 from typing import List
+import shutil
 import os
 import jwt
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from collections import defaultdict
 from pydantic import BaseModel
-
+from fastapi import UploadFile, File
 # IMPORTS DO SISTEMA
 from core.database import engine, get_db
 from core import security
@@ -468,3 +469,48 @@ def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
             "tempo_medio_reparo_horas": tempo_medio_horas
         }
     }
+    # Rota para fazer upload da Logo
+@app.post("/lojas/upload-logo")
+def upload_logo(file: UploadFile = File(...), user=Depends(obter_usuario_logado)):
+    os.makedirs("uploads", exist_ok=True)
+    caminho_arquivo = f"uploads/loja_{user.loja_id}_{file.filename}"
+    
+    with open(caminho_arquivo, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    return {"url": f"/{caminho_arquivo}"}
+
+# Rota para salvar/atualizar as configurações da loja
+@app.put("/lojas/configuracoes")
+def atualizar_configuracoes_loja(dados: dict, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
+    loja = db.query(models.Loja).filter(models.Loja.id == user.loja_id).first()
+    if not loja:
+        raise HTTPException(status_code=404, detail="Loja não encontrada")
+    
+    # Atualiza todos os campos que vieram no dicionário
+    for campo, valor in dados.items():
+        if hasattr(loja, campo):
+            setattr(loja, campo, valor)
+            
+    db.commit()
+    return {"mensagem": "Configurações salvas com sucesso!"}
+
+# Rota para ler as configurações quando a tela abrir
+@app.get("/lojas/configuracoes")
+def obter_configuracoes_loja(db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
+    loja = db.query(models.Loja).filter(models.Loja.id == user.loja_id).first()
+    return loja
+
+@app.post("/ordens-servico/{os_id}/foto")
+def upload_foto_os(os_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
+    # 1. Cria a pasta de uploads se ela não existir
+    os.makedirs("uploads/evidencias", exist_ok=True)
+    
+    # 2. Monta o nome do arquivo com o número da OS para não misturar
+    caminho_arquivo = f"uploads/evidencias/os_{os_id}_{file.filename}"
+    
+    # 3. Salva a foto fisicamente no servidor
+    with open(caminho_arquivo, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    return {"mensagem": "Foto de evidência salva com sucesso!", "url": f"/{caminho_arquivo}"}
