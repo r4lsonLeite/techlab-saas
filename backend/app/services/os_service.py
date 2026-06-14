@@ -11,6 +11,7 @@ class StatusOS(str, Enum):
     PRONTO = "Pronto para Retirada"
     ENTREGUE = "Entregue"
     CANCELADA = "Cancelada"
+    AGUARDANDO_PECA = "Aguardando Peça"
 
 class OSService:
     # Máquina de Estados: Quem pode ir para onde (Ponto 6)

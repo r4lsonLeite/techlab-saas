@@ -5,36 +5,53 @@ from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc
 from typing import List
+from pathlib import Path
 import shutil
 import os
 import jwt
+import uuid
+import logging
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from collections import defaultdict
 from pydantic import BaseModel
 from fastapi import UploadFile, File
+
 # IMPORTS DO SISTEMA
 from core.database import engine, get_db
 from core import security
 from models import models
 from schemas import schemas
 
-# IMPORTS DOS SERVIÇOS (A lógica pesada saiu daqui para estes arquivos)
+# IMPORTS DOS SERVIÇOS
 from services.estoque_service import EstoqueService
 from services.os_service import OSService, StatusOS
 
 # ==============================
-# CONFIGURAÇÃO DE AMBIENTE E SEGURANÇA
+# 0. LOGS E SEGURANÇA BASE
+# ==============================
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+# 🔴 REGRA CRÍTICA DE PRODUÇÃO: SECRET_KEY
+# Tenta pegar das variáveis de ambiente ou do ficheiro core/security.py
+SECRET_KEY = os.getenv("SECRET_KEY", getattr(security, "SECRET_KEY", None))
+if not SECRET_KEY or SECRET_KEY == "techlab_secreto_123":
+    logger.warning("⚠️ ALERTA DE SEGURANÇA: A usar SECRET_KEY padrão ou não configurada! Mude isto em ambiente de produção.")
+    SECRET_KEY = "techlab_secreto_123" # Fallback temporário para não quebrar o seu ambiente de testes agora
+
+ALGORITHM = getattr(security, "ALGORITHM", "HS256")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+# ==============================
+# CONFIGURAÇÃO DE AMBIENTE
 # ==============================
 app = FastAPI(title="TechLab API - Tech Ninja SaaS")
 
-# Garantir pasta de uploads
-os.makedirs("uploads", exist_ok=True)
+os.makedirs("uploads/evidencias", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# CORS dinâmico para produção
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -42,10 +59,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-SECRET_KEY = getattr(security, "SECRET_KEY", "techlab_secreto_123")
-ALGORITHM = getattr(security, "ALGORITHM", "HS256")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # ==============================
 # DEPENDÊNCIAS DE AUTENTICAÇÃO
@@ -195,8 +208,8 @@ def listar_os(skip: int = 0, limit: int = 50, db: Session = Depends(get_db), use
     for o in res:
         d = {c.name: getattr(o, c.name) for c in o.__table__.columns}
         d.update({
-            "cliente_nome": o.cliente.nome if o.cliente else "Sem Cliente", 
-            # 👇 A CORREÇÃO ESTÁ AQUI: Incluímos o produto_id no dicionário
+            "cliente_nome": o.cliente.nome if o.cliente else "Sem Cliente",
+            "cliente_telefone": o.cliente.telefone if o.cliente else "", 
             "itens": [{"id": i.id, "produto_id": i.produto_id, "nome_produto": i.nome_produto, "quantidade": i.quantidade, "preco_unitario": float(i.preco_unitario)} for i in o.itens]
         })
         ordens.append(d)
@@ -205,9 +218,9 @@ def listar_os(skip: int = 0, limit: int = 50, db: Session = Depends(get_db), use
 def atualizar_os_retorno_helper(os_db):
     d = {c.name: getattr(os_db, c.name) for c in os_db.__table__.columns}
     d.update({
-        # 👇 A CORREÇÃO ESTÁ AQUI TAMBÉM:
         "itens": [{"id": i.id, "produto_id": i.produto_id, "nome_produto": i.nome_produto, "quantidade": i.quantidade, "preco_unitario": float(i.preco_unitario)} for i in os_db.itens], 
-        "cliente_nome": os_db.cliente.nome if os_db.cliente else "Sem Cliente"
+        "cliente_nome": os_db.cliente.nome if os_db.cliente else "Sem Cliente",
+        "cliente_telefone": os_db.cliente.telefone if os_db.cliente else "" 
     })
     return d
 
@@ -218,7 +231,12 @@ def criar_os(os_data: schemas.OSCreate, db: Session = Depends(get_db), user=Depe
         nova = models.OrdemServico(**{k: v for k, v in dados.items() if k in [c.name for c in models.OrdemServico.__table__.columns]}, status=StatusOS.AGUARDANDO_ANALISE.value, loja_id=user.loja_id, usuario_id=user.id, atendente_id=user.id, ativo=True)
         db.add(nova); db.commit(); db.refresh(nova)
         return schemas.OSResponse(**{c.name: getattr(nova, c.name) for c in nova.__table__.columns}, cliente_nome=nova.cliente.nome if nova.cliente else "Sem Cliente", itens=[])
-    except Exception as e: db.rollback(); raise HTTPException(500, str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Erro ao criar OS: {e}")
+        db.rollback()
+        raise HTTPException(500, "Erro interno ao processar a criação da OS.")
 
 @app.put("/ordens-servico/{os_id}", response_model=schemas.OSResponse)
 def atualizar_os(os_id: int, payload: schemas.OSUpdate, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
@@ -226,6 +244,13 @@ def atualizar_os(os_id: int, payload: schemas.OSUpdate, db: Session = Depends(ge
         os_db = db.query(models.OrdemServico).filter(models.OrdemServico.id == os_id, models.OrdemServico.loja_id == user.loja_id, models.OrdemServico.ativo == True).with_for_update().first()
         if not os_db: raise HTTPException(404, "OS não encontrada")
         dados = payload.model_dump(exclude_unset=True)
+
+        # 🔴 BLINDAGEM DE SEGURANÇA: Impede Técnicos de forjarem valores e status de faturamento
+        if user.cargo.lower() == "tecnico":
+            if "valor_orcamento" in dados:
+                raise HTTPException(403, "Falha de Segurança: O Técnico não tem permissão para alterar valores financeiros.")
+            if "status" in dados and dados["status"] in [StatusOS.APROVADO.value, StatusOS.RECUSADO.value, StatusOS.ENTREGUE.value]:
+                raise HTTPException(403, "Falha de Segurança: O Técnico não tem permissão para faturar ou cancelar OS.")
 
         if "pecas_selecionadas" in dados:
             pecas = dados.pop("pecas_selecionadas")
@@ -248,12 +273,13 @@ def atualizar_os(os_id: int, payload: schemas.OSUpdate, db: Session = Depends(ge
 
         db.commit(); db.refresh(os_db)
         return atualizar_os_retorno_helper(os_db)
-    except Exception as e: db.rollback(); raise HTTPException(500, str(e))
-
-def atualizar_os_retorno_helper(os_db):
-    d = {c.name: getattr(os_db, c.name) for c in os_db.__table__.columns}
-    d.update({"itens": [{"nome_produto": i.nome_produto, "quantidade": i.quantidade, "preco_unitario": float(i.preco_unitario)} for i in os_db.itens], "cliente_nome": os_db.cliente.nome if os_db.cliente else "Sem Cliente"})
-    return d
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Erro crítico ao atualizar OS {os_id}: {e}")
+        db.rollback()
+        raise HTTPException(500, "Erro interno do servidor ao tentar atualizar a Ordem de Serviço.")
 
 @app.delete("/ordens-servico/{id}")
 def deletar_os(id: int, db: Session = Depends(get_db), admin=Depends(admin_required)):
@@ -273,15 +299,9 @@ def listar_produtos(db: Session = Depends(get_db), user=Depends(obter_usuario_lo
 
 @app.post("/produtos")
 def criar_produto(produto: schemas.ProdutoCreate, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
-    # 1. Transformamos os dados que vieram do Frontend num dicionário
     dados_produto = produto.model_dump()
-    
-    # 2. Removemos o loja_id do pacote (se ele existir) para evitar a duplicação
     dados_produto.pop("loja_id", None)
-    
-    # 3. Criamos o produto forçando o loja_id seguro do usuário logado
     novo = models.Produto(**dados_produto, loja_id=user.loja_id)
-    
     db.add(novo)
     db.commit()
     db.refresh(novo)
@@ -321,17 +341,15 @@ def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db), u
 
         nova_venda.valor_total = total
         db.commit()
-        
-        # 👇 Retorno atualizado para bater com o que o teste espera
         return {"venda_id": nova_venda.id, "mensagem": "Venda concluída com sucesso"}
         
-    # 👇 Deixamos os erros intencionais do EstoqueService (Erro 400) passarem!
-    except HTTPException as http_exc:
+    except HTTPException:
         db.rollback()
-        raise http_exc
+        raise
     except Exception as e: 
+        logger.exception(f"Erro Crítico ao processar pagamento/PDV: {e}")
         db.rollback()
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, "Falha crítica no motor financeiro. A transação foi revertida.")
 
 # ==============================
 # MÓDULO: SOLICITAÇÕES E DASHBOARD
@@ -344,15 +362,18 @@ def criar_solicitacao(s: schemas.SolicitacaoCompraCreate, db: Session = Depends(
 def listar_solicitacoes(db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
     return db.query(models.SolicitacaoCompra).filter(models.SolicitacaoCompra.loja_id == user.loja_id).all()
 
+@app.put("/solicitacoes/{id}/status")
+def atualizar_status_solicitacao(id: int, status_novo: str, db: Session = Depends(get_db), admin=Depends(admin_required)):
+    solic = db.query(models.SolicitacaoCompra).filter(models.SolicitacaoCompra.id == id, models.SolicitacaoCompra.loja_id == admin.loja_id).first()
+    if not solic: raise HTTPException(404, "Solicitação não encontrada")
+    solic.status = status_novo; db.commit(); db.refresh(solic); return solic
+
 @app.get("/dashboard/metricas")
 def obter_metricas_dashboard(db: Session = Depends(get_db), admin=Depends(admin_required)):
     v = db.query(func.sum(models.Venda.valor_total)).filter(models.Venda.loja_id == admin.loja_id).scalar() or 0
     o = db.query(func.sum(models.OrdemServico.valor_orcamento)).filter(models.OrdemServico.loja_id == admin.loja_id, models.OrdemServico.status == StatusOS.ENTREGUE.value).scalar() or 0
     return {"faturamento_total": float(v) + float(o), "os_pendentes": db.query(func.count(models.OrdemServico.id)).filter(models.OrdemServico.loja_id == admin.loja_id, models.OrdemServico.status.notin_([StatusOS.ENTREGUE.value, StatusOS.CANCELADA.value])).scalar()}
 
-# ==============================
-# DASHBOARD ERP / INTELIGÊNCIA DE NEGÓCIO
-# ==============================
 @app.get("/dashboard/graficos")
 def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_required)):
     hoje = datetime.now(timezone.utc)
@@ -469,25 +490,39 @@ def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
             "tempo_medio_reparo_horas": tempo_medio_horas
         }
     }
-    # Rota para fazer upload da Logo
+
+# ==============================
+# MÓDULO: UPLOADS SEGUROS
+# ==============================
+MAX_FILE_SIZE = 5 * 1024 * 1024 # 5 MB Limite Máximo
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+
 @app.post("/lojas/upload-logo")
 def upload_logo(file: UploadFile = File(...), user=Depends(obter_usuario_logado)):
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(400, f"Extensão de arquivo não permitida. Use: {', '.join(ALLOWED_EXTENSIONS)}")
+
+    conteudo = file.file.read()
+    if len(conteudo) > MAX_FILE_SIZE:
+        raise HTTPException(400, "Arquivo excede o limite de 5MB.")
+
     os.makedirs("uploads", exist_ok=True)
-    caminho_arquivo = f"uploads/loja_{user.loja_id}_{file.filename}"
+    # 🔴 Proteção: ID único em vez de usar o nome original (Path Traversal fix)
+    nome_seguro = f"loja_{user.loja_id}_{uuid.uuid4().hex}{ext}"
+    caminho_arquivo = f"uploads/{nome_seguro}"
     
-    with open(caminho_arquivo, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    with open(caminho_arquivo, "wb") as f:
+        f.write(conteudo)
         
     return {"url": f"/{caminho_arquivo}"}
 
-# Rota para salvar/atualizar as configurações da loja
 @app.put("/lojas/configuracoes")
 def atualizar_configuracoes_loja(dados: dict, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
     loja = db.query(models.Loja).filter(models.Loja.id == user.loja_id).first()
     if not loja:
         raise HTTPException(status_code=404, detail="Loja não encontrada")
     
-    # Atualiza todos os campos que vieram no dicionário
     for campo, valor in dados.items():
         if hasattr(loja, campo):
             setattr(loja, campo, valor)
@@ -495,7 +530,6 @@ def atualizar_configuracoes_loja(dados: dict, db: Session = Depends(get_db), use
     db.commit()
     return {"mensagem": "Configurações salvas com sucesso!"}
 
-# Rota para ler as configurações quando a tela abrir
 @app.get("/lojas/configuracoes")
 def obter_configuracoes_loja(db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
     loja = db.query(models.Loja).filter(models.Loja.id == user.loja_id).first()
@@ -503,14 +537,21 @@ def obter_configuracoes_loja(db: Session = Depends(get_db), user=Depends(obter_u
 
 @app.post("/ordens-servico/{os_id}/foto")
 def upload_foto_os(os_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
-    # 1. Cria a pasta de uploads se ela não existir
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(400, f"Extensão de arquivo não permitida. Use: {', '.join(ALLOWED_EXTENSIONS)}")
+    
+    conteudo = file.file.read()
+    if len(conteudo) > MAX_FILE_SIZE:
+        raise HTTPException(400, "Arquivo de evidência excede o limite de 5MB.")
+
     os.makedirs("uploads/evidencias", exist_ok=True)
     
-    # 2. Monta o nome do arquivo com o número da OS para não misturar
-    caminho_arquivo = f"uploads/evidencias/os_{os_id}_{file.filename}"
+    # 🔴 Proteção com UUID
+    nome_seguro = f"os_{os_id}_{uuid.uuid4().hex}{ext}"
+    caminho_arquivo = f"uploads/evidencias/{nome_seguro}"
     
-    # 3. Salva a foto fisicamente no servidor
-    with open(caminho_arquivo, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    with open(caminho_arquivo, "wb") as f:
+        f.write(conteudo)
         
-    return {"mensagem": "Foto de evidência salva com sucesso!", "url": f"/{caminho_arquivo}"}
+    return {"mensagem": "Foto de evidência salva com segurança!", "url": f"/{caminho_arquivo}"}
