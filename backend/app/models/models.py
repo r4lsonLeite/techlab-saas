@@ -3,11 +3,13 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from core.database import Base
 from sqlalchemy.sql import func
+
 class ItemOS(Base):
     __tablename__ = "itens_os"
     id = Column(Integer, primary_key=True, index=True)
-    os_id = Column(Integer, ForeignKey("ordens_servico.id", ondelete="CASCADE"), nullable=False)
-    produto_id = Column(Integer, ForeignKey("produtos.id"), nullable=False)
+    # 🚀 ÍNDICE ADICIONADO: Pesquisamos muito os itens de uma OS específica
+    os_id = Column(Integer, ForeignKey("ordens_servico.id", ondelete="CASCADE"), nullable=False, index=True)
+    produto_id = Column(Integer, ForeignKey("produtos.id"), nullable=False, index=True)
     
     nome_produto = Column(String, nullable=True) # 🔴 AQUI: O nome para o balcão enxergar
     
@@ -38,7 +40,8 @@ class Usuario(Base):
     senha_hash = Column(String, nullable=False)
     cargo = Column(String, nullable=False, default="tecnico")
     ativo = Column(Boolean, default=True)
-    loja_id = Column(Integer, ForeignKey("lojas.id"), nullable=False)
+    # 🚀 ÍNDICE ADICIONADO: Sempre filtramos os usuários por loja
+    loja_id = Column(Integer, ForeignKey("lojas.id"), nullable=False, index=True)
     taxa_comissao = Column(Numeric(5, 2), default=0.00)
 
     loja = relationship("Loja")
@@ -47,11 +50,13 @@ class Cliente(Base):
     __tablename__ = "clientes"
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String, index=True)
-    telefone = Column(String)
+    # 🚀 ÍNDICE ADICIONADO: Usado para buscas rápidas no PDV/Orçamento
+    telefone = Column(String, index=True)
     email = Column(String, nullable=True)
-    cpf = Column(String, nullable=True)
+    cpf = Column(String, nullable=True, index=True)
     data_cadastro = Column(DateTime(timezone=True), server_default=func.now())
-    loja_id = Column(Integer, ForeignKey("lojas.id"))
+    # 🚀 ÍNDICE ADICIONADO: Essencial para isolar dados do SaaS
+    loja_id = Column(Integer, ForeignKey("lojas.id"), index=True)
 
 class OrdemServico(Base):
     __tablename__ = "ordens_servico"
@@ -76,7 +81,8 @@ class OrdemServico(Base):
     defeito = Column(Text, nullable=False)
     checklist = Column(Text, nullable=True)
     prioridade = Column(String, default="Normal")
-    status = Column(String, default="Aguardando Análise")
+    # 🚀 ÍNDICE ADICIONADO: Filtramos MUITO por status nas abas de Bancada/Balcão
+    status = Column(String, default="Aguardando Análise", index=True)
     observacoes_balcao = Column(Text, nullable=True)
     foto_url = Column(String, nullable=True)
     
@@ -85,18 +91,19 @@ class OrdemServico(Base):
     pecas_necessarias = Column(Text, nullable=True)
     valor_orcamento = Column(Numeric(10,2), default=0)
     valor_mao_de_obra = Column(Numeric(10,2), default=0) 
-    horas_tecnicas = Column(Float, default=0.0) # 🔴 O campo que causou o erro!
+    horas_tecnicas = Column(Float, default=0.0) 
     
     # DATAS
-    data_entrada = Column(DateTime(timezone=True), server_default=func.now())
+    # 🚀 ÍNDICE ADICIONADO: O Dashboard ordena e busca muito por data de entrada
+    data_entrada = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     data_conclusao = Column(DateTime(timezone=True), nullable=True)
 
-    # CHAVES ESTRANGEIRAS
-    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=False)
-    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
-    tecnico_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
-    atendente_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
-    loja_id = Column(Integer, ForeignKey("lojas.id"), nullable=False)
+    # CHAVES ESTRANGEIRAS COM ÍNDICES ADICIONADOS PARA PERFORMANCE ABSOLUTA
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=False, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    tecnico_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True, index=True)
+    atendente_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True, index=True)
+    loja_id = Column(Integer, ForeignKey("lojas.id"), nullable=False, index=True)
     
     ativo = Column(Boolean, default=True)
 
@@ -114,7 +121,8 @@ class Produto(Base):
     codigo_barras = Column(String, index=True, nullable=True)
     codigo_modelo = Column(String, nullable=True)
     fornecedor = Column(String, nullable=True)
-    categoria = Column(String, default="Outros")
+    # 🚀 ÍNDICE ADICIONADO: O Dashboard agrupa vendas por categoria
+    categoria = Column(String, default="Outros", index=True)
     is_servico = Column(Boolean, default=False) 
     localizacao = Column(String, nullable=True)  
     preco_custo = Column(Numeric(10, 2))
@@ -125,7 +133,8 @@ class Produto(Base):
     estoque_minimo = Column(Integer, default=5)
     
     ativo = Column(Boolean, default=True)
-    loja_id = Column(Integer, ForeignKey("lojas.id"))
+    # 🚀 ÍNDICE ADICIONADO
+    loja_id = Column(Integer, ForeignKey("lojas.id"), index=True)
     
     loja = relationship("Loja")
     movimentacoes = relationship("MovimentacaoEstoque", back_populates="produto")
@@ -133,8 +142,9 @@ class Produto(Base):
 class MovimentacaoEstoque(Base):
     __tablename__ = "movimentacoes_estoque"
     id = Column(Integer, primary_key=True, index=True)
-    produto_id = Column(Integer, ForeignKey("produtos.id"), nullable=False)
-    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    # 🚀 ÍNDICES ADICIONADOS
+    produto_id = Column(Integer, ForeignKey("produtos.id"), nullable=False, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
     tipo = Column(String, nullable=False)
     quantidade = Column(Integer, nullable=False)
     data_movimentacao = Column(DateTime, default=datetime.utcnow)
@@ -146,14 +156,15 @@ class MovimentacaoEstoque(Base):
 class TransacaoFinanceira(Base):
     __tablename__ = "transacoes_financeiras"
     id = Column(Integer, primary_key=True, index=True)
-    loja_id = Column(Integer, ForeignKey("lojas.id"), nullable=False)
-    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    # 🚀 ÍNDICES ADICIONADOS
+    loja_id = Column(Integer, ForeignKey("lojas.id"), nullable=False, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
     tipo = Column(String, nullable=False) 
     categoria = Column(String, nullable=False) 
     valor = Column(Float, nullable=False)
     descricao = Column(String)
-    data_transacao = Column(DateTime, default=datetime.utcnow)
-    ordem_servico_id = Column(Integer, ForeignKey("ordens_servico.id"), nullable=True)
+    data_transacao = Column(DateTime, default=datetime.utcnow, index=True)
+    ordem_servico_id = Column(Integer, ForeignKey("ordens_servico.id"), nullable=True, index=True)
     
     loja = relationship("Loja")
     usuario = relationship("Usuario")
@@ -166,14 +177,14 @@ class Venda(Base):
     valor_total = Column(Numeric(10,2), nullable=False)
     forma_pagamento = Column(String, nullable=False, default="Dinheiro")
     
-    # 🔴 A NOSSA NOVA COLUNA DE DATA!
-    data_venda = Column(DateTime(timezone=True), server_default=func.now())
+    # 🚀 ÍNDICE ADICIONADO: Crucial para o DRE Mensal no Dashboard!
+    data_venda = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     
-    # Vínculos para histórico e PDV
-    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=True)
-    os_id = Column(Integer, ForeignKey("ordens_servico.id"), nullable=True)
-    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
-    loja_id = Column(Integer, ForeignKey("lojas.id"), nullable=False)
+    # 🚀 ÍNDICES ADICIONADOS NAS CHAVES ESTRANGEIRAS
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=True, index=True)
+    os_id = Column(Integer, ForeignKey("ordens_servico.id"), nullable=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    loja_id = Column(Integer, ForeignKey("lojas.id"), nullable=False, index=True)
 
     itens = relationship(
         "ItemVenda",
@@ -190,8 +201,9 @@ class ItemVenda(Base):
     id = Column(Integer, primary_key=True, index=True)
     quantidade = Column(Integer, nullable=False)
     preco_unitario = Column(Numeric(10,2), nullable=False)
-    venda_id = Column(Integer, ForeignKey("vendas.id"), nullable=False)
-    produto_id = Column(Integer, ForeignKey("produtos.id"), nullable=False)
+    # 🚀 ÍNDICES ADICIONADOS
+    venda_id = Column(Integer, ForeignKey("vendas.id"), nullable=False, index=True)
+    produto_id = Column(Integer, ForeignKey("produtos.id"), nullable=False, index=True)
 
     venda = relationship("Venda", back_populates="itens")
     produto = relationship("Produto")
@@ -203,8 +215,9 @@ class SolicitacaoCompra(Base):
     quantidade = Column(Integer, default=1)
     origem = Column(String, nullable=False) 
     prioridade = Column(String, default="Normal") 
-    status = Column(String, default="Pendente") 
-    os_id = Column(Integer, ForeignKey("ordens_servico.id", ondelete="SET NULL"), nullable=True)
+    # 🚀 ÍNDICE ADICIONADO: Sempre filtramos as pendentes na Central de Compras
+    status = Column(String, default="Pendente", index=True) 
+    os_id = Column(Integer, ForeignKey("ordens_servico.id", ondelete="SET NULL"), nullable=True, index=True)
     observacao = Column(String, nullable=True)
     data_solicitacao = Column(DateTime, default=datetime.utcnow)
-    loja_id = Column(Integer, ForeignKey("lojas.id"), nullable=False)
+    loja_id = Column(Integer, ForeignKey("lojas.id"), nullable=False, index=True)

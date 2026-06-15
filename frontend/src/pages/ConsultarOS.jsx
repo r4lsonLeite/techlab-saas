@@ -7,7 +7,11 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
   const [busca, setBusca] = useState("");
   const [carregando, setCarregando] = useState(true);
   
-  // 🟢 ESTADO DE PROCESSAMENTO (Evita duplo clique)
+  // 🟢 ESTADOS DE PAGINAÇÃO
+  const [skip, setSkip] = useState(0);
+  const [temMais, setTemMais] = useState(true);
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  
   const [processando, setProcessando] = useState(false);
   
   const [modalCrmAberto, setModalCrmAberto] = useState(false);
@@ -23,14 +27,21 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
   
   const isTecnico = String(cargo).toLowerCase().trim() === 'tecnico';
 
-  // 🟢 DEBOUNCE NATIVO (React 18) PARA PERFORMANCE
   const buscaDebounced = useDeferredValue(busca);
   const termoBuscaProdutoDebounced = useDeferredValue(termoBuscaProduto);
 
+  // 🟢 EFEITO DE BUSCA NO SERVIDOR
   useEffect(() => {
-    carregarOrdens();
+    // Sempre que a busca muda, zeramos a paginação e a lista
+    setSkip(0);
+    setOrdens([]);
+    carregarOrdens(0, buscaDebounced, true);
+  }, [buscaDebounced]);
+
+  // Carrega produtos (mantém igual)
+  useEffect(() => {
     carregarProdutos();
-  }, [osIdParaAbrir]); 
+  }, []);
 
   useEffect(() => {
     if (osAtiva) {
@@ -70,18 +81,48 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
     }
   };
 
-  const carregarOrdens = async () => {
-    setCarregando(true);
+  // 🟢 FUNÇÃO DE CARREGAMENTO PAGINADO
+  const carregarOrdens = async (currentSkip = 0, termo = "", limparLista = false) => {
+    if (limparLista) setCarregando(true);
+    else setCarregandoMais(true);
+
     try {
-      const dados = await apiFetch('/ordens-servico');
-      setOrdens(dados);
-      if (osIdParaAbrir) {
+      let url = `/ordens-servico?skip=${currentSkip}&limit=50`;
+      if (termo) url += `&busca=${encodeURIComponent(termo)}`;
+
+      const dados = await apiFetch(url);
+      
+      if (limparLista) {
+        setOrdens(dados);
+      } else {
+        setOrdens(prev => [...prev, ...dados]);
+      }
+
+      // Se o servidor devolver menos de 50, chegámos ao fim da lista
+      if (dados.length < 50) {
+        setTemMais(false);
+      } else {
+        setTemMais(true);
+      }
+
+      // Lógica de abertura automática pelo ID do Dashboard
+      if (osIdParaAbrir && limparLista) {
         const osDesejada = dados.find(o => Number(o.id) === Number(osIdParaAbrir));
         if (osDesejada) setOsAtiva(osDesejada);
         setOsIdParaAbrir(null);
       }
-    } catch (erro) { console.error("Erro ao buscar OS:", erro); } 
-    finally { setCarregando(false); }
+    } catch (erro) { 
+      console.error("Erro ao buscar OS:", erro); 
+    } finally { 
+      setCarregando(false);
+      setCarregandoMais(false);
+    }
+  };
+
+  const carregarMaisOS = () => {
+    const novoSkip = skip + 50;
+    setSkip(novoSkip);
+    carregarOrdens(novoSkip, buscaDebounced, false);
   };
 
   const carregarProdutos = async () => {
@@ -91,21 +132,8 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
     } catch (erro) { console.error("Erro ao carregar produtos:", erro); }
   };
 
-  // 🟢 UTILIZA O DEBOUNCE AQUI
-  const osFiltradas = useMemo(() => {
-    const termo = buscaDebounced.toLowerCase();
-    return ordens.filter(os => {
-      const aparelhoCompleto = `${os.marca || ''} ${os.modelo || ''}`.toLowerCase();
-      return (
-        String(os.id).includes(termo) ||
-        (os.cliente_nome && os.cliente_nome.toLowerCase().includes(termo)) ||
-        aparelhoCompleto.includes(termo) ||
-        (os.imei && os.imei.toLowerCase().includes(termo))
-      );
-    });
-  }, [ordens, buscaDebounced]);
-
-  // 🟢 UTILIZA O DEBOUNCE AQUI
+  // REMOVEMOS o osFiltradas porque o backend agora faz o trabalho pesado!
+  
   const produtosFiltradosCatalogo = useMemo(() => {
     if (!termoBuscaProdutoDebounced) return [];
     return produtosCatalogo.filter(p => p.nome.toLowerCase().includes(termoBuscaProdutoDebounced.toLowerCase())).slice(0, 5);
@@ -114,7 +142,6 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
   const adicionarPecaNaOs = (produto) => {
     const novasPecas = [
       ...pecasNegociacao, 
-      // 🟢 ID SEGURO COM UUID PARA EVITAR COLISÕES
       { idInterno: crypto.randomUUID(), produto_id: produto.id, nome_produto: produto.nome, quantidade: 1, preco_unitario: produto.preco_venda }
     ];
     setPecasNegociacao(novasPecas);
@@ -225,12 +252,6 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
             TOTAL ESTIMADO COM DESCONTOS/ACRÉSCIMOS: <br/>
             <strong style="color: #10b981; font-size: 28px;">R$ ${valorFinalFormatado}</strong>
           </div>
-
-          <div style="margin-top: 60px; padding: 15px; background: #fffbeb; border-left: 4px solid #f59e0b; color: #b45309; font-size: 12px;">
-            <strong>Observações Importantes:</strong><br/>
-            1. Este é um orçamento prévio. Valores podem sofrer alterações caso problemas ocultos sejam identificados após a abertura do aparelho.<br/>
-            2. Validade desta proposta: 5 dias úteis.
-          </div>
         </body>
       </html>
     `;
@@ -263,10 +284,10 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
     const confirmar = window.confirm(`Tem certeza que deseja EXCLUIR a OS #${id}?`);
     if (!confirmar) return;
     
-    // 🟢 TRAVA DE SEGURANÇA VISUAL E FUNCIONAL
     setProcessando(true);
     try {
       await apiFetch(`/ordens-servico/${id}`, { method: 'DELETE' });
+      // Remove localmente sem precisar recarregar o banco inteiro
       setOrdens(ordens.filter(os => os.id !== id));
       setOsAtiva(null);
       alert("OS excluída com sucesso!");
@@ -297,12 +318,14 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
       payload.observacoes_balcao = obsBalcao;
     }
 
-    // 🟢 TRAVA DE SEGURANÇA VISUAL E FUNCIONAL
     setProcessando(true);
     try {
       await apiFetch(`/ordens-servico/${osAtiva.id}`, { method: 'PUT', body: JSON.stringify(payload) });
       alert(`OS atualizada para: ${novoStatus}`);
-      setValorDigitado(""); setObsBalcao(""); carregarOrdens(); 
+      setValorDigitado(""); setObsBalcao(""); 
+      // Atualiza a lista trazendo da página 0 novamente
+      setSkip(0);
+      carregarOrdens(0, buscaDebounced, true);
     } catch (erro) { 
       alert(`Erro ao atualizar: ${erro.message}`); 
     } finally {
@@ -322,22 +345,40 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-          {carregando ? <div className="text-center text-emerald-500 mt-10 animate-pulse font-bold">Carregando...</div> : osFiltradas.length === 0 ? <div className="text-center text-slate-500 mt-10">Nenhuma OS encontrada.</div> : (
-            osFiltradas.map((os) => (
-              <div key={os.id} onClick={() => !processando && setOsAtiva(os)} className={`p-4 rounded-xl border cursor-pointer transition-all ${osAtiva?.id === os.id ? 'bg-[#0f172a] border-emerald-500 shadow-md' : 'bg-[#1e293b] border-slate-700 hover:border-slate-500'} ${processando ? 'opacity-50 pointer-events-none' : ''}`}>
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-bold text-white bg-slate-700 px-2 py-1 rounded">OS #{os.id}</span>
-                  {(os.status === 'Aguardando Cliente' || os.status === 'Aguardando Reavaliação') && <span className="text-amber-500 animate-pulse text-xs font-bold">⏱️ Aprovação</span>}
+          {carregando ? (
+            <div className="text-center text-emerald-500 mt-10 animate-pulse font-bold">Carregando...</div> 
+          ) : ordens.length === 0 ? (
+            <div className="text-center text-slate-500 mt-10">Nenhuma OS encontrada.</div> 
+          ) : (
+            <>
+              {ordens.map((os) => (
+                <div key={os.id} onClick={() => !processando && setOsAtiva(os)} className={`p-4 rounded-xl border cursor-pointer transition-all ${osAtiva?.id === os.id ? 'bg-[#0f172a] border-emerald-500 shadow-md' : 'bg-[#1e293b] border-slate-700 hover:border-slate-500'} ${processando ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs font-bold text-white bg-slate-700 px-2 py-1 rounded">OS #{os.id}</span>
+                    {(os.status === 'Aguardando Cliente' || os.status === 'Aguardando Reavaliação') && <span className="text-amber-500 animate-pulse text-xs font-bold">⏱️ Aprovação</span>}
+                  </div>
+                  <h3 className="text-emerald-400 font-bold">{os.cliente_nome || "Cliente"}</h3>
+                  <p className="text-slate-300 text-sm">{os.marca} {os.modelo}</p>
+                  <p className="text-slate-500 text-xs mt-2 font-bold">{os.status}</p>
                 </div>
-                <h3 className="text-emerald-400 font-bold">{os.cliente_nome || "Cliente"}</h3>
-                <p className="text-slate-300 text-sm">{os.marca} {os.modelo}</p>
-                <p className="text-slate-500 text-xs mt-2 font-bold">{os.status}</p>
-              </div>
-            ))
+              ))}
+              
+              {/* 🟢 BOTÃO DE CARREGAR MAIS (PAGINAÇÃO) */}
+              {temMais && (
+                <button 
+                  onClick={carregarMaisOS} 
+                  disabled={carregandoMais}
+                  className="w-full py-3 mt-2 text-center text-sm font-bold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors border border-blue-500/30 disabled:opacity-50"
+                >
+                  {carregandoMais ? "A carregar..." : "Ver OS Antigas ↓"}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
 
+      {/* RESTO DO CÓDIGO DO PAINEL DIREITO MANTIDO IGUAL */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0f172a]">
         {!osAtiva ? (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-500"><span className="text-6xl mb-4">📂</span><h2 className="text-xl font-medium">Selecione uma OS</h2></div>
@@ -541,7 +582,6 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
           </div>
         </div>
       )}
-
     </div>
   );
 }

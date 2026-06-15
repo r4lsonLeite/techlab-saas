@@ -23,9 +23,35 @@ def atualizar_os_retorno_helper(os_db):
     })
     return d
 
+from sqlalchemy import or_, cast, String # 👈 Adicione estes imports lá no topo do arquivo se não estiverem
+
+# Substitua a sua função listar_os atual por esta:
 @router.get("")
-def listar_os(skip: int = 0, limit: int = 50, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
-    res = db.query(models.OrdemServico).options(joinedload(models.OrdemServico.itens), joinedload(models.OrdemServico.cliente)).filter(models.OrdemServico.loja_id == user.loja_id, models.OrdemServico.ativo == True).order_by(desc(models.OrdemServico.id)).offset(skip).limit(limit).all()
+def listar_os(skip: int = 0, limit: int = 50, busca: str = None, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
+    query = db.query(models.OrdemServico).options(
+        joinedload(models.OrdemServico.itens), 
+        joinedload(models.OrdemServico.cliente)
+    ).filter(
+        models.OrdemServico.loja_id == user.loja_id, 
+        models.OrdemServico.ativo == True
+    )
+
+    # 🟢 O MOTOR DE BUSCA NO SERVIDOR
+    if busca:
+        termo = f"%{busca}%"
+        # Usamos o outerjoin porque algumas OS podem não ter cliente (teoricamente)
+        query = query.outerjoin(models.Cliente).filter(
+            or_(
+                cast(models.OrdemServico.id, String).ilike(termo),
+                models.Cliente.nome.ilike(termo),
+                models.OrdemServico.marca.ilike(termo),
+                models.OrdemServico.modelo.ilike(termo),
+                models.OrdemServico.imei.ilike(termo)
+            )
+        )
+
+    res = query.order_by(desc(models.OrdemServico.id)).offset(skip).limit(limit).all()
+    
     ordens = []
     for o in res:
         d = {c.name: getattr(o, c.name) for c in o.__table__.columns}
