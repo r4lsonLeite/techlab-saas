@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_, cast, String
 import logging
 
 from core.database import get_db
@@ -12,6 +13,42 @@ from services.os_service import OSService, StatusOS
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vendas", tags=["Vendas e PDV"])
+
+# 🟢 NOVA ROTA: HISTÓRICO DE CAIXA PAGINADO!
+@router.get("")
+def listar_vendas(skip: int = 0, limit: int = 50, busca: str = None, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
+    query = db.query(models.Venda).options(
+        joinedload(models.Venda.cliente),
+        joinedload(models.Venda.usuario)
+    ).filter(models.Venda.loja_id == user.loja_id)
+
+    if busca:
+        termo = f"%{busca}%"
+        # Precisamos fazer outerjoin porque o cliente pode ser avulso (não cadastrado)
+        query = query.outerjoin(models.Cliente).outerjoin(models.Usuario, models.Venda.usuario_id == models.Usuario.id).filter(
+            or_(
+                cast(models.Venda.id, String).ilike(termo),
+                models.Cliente.nome.ilike(termo),
+                models.Usuario.nome.ilike(termo),
+                models.Venda.forma_pagamento.ilike(termo)
+            )
+        )
+
+    res = query.order_by(models.Venda.data_venda.desc()).offset(skip).limit(limit).all()
+    
+    # Formata a resposta para o React ler facilmente
+    vendas_formatadas = []
+    for v in res:
+        vendas_formatadas.append({
+            "id": v.id,
+            "valor_total": float(v.valor_total),
+            "forma_pagamento": v.forma_pagamento,
+            "data_venda": v.data_venda,
+            "cliente_nome": v.cliente.nome if v.cliente else "Cliente Avulso",
+            "vendedor_nome": v.usuario.nome if v.usuario else "Desconhecido",
+            "os_id": v.os_id
+        })
+    return vendas_formatadas
 
 @router.post("")
 def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
@@ -37,7 +74,7 @@ def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db), u
             total += float(p.preco_venda) * i.quantidade
             db.add(models.ItemVenda(venda_id=nova_venda.id, produto_id=p.id, quantidade=i.quantidade, preco_unitario=p.preco_venda))
 
-        nova_venda.valor_total = total
+        nova_venda.valor_total = getattr(venda, 'valor_total', total)
         db.commit()
         return {"venda_id": nova_venda.id, "mensagem": "Venda concluída com sucesso"}
         

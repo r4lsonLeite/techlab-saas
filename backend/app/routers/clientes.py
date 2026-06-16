@@ -1,13 +1,32 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 
 from core.database import get_db
-from core.deps import obter_usuario_logado  # Importamos o validador de acesso
+from core.deps import obter_usuario_logado
 from models import models
 from schemas import schemas
 from services.os_service import StatusOS
 
 router = APIRouter(prefix="/clientes", tags=["Clientes e CRM"])
+
+# 🟢 NOVA ROTA: LISTAGEM PAGINADA COM BUSCA!
+@router.get("")
+def listar_clientes(skip: int = 0, limit: int = 50, busca: str = None, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
+    query = db.query(models.Cliente).filter(models.Cliente.loja_id == user.loja_id)
+    
+    if busca:
+        termo = f"%{busca}%"
+        query = query.filter(
+            or_(
+                models.Cliente.nome.ilike(termo),
+                models.Cliente.telefone.ilike(termo),
+                models.Cliente.cpf.ilike(termo),
+                models.Cliente.email.ilike(termo)
+            )
+        )
+        
+    return query.order_by(models.Cliente.id.desc()).offset(skip).limit(limit).all()
 
 @router.post("", response_model=schemas.ClienteResponse)
 def criar_cliente(cliente: schemas.ClienteCreate, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):

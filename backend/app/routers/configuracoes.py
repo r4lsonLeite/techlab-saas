@@ -10,8 +10,7 @@ from models import models
 
 router = APIRouter(tags=["Configurações e Uploads"])
 
-# BLINDAGEM DE UPLOADS
-MAX_FILE_SIZE = 5 * 1024 * 1024 # 5 MB Limite
+MAX_FILE_SIZE = 5 * 1024 * 1024 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 @router.post("/lojas/upload-logo")

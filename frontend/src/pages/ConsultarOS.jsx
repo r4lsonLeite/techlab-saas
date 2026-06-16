@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { apiFetch } from '../services/api'; 
+import { gerarOrcamentoPDF, imprimirComprovanteOS } from '../utils/geradorPDF';
 
 export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, abrirPDVComOS }) {
   const [ordens, setOrdens] = useState([]);
@@ -7,41 +8,55 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
   const [busca, setBusca] = useState("");
   const [carregando, setCarregando] = useState(true);
   
-  // 🟢 ESTADOS DE PAGINAÇÃO
+  // 🟢 NOVO ESTADO: GUARDA AS CONFIGURAÇÕES DA LOJA (LOGO, NOME, ETC)
+  const [configLoja, setConfigLoja] = useState(null);
+  
   const [skip, setSkip] = useState(0);
   const [temMais, setTemMais] = useState(true);
   const [carregandoMais, setCarregandoMais] = useState(false);
-  
   const [processando, setProcessando] = useState(false);
+  const [toast, setToast] = useState(null);
   
   const [modalCrmAberto, setModalCrmAberto] = useState(false);
   const [dadosCrm, setDadosCrm] = useState(null);
-  
   const [obsBalcao, setObsBalcao] = useState("");
   const [valorDigitado, setValorDigitado] = useState("");
   const [pecasNegociacao, setPecasNegociacao] = useState([]); 
   const [produtosCatalogo, setProdutosCatalogo] = useState([]); 
   const [termoBuscaProduto, setTermoBuscaProduto] = useState(""); 
-  
   const [telefoneTela, setTelefoneTela] = useState("");
   
   const isTecnico = String(cargo).toLowerCase().trim() === 'tecnico';
-
   const buscaDebounced = useDeferredValue(busca);
   const termoBuscaProdutoDebounced = useDeferredValue(termoBuscaProduto);
 
-  // 🟢 EFEITO DE BUSCA NO SERVIDOR
+  const mostrarToast = (mensagem, tipo = 'sucesso') => {
+    setToast({ mensagem, tipo });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   useEffect(() => {
-    // Sempre que a busca muda, zeramos a paginação e a lista
     setSkip(0);
     setOrdens([]);
     carregarOrdens(0, buscaDebounced, true);
   }, [buscaDebounced]);
 
-  // Carrega produtos (mantém igual)
-  useEffect(() => {
-    carregarProdutos();
+  // 🟢 CARREGA PRODUTOS E AS CONFIGURAÇÕES DA LOJA AO ABRIR A TELA
+  useEffect(() => { 
+    carregarProdutos(); 
+    carregarConfiguracoesLoja(); // 👈 Chamada adicionada
   }, []);
+
+  // 🟢 FUNÇÃO PARA BUSCAR LOGO E NOME DA LOJA NO BACKEND
+  const carregarConfiguracoesLoja = async () => {
+    try {
+      const dados = await apiFetch('/lojas/configuracoes');
+      setConfigLoja(dados);
+    } catch (erro) {
+      console.error("Erro ao carregar logo da loja:", erro);
+     
+    }
+  };
 
   useEffect(() => {
     if (osAtiva) {
@@ -63,10 +78,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
       } else if (osAtiva.cliente_id) {
         setTelefoneTela("A buscar...");
         apiFetch(`/clientes/${osAtiva.cliente_id}/resumo`)
-          .then(dados => {
-            setTelefoneTela(dados.cliente?.telefone || "Sem telefone");
-            setDadosCrm(dados); 
-          })
+          .then(dados => { setTelefoneTela(dados.cliente?.telefone || "Sem telefone"); setDadosCrm(dados); })
           .catch(() => setTelefoneTela("Sem telefone"));
       } else {
         setTelefoneTela("Sem telefone");
@@ -81,7 +93,6 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
     }
   };
 
-  // 🟢 FUNÇÃO DE CARREGAMENTO PAGINADO
   const carregarOrdens = async (currentSkip = 0, termo = "", limparLista = false) => {
     if (limparLista) setCarregando(true);
     else setCarregandoMais(true);
@@ -89,33 +100,22 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
     try {
       let url = `/ordens-servico?skip=${currentSkip}&limit=50`;
       if (termo) url += `&busca=${encodeURIComponent(termo)}`;
-
       const dados = await apiFetch(url);
       
-      if (limparLista) {
-        setOrdens(dados);
-      } else {
-        setOrdens(prev => [...prev, ...dados]);
-      }
+      if (limparLista) setOrdens(dados);
+      else setOrdens(prev => [...prev, ...dados]);
 
-      // Se o servidor devolver menos de 50, chegámos ao fim da lista
-      if (dados.length < 50) {
-        setTemMais(false);
-      } else {
-        setTemMais(true);
-      }
+      setTemMais(dados.length >= 50);
 
-      // Lógica de abertura automática pelo ID do Dashboard
       if (osIdParaAbrir && limparLista) {
         const osDesejada = dados.find(o => Number(o.id) === Number(osIdParaAbrir));
         if (osDesejada) setOsAtiva(osDesejada);
         setOsIdParaAbrir(null);
       }
     } catch (erro) { 
-      console.error("Erro ao buscar OS:", erro); 
+      mostrarToast("Erro ao buscar OS", "erro"); 
     } finally { 
-      setCarregando(false);
-      setCarregandoMais(false);
+      setCarregando(false); setCarregandoMais(false);
     }
   };
 
@@ -132,8 +132,6 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
     } catch (erro) { console.error("Erro ao carregar produtos:", erro); }
   };
 
-  // REMOVEMOS o osFiltradas porque o backend agora faz o trabalho pesado!
-  
   const produtosFiltradosCatalogo = useMemo(() => {
     if (!termoBuscaProdutoDebounced) return [];
     return produtosCatalogo.filter(p => p.nome.toLowerCase().includes(termoBuscaProdutoDebounced.toLowerCase())).slice(0, 5);
@@ -155,129 +153,42 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
     recalcularTotalBase(novasPecas);
   };
 
+  const alterarQuantidadePeca = (index, novaQtd) => {
+    let qtd = parseInt(novaQtd);
+    if (isNaN(qtd) || qtd < 1) return;
+    const novasPecas = [...pecasNegociacao];
+    novasPecas[index].quantidade = qtd;
+    setPecasNegociacao(novasPecas);
+    recalcularTotalBase(novasPecas);
+  };
+
   const verPerfilCliente = async (clienteId) => {
-    if (dadosCrm) {
-      setModalCrmAberto(true);
-      return;
-    }
+    if (dadosCrm) { setModalCrmAberto(true); return; }
     try {
       const dados = await apiFetch(`/clientes/${clienteId}/resumo`);
-      setDadosCrm(dados);
-      setModalCrmAberto(true);
-    } catch (erro) { alert(`Erro ao buscar perfil do cliente: ${erro.message}`); }
+      setDadosCrm(dados); setModalCrmAberto(true);
+    } catch (erro) { mostrarToast(`Erro ao buscar perfil: ${erro.message}`, "erro"); }
   };
 
   const formatarTelefone = (tel) => tel ? String(tel).replace(/\D/g, '') : '';
 
   const abrirWhatsApp = (telefone, mensagem = '') => {
     const numeroLimpo = formatarTelefone(telefone);
-    if (!numeroLimpo || numeroLimpo.length < 10) return alert('O telemóvel/telefone do cliente é inválido ou não foi registado.');
+    if (!numeroLimpo || numeroLimpo.length < 10) return mostrarToast('O telemóvel do cliente é inválido.', 'erro');
     window.open(`https://wa.me/55${numeroLimpo}?text=${encodeURIComponent(mensagem)}`, '_blank');
   };
 
   const enviarOrcamentoWhatsApp = () => {
-    if (pecasNegociacao.length === 0) return alert('Adicione itens ao orçamento primeiro.');
-    if (!telefoneTela || telefoneTela === "Sem telefone" || telefoneTela === "A buscar...") return alert('Aguarde o carregamento do telefone ou cadastre um número para este cliente.');
+    if (pecasNegociacao.length === 0) return mostrarToast('Adicione itens ao orçamento primeiro.', 'erro');
+    if (!telefoneTela || telefoneTela === "Sem telefone" || telefoneTela === "A buscar...") return mostrarToast('Aguarde o telefone carregar.', 'erro');
     
     let itensTexto = '';
-    pecasNegociacao.forEach(p => {
-      itensTexto += `▫️ ${p.quantidade}x ${p.nome_produto}\n`;
-    });
+    pecasNegociacao.forEach(p => { itensTexto += `▫️ ${p.quantidade}x ${p.nome_produto}\n`; });
     
     const valorFinalFormatado = Number(valorDigitado || 0).toFixed(2);
     const texto = `Olá *${osAtiva.cliente_nome}*, tudo bem?\nAqui é da assistência técnica.\n\nAvaliamos o seu aparelho *${osAtiva.marca} ${osAtiva.modelo}* (OS #${osAtiva.id}).\n\n*📋 DETALHES DO SERVIÇO:*\n${itensTexto}\n*💰 VALOR FINAL NEGOCIADO: R$ ${valorFinalFormatado}*\n\nPodemos dar andamento no serviço?`;
     
     abrirWhatsApp(telefoneTela, texto);
-  };
-
-  const gerarOrcamentoPDF = () => {
-    if (pecasNegociacao.length === 0) return alert('Adicione itens ao orçamento primeiro.');
-    const win = window.open('', '_blank');
-    let linhasTabela = '';
-    const telefoneCliente = telefoneTela || 'Não informado';
-    
-    pecasNegociacao.forEach(p => {
-      const sub = p.quantidade * p.preco_unitario;
-      linhasTabela += `
-        <tr>
-          <td style="padding:10px; border-bottom:1px solid #e2e8f0; font-weight:bold;">${p.quantidade}x</td>
-          <td style="padding:10px; border-bottom:1px solid #e2e8f0;">${p.nome_produto}</td>
-          <td style="padding:10px; border-bottom:1px solid #e2e8f0; text-align:right;">R$ ${Number(p.preco_unitario).toFixed(2)}</td>
-          <td style="padding:10px; border-bottom:1px solid #e2e8f0; text-align:right; font-weight:bold; color:#10b981;">R$ ${sub.toFixed(2)}</td>
-        </tr>`;
-    });
-
-    const valorFinalFormatado = Number(valorDigitado || 0).toFixed(2);
-
-    const html = `
-      <html>
-        <head>
-          <title>Orçamento OS #${osAtiva.id}</title>
-          <style>body { font-family: Arial, sans-serif; padding: 40px; color: #333; max-width: 800px; margin: auto; }</style>
-        </head>
-        <body>
-          <h1 style="color: #10b981; border-bottom: 3px solid #10b981; padding-bottom: 10px; text-transform: uppercase;">PROPOSTA DE ORÇAMENTO</h1>
-          
-          <div style="display: flex; justify-content: space-between; margin-top: 30px; margin-bottom: 30px;">
-            <div style="background: #f8fafc; padding: 15px; border-radius: 8px; flex: 1; margin-right: 10px; border: 1px solid #e2e8f0;">
-              <h3 style="margin-top:0; color:#475569;">👤 Cliente</h3>
-              <p><strong>Nome:</strong> ${osAtiva.cliente_nome}</p>
-              <p><strong>Telefone:</strong> ${telefoneCliente}</p>
-            </div>
-            <div style="background: #f8fafc; padding: 15px; border-radius: 8px; flex: 1; margin-left: 10px; border: 1px solid #e2e8f0;">
-              <h3 style="margin-top:0; color:#475569;">📱 Aparelho</h3>
-              <p><strong>Modelo:</strong> ${osAtiva.marca} ${osAtiva.modelo}</p>
-              <p><strong>OS:</strong> #${osAtiva.id}</p>
-            </div>
-          </div>
-
-          <p style="margin-bottom: 30px;"><strong>Defeito Relatado / Diagnóstico:</strong><br/>${osAtiva.defeito || 'Avaliação técnica padrão.'}</p>
-
-          <h3 style="color:#475569; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px;">Serviços e Peças</h3>
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
-            <thead>
-              <tr style="background-color: #f1f5f9; text-align: left;">
-                <th style="padding:10px;">Qtd</th>
-                <th style="padding:10px;">Descrição do Item</th>
-                <th style="padding:10px; text-align:right;">V. Unitário Base</th>
-                <th style="padding:10px; text-align:right;">Subtotal Base</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${linhasTabela}
-            </tbody>
-          </table>
-          
-          <div style="text-align: right; font-size: 20px;">
-            TOTAL ESTIMADO COM DESCONTOS/ACRÉSCIMOS: <br/>
-            <strong style="color: #10b981; font-size: 28px;">R$ ${valorFinalFormatado}</strong>
-          </div>
-        </body>
-      </html>
-    `;
-    win.document.write(html);
-    win.document.close();
-    setTimeout(() => { win.document.title = `Orcamento_OS_${osAtiva.id}`; win.print(); }, 300);
-  };
-
-  const imprimirComprovante = (dadosOs, idOs) => {
-    const win = window.open('', '_blank');
-    const htmlRecibo = `
-      <html>
-        <head><title>OS #${idOs}</title><style>body { font-family: monospace; padding: 10px; font-size: 12px; max-width: 300px; } .center { text-align: center; } .bold { font-weight: bold; }</style></head>
-        <body>
-          <div class="center"><h2>TECHLAB</h2><p>Assistência Técnica</p></div>
-          <div class="center bold" style="font-size: 18px;">OS #${idOs}</div>
-          <hr>
-          <p><b>Cliente:</b> ${dadosOs.cliente_nome || '---'}</p>
-          <p><b>Aparelho:</b> ${dadosOs.marca} ${dadosOs.modelo}</p>
-          <p><b>Valor Cobrado:</b> R$ ${Number(dadosOs.valor_orcamento || 0).toFixed(2)}</p>
-          <hr>
-          <p class="center">Obrigado pela preferência!</p>
-        </body>
-      </html>
-    `;
-    win.document.write(htmlRecibo); win.document.close(); win.print();
   };
 
   const handleExcluir = async (id) => {
@@ -287,12 +198,11 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
     setProcessando(true);
     try {
       await apiFetch(`/ordens-servico/${id}`, { method: 'DELETE' });
-      // Remove localmente sem precisar recarregar o banco inteiro
       setOrdens(ordens.filter(os => os.id !== id));
       setOsAtiva(null);
-      alert("OS excluída com sucesso!");
+      mostrarToast("OS excluída com sucesso!");
     } catch (erro) { 
-      alert(`Erro: ${erro.message}`); 
+      mostrarToast(`Não foi possível excluir: ${erro.message}`, "erro"); 
     } finally {
       setProcessando(false);
     }
@@ -302,15 +212,12 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
     let payload = { status: novoStatus };
     if (novoStatus.includes('APROVADO')) {
       const valor = parseFloat(valorDigitado);
-      if (!valor || valor < 0) { alert("Digite o valor válido para o orçamento!"); return; }
+      if (!valor || valor < 0) { mostrarToast("Digite um valor válido para o orçamento!", "erro"); return; }
       
       payload.valor_orcamento = valor;
       payload.observacoes_balcao = obsBalcao;
-      
       payload.pecas_selecionadas = pecasNegociacao.map(p => ({
-        produto_id: p.produto_id,
-        qtd: p.quantidade,
-        preco: p.preco_unitario
+        produto_id: p.produto_id, qtd: p.quantidade, preco: p.preco_unitario
       }));
     }
     
@@ -321,13 +228,12 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
     setProcessando(true);
     try {
       await apiFetch(`/ordens-servico/${osAtiva.id}`, { method: 'PUT', body: JSON.stringify(payload) });
-      alert(`OS atualizada para: ${novoStatus}`);
+      mostrarToast(`Sucesso! Status: ${novoStatus}`);
       setValorDigitado(""); setObsBalcao(""); 
-      // Atualiza a lista trazendo da página 0 novamente
       setSkip(0);
       carregarOrdens(0, buscaDebounced, true);
     } catch (erro) { 
-      alert(`Erro ao atualizar: ${erro.message}`); 
+      mostrarToast(`Erro ao atualizar: ${erro.message}`, "erro"); 
     } finally {
       setProcessando(false);
     }
@@ -335,6 +241,14 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
 
   return (
     <div className="flex h-full w-full bg-[#0f172a] relative">
+      
+      {toast && (
+        <div className={`fixed top-8 right-8 px-6 py-4 rounded-xl shadow-2xl z-[100] flex items-center gap-3 text-white font-bold transition-all animate-bounce ${toast.tipo === 'sucesso' ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-red-500 shadow-red-500/20'}`}>
+          <span className="text-xl">{toast.tipo === 'sucesso' ? '✅' : '🚨'}</span>
+          <p>{toast.mensagem}</p>
+        </div>
+      )}
+
       <div className="w-1/3 bg-[#1e293b] border-r border-slate-700 flex flex-col z-10 shadow-xl">
         <div className="p-6 border-b border-slate-700">
           <h2 className="text-2xl font-bold text-white mb-4">Consultar OS</h2>
@@ -346,7 +260,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
           {carregando ? (
-            <div className="text-center text-emerald-500 mt-10 animate-pulse font-bold">Carregando...</div> 
+            <div className="text-center text-emerald-500 mt-10 animate-pulse font-bold">A carregar banco de dados...</div> 
           ) : ordens.length === 0 ? (
             <div className="text-center text-slate-500 mt-10">Nenhuma OS encontrada.</div> 
           ) : (
@@ -363,14 +277,9 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                 </div>
               ))}
               
-              {/* 🟢 BOTÃO DE CARREGAR MAIS (PAGINAÇÃO) */}
               {temMais && (
-                <button 
-                  onClick={carregarMaisOS} 
-                  disabled={carregandoMais}
-                  className="w-full py-3 mt-2 text-center text-sm font-bold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors border border-blue-500/30 disabled:opacity-50"
-                >
-                  {carregandoMais ? "A carregar..." : "Ver OS Antigas ↓"}
+                <button onClick={carregarMaisOS} disabled={carregandoMais} className="w-full py-3 mt-2 text-center text-sm font-bold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors border border-blue-500/30 disabled:opacity-50">
+                  {carregandoMais ? "A buscar..." : "Carregar Mais ↓"}
                 </button>
               )}
             </>
@@ -378,7 +287,6 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
         </div>
       </div>
 
-      {/* RESTO DO CÓDIGO DO PAINEL DIREITO MANTIDO IGUAL */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0f172a]">
         {!osAtiva ? (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-500"><span className="text-6xl mb-4">📂</span><h2 className="text-xl font-medium">Selecione uma OS</h2></div>
@@ -392,8 +300,13 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
             <div className="flex gap-3">
               {!isTecnico && (
                 <>
-                  <button onClick={() => imprimirComprovante(osAtiva, osAtiva.id)} disabled={processando} className="bg-slate-800 text-slate-300 px-4 py-2 rounded-xl font-bold border border-slate-600 disabled:opacity-50">🖨️ Reimprimir</button>
-                  <button onClick={() => handleExcluir(osAtiva.id)} disabled={processando} className="bg-red-500/10 text-red-500 border border-red-500/20 px-4 py-2 rounded-xl font-bold disabled:opacity-50">🗑️ Excluir</button>
+                  {/* 🟢 AGORA PASSAMOS O 'configLoja' PARA A FERRAMENTA */}
+                  <button onClick={() => imprimirComprovanteOS(configLoja, osAtiva)} disabled={processando} className="bg-slate-800 text-slate-300 px-4 py-2 rounded-xl font-bold border border-slate-600 disabled:opacity-50 hover:bg-slate-700">
+                    🖨️ Reimprimir
+                  </button>
+                  <button onClick={() => handleExcluir(osAtiva.id)} disabled={processando} className="bg-red-500/10 text-red-500 border border-red-500/20 px-4 py-2 rounded-xl font-bold disabled:opacity-50 hover:bg-red-500/20">
+                    🗑️ Excluir
+                  </button>
                 </>
               )}
             </div>
@@ -438,11 +351,18 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                 
                 {!isTecnico && pecasNegociacao.length > 0 && (
                   <div className="flex gap-2">
-                    <button onClick={enviarOrcamentoWhatsApp} disabled={processando} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 shadow-lg transition-colors disabled:opacity-50" title="Enviar Orçamento por WhatsApp">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.405-.883-.733-1.48-1.64-1.653-1.938-.173-.298-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51h-.57c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                    <button onClick={enviarOrcamentoWhatsApp} disabled={processando} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 shadow-lg transition-colors disabled:opacity-50">
                       Enviar Zap
                     </button>
-                    <button onClick={gerarOrcamentoPDF} disabled={processando} className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 border border-slate-500 transition-colors disabled:opacity-50" title="Gerar Proposta em PDF">
+                    {/* 🟢 AQUI PASSAMOS O 'configLoja' PARA O GERADOR DE PDF */}
+                    <button 
+                      onClick={() => {
+                        if (pecasNegociacao.length === 0) return mostrarToast('Adicione itens ao orçamento primeiro.', 'erro');
+                        gerarOrcamentoPDF(configLoja, osAtiva, pecasNegociacao, valorDigitado, telefoneTela);
+                      }} 
+                      disabled={processando} 
+                      className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 border border-slate-500 transition-colors disabled:opacity-50"
+                    >
                       📄 PDF
                     </button>
                   </div>
@@ -468,7 +388,18 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                         const qtd = Number(item.quantidade || 0); const preco = Number(item.preco_unitario || 0);
                         return (
                           <tr key={idx} className="hover:bg-slate-800/50">
-                            <td className="p-3 font-bold text-white">{qtd}x</td>
+                            <td className="p-3 font-bold text-white">
+                              {isTecnico ? (
+                                `${qtd}x`
+                              ) : (
+                                <input 
+                                  type="number" min="1" value={qtd}
+                                  onChange={(e) => alterarQuantidadePeca(idx, e.target.value)}
+                                  disabled={processando}
+                                  className="w-16 p-1.5 rounded bg-[#0f172a] border border-slate-600 text-center text-emerald-400 font-bold outline-none focus:border-emerald-500 disabled:opacity-50"
+                                />
+                              )}
+                            </td>
                             <td className="p-3 text-white">{item.nome_produto}</td>
                             {!isTecnico && <td className="p-3 text-right">R$ {preco.toFixed(2)}</td>}
                             {!isTecnico && <td className="p-3 text-right font-bold text-emerald-400">R$ {(qtd * preco).toFixed(2)}</td>}
@@ -507,8 +438,8 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                 <div className="absolute top-0 right-0 p-4 opacity-5 text-8xl">📞</div>
                 <h3 className="text-white font-bold text-xl mb-6 border-b border-slate-700 pb-3 relative z-10">📞 Finalizar e Aprovar Orçamento</h3>
                 <div className="mb-6 relative z-10">
-                  <label className="block text-slate-400 text-sm font-bold mb-2">Observações para o Técnico (Aparece na Bancada)</label>
-                  <textarea value={obsBalcao} onChange={(e) => setObsBalcao(e.target.value)} disabled={processando} className="w-full p-4 rounded-xl bg-[#0f172a] text-white border-2 border-slate-600 focus:border-purple-500 resize-none disabled:opacity-50" rows="2" placeholder="Ex: Cliente tem pressa, atenção ao botão volume..." />
+                  <label className="block text-slate-400 text-sm font-bold mb-2">Observações para o Técnico</label>
+                  <textarea value={obsBalcao} onChange={(e) => setObsBalcao(e.target.value)} disabled={processando} className="w-full p-4 rounded-xl bg-[#0f172a] text-white border-2 border-slate-600 focus:border-purple-500 resize-none disabled:opacity-50" rows="2" placeholder="Ex: Cliente tem pressa..." />
                 </div>
                 <div className="flex gap-6 items-end relative z-10">
                   <div className="flex-1">
@@ -527,7 +458,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
             
             {osAtiva.status === 'Pronto para Retirada' && !isTecnico && (
               <div className="bg-emerald-500/10 p-6 rounded-2xl border border-emerald-500/30 flex justify-between items-center mt-6">
-                <div><h3 className="text-emerald-400 font-bold">✅ Aparelho Pronto na Bancada</h3><p className="text-slate-300">Aguardando Pagamento e Retirada pelo Cliente</p></div>
+                <div><h3 className="text-emerald-400 font-bold">✅ Aparelho Pronto na Bancada</h3><p className="text-slate-300">Aguardando Pagamento e Retirada</p></div>
                 <button onClick={() => abrirPDVComOS(osAtiva)} disabled={processando} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all hover:-translate-y-1 disabled:opacity-50">
                   📦 Ir para o Pagamento
                 </button>
