@@ -1,5 +1,5 @@
 // src/services/api.js
-export const API_BASE_URL = 'https://techlab-6vnh.onrender.com'; /
+export const API_BASE_URL = 'https://techlab-6vnh.onrender.com'; 
 const API_URL = 'https://techlab-6vnh.onrender.com';
 
 
@@ -11,7 +11,7 @@ export const apiFetch = async (endpoint, options = {}) => {
  
   if (!token) {
     alert("Sessão expirada ou não autorizada. Faça login novamente.");
-    window.location.href = '/'; /
+    window.location.href = '/'; 
     throw new Error("Sessão expirada.");
   }
 
