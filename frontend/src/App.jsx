@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import dashboard from './pages/dashboard';
 import login from './pages/login';
 
-// ✅ ADICIONA AQUI
 const isTokenValido = (token) => {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
