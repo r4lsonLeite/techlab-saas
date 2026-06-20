@@ -1,6 +1,6 @@
 // src/services/api.js
 
-const API_URL = 'http://localhost:8000';
+const API_URL = 'https://techlab-6vnh.onrender.com';
 
 
 export const apiFetch = async (endpoint, options = {}) => {
