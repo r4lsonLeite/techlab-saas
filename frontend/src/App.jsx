@@ -32,10 +32,10 @@ function App() {
   };
 
   if (!estaLogado) {
-    return <Login onLoginSucesso={() => setEstaLogado(true)} />;
+    return <login onLoginSucesso={() => setEstaLogado(true)} />;
   }
 
-  return <Dashboard onLogout={handleLogout} />;
+  return <dashboard onLogout={handleLogout} />;
 }
 
 export default App;
