@@ -23,9 +23,9 @@ export default function Financeiro() {
     kpis_extras: { ticket_medio_geral: 0, tempo_medio_reparo_horas: 0 }
   });
 
-  // --- ESTADOS DA EQUIPE E FECHAMENTO DE MÊS ---
+  
   const [equipe, setEquipe] = useState([]);
-  const [descontos, setDescontos] = useState({}); // Guarda os vales/quebras de cada funcionário
+  const [descontos, setDescontos] = useState({}); 
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -51,11 +51,11 @@ export default function Financeiro() {
     };
     
     carregarDados();
-  }, [filtro]); // Recarrega se o filtro mudar (se o backend já suportar)
+  }, [filtro]); 
 
-  // --- FUNÇÕES DE INTERAÇÃO ---
+  
   const handleExportar = () => {
-    window.print(); // Abre a tela de impressão do navegador (pode salvar como PDF)
+    window.print(); 
   };
 
   const handleDescontoChange = (usuarioId, valor) => {
@@ -90,7 +90,7 @@ export default function Financeiro() {
   const dadosFinanceiros = graficos.financeiro || [];
   const dadosCategoria = graficos.categorias || [];
 
-  // Cálculos Totais da Folha de Pagamento
+  
   let totalComissoesBrutas = 0;
   let totalDescontosAplicados = 0;
   let totalLiquidoAPagar = 0;

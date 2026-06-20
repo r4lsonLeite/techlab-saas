@@ -36,10 +36,10 @@ def listar_os(skip: int = 0, limit: int = 50, busca: str = None, db: Session = D
         models.OrdemServico.ativo == True
     )
 
-    # 🟢 O MOTOR DE BUSCA NO SERVIDOR
+   
     if busca:
         termo = f"%{busca}%"
-        # Usamos o outerjoin porque algumas OS podem não ter cliente (teoricamente)
+        
         query = query.outerjoin(models.Cliente).filter(
             or_(
                 cast(models.OrdemServico.id, String).ilike(termo),

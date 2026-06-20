@@ -14,7 +14,7 @@ class StatusOS(str, Enum):
     AGUARDANDO_PECA = "Aguardando Peça"
 
 class OSService:
-    # Máquina de Estados: Quem pode ir para onde (Ponto 6)
+    
     FLUXO_VALIDO = {
         StatusOS.AGUARDANDO_ANALISE: [StatusOS.AGUARDANDO_CLIENTE, StatusOS.CANCELADA],
         StatusOS.AGUARDANDO_CLIENTE: [StatusOS.APROVADO, StatusOS.CANCELADA, StatusOS.AGUARDANDO_ANALISE],
@@ -43,10 +43,10 @@ class OSService:
 
     @staticmethod
     def atualizar_status(db: Session, os_db: models.OrdemServico, novo_status: str, user_id: int):
-        # 1. Validação de fluxo
+        
         OSService.validar_transicao(os_db.status, novo_status)
 
-        # 2. Carimbo automático de datas
+        
         agora = datetime.now(timezone.utc)
         
         if novo_status == StatusOS.APROVADO.value:
@@ -54,7 +54,7 @@ class OSService:
         
         if novo_status == StatusOS.PRONTO.value:
             os_db.data_fim_reparo = agora
-            # Ponto 5: Aqui poderíamos travar o valor_final para auditoria
+            
             
         os_db.status = novo_status
         return os_db

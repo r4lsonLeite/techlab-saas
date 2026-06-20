@@ -11,7 +11,7 @@ export default function Balcao({ abrirOSNaConsulta }) {
   const [os, setOs] = useState(estadoInicial);
   const [status, setStatus] = useState('');
 
-  // --- CONFIGURAÇÕES DA LOJA PARA O RECIBO ---
+  
   const [lojaConfig, setLojaConfig] = useState({});
 
   const itensChecklist = ['Wi-Fi', 'Bluetooth', 'Câm. Frontal', 'Câm. Traseira', 'Touch', 'Alto-falante', 'Microfone', 'Botões', 'Bateria', 'Carregamento'];
@@ -23,7 +23,7 @@ export default function Balcao({ abrirOSNaConsulta }) {
   const [usuariosLoja, setUsuariosLoja] = useState([]);
   const [vendedorSelecionado, setVendedorSelecionado] = useState(null);
 
-  // --- CONTROLE DO MODAL DE IMPRESSÃO ---
+  
   const [modalImpressao, setModalImpressao] = useState({ aberto: false, dados: null, id: null, checklist: [] });
 
   const toggleChecklist = (item) => {
@@ -36,7 +36,7 @@ export default function Balcao({ abrirOSNaConsulta }) {
     setOs(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  // --- O NOVO MOTOR DE IMPRESSÃO DINÂMICO ---
+  
   const imprimirComprovante = (dadosOs, idOs, formato = 'termica', checklist = []) => {
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
@@ -49,15 +49,13 @@ export default function Balcao({ abrirOSNaConsulta }) {
 
     const termosGarantia = lojaConfig.termos_garantia || '1. Orçamentos válidos por 5 dias. 2. Aparelhos não retirados em 90 dias serão descartados. 3. Garantia de 90 dias p/ peças trocadas. 4. Não nos responsabilizamos por perda de dados.';
     
-    // Gera a data e hora atual
+    
     const dataAtual = new Date().toLocaleString('pt-BR');
 
     let htmlRecibo = '';
 
     if (formato === 'termica') {
-      // ==========================================
-      // LAYOUT 1: BOBINA TÉRMICA COM CANHOTO
-      // ==========================================
+
       htmlRecibo = `
         <html>
           <head>
@@ -133,9 +131,7 @@ export default function Balcao({ abrirOSNaConsulta }) {
         </html>
       `;
     } else {
-      // ==========================================
-      // LAYOUT 2: FOLHA A4 (PDF / Impressora Comum)
-      // ==========================================
+
       htmlRecibo = `
         <html>
           <head>
@@ -226,7 +222,7 @@ export default function Balcao({ abrirOSNaConsulta }) {
     doc.write(htmlRecibo);
     doc.close();
 
-    // 🟢 Demos 800ms para garantir que a imagem seja descarregada do servidor antes da tela de impressão abrir
+    
     iframe.onload = () => {
       setTimeout(() => {
         iframe.contentWindow?.focus();
@@ -269,7 +265,7 @@ export default function Balcao({ abrirOSNaConsulta }) {
 
       setStatus('sucesso');
       
-      // Passamos a OS, o ID e também o Checklist para o modal repassar à impressora
+     
       setModalImpressao({ aberto: true, dados: { ...os }, id: osCriada.id, checklist: [...checklistMarcados] });
 
       setOs(estadoInicial);

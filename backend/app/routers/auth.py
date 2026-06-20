@@ -7,7 +7,7 @@ from core import security
 from models import models
 from schemas import schemas
 
-# O router é o que "fatia" o nosso main.py
+
 router = APIRouter(tags=["Autenticação"])
 
 @router.post("/token", response_model=schemas.Token)

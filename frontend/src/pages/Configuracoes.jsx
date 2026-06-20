@@ -48,7 +48,7 @@ export default function Configuracoes() {
     formData.append('file', file);
 
     try {
-      // 👇 Alteração aqui: tenta pegar o token por vários nomes comuns
+      
       const token = localStorage.getItem('token') || localStorage.getItem('access_token') || localStorage.getItem('techlab_token');
       
       const res = await fetch('http://127.0.0.1:8000/lojas/upload-logo', {
@@ -69,7 +69,7 @@ export default function Configuracoes() {
     }
   };
 
-  // 3. SALVAR TUDO NO BANCO DE DADOS
+  
   const handleSave = async () => {
     try {
       const payload = {

@@ -7,7 +7,7 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
   const [busca, setBusca] = useState('');
   const [formaPagamento, setFormPagamento] = useState('PIX');
   
-  // 🟢 NOVO ESTADO: DESCONTO NO BALCÃO
+  
   const [descontoGlobal, setDescontoGlobal] = useState("");
   
   const [produtos, setProdutos] = useState([]);
@@ -120,10 +120,10 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
 
   const removerDoCarrinho = (id) => { setCarrinho(prev => prev.filter(item => item.id !== id)); };
   
-  // 🟢 CÁLCULOS FINANCEIROS COM DESCONTO
+  
   const subtotal = carrinho.reduce((acc, item) => acc + (parseFloat(item.preco) * item.qtd), 0);
   const valorDesconto = parseFloat(descontoGlobal) || 0;
-  const totalComDesconto = Math.max(0, subtotal - valorDesconto); // Evita ficar negativo
+  const totalComDesconto = Math.max(0, subtotal - valorDesconto); 
 
   const finalizarVenda = async () => {
     if (carrinho.length === 0 || processando) return;
@@ -136,7 +136,7 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
     const os_id_final = itemOS ? itemOS.originalOsId : null;
 
     const payloadDaVenda = {
-      valor_total: totalComDesconto, // 🟢 Agora envia o total real já com o desconto
+      valor_total: totalComDesconto, 
       forma_pagamento: formaPagamento, 
       itens: itensFisicos, 
       os_id: os_id_final,
@@ -154,7 +154,7 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
 
       mostrarToast(`Venda de R$ ${totalComDesconto.toFixed(2)} recebida com sucesso!`);
       setCarrinho([]); 
-      setDescontoGlobal(""); // Limpa o desconto para o próximo cliente
+      setDescontoGlobal(""); 
       if (setOsParaPDV) setOsParaPDV(null);
       carregarDadosFixos(); 
       setSkip(0);

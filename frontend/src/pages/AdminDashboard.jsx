@@ -5,7 +5,7 @@ import { apiFetch } from '../services/api';
 export default function AdminDashboard() {
   const [carregando, setCarregando] = useState(true);
 
-  // 1. Métricas Principais
+ 
   const [metricas, setMetricas] = useState({
     faturamento_total: 0,
     lucro_estimado: 0,
@@ -16,11 +16,11 @@ export default function AdminDashboard() {
     ticket_medio: 0
   });
 
-  // 2. Gráficos
+ 
   const [dadosFinanceiros, setDadosFinanceiros] = useState([]);
   const [dadosCategorias, setDadosCategorias] = useState([]);
 
-  // 3. Radar em Tempo Real (Tabelas Inferiores)
+ 
   const [ultimasOS, setUltimasOS] = useState([]);
   const [produtosCriticos, setProdutosCriticos] = useState([]);
 
@@ -31,7 +31,8 @@ export default function AdminDashboard() {
   const carregarDashboard = async () => {
     setCarregando(true);
     try {
-      // Fazemos todas as requisições em paralelo para a tela carregar super rápido!
+     
+      
       const [dadosMetricas, dadosGraficos, listaOS, listaProdutos] = await Promise.all([
         apiFetch('/dashboard/metricas').catch(() => ({})),
         apiFetch('/dashboard/graficos').catch(() => ({ financeiro: [], categorias: [] })),
@@ -42,15 +43,16 @@ export default function AdminDashboard() {
       setDadosFinanceiros(dadosGraficos.financeiro || []);
       setDadosCategorias(dadosGraficos.categorias || []);
 
-      // Filtra as últimas 5 OS
+      
       const osRecentes = [...listaOS].sort((a, b) => b.id - a.id).slice(0, 5);
       setUltimasOS(osRecentes);
 
-      // Filtra produtos precisando de reposição (Estoque <= Estoque Mínimo)
+      
+      
       const criticos = listaProdutos.filter(p => p.estoque_atual <= p.estoque_minimo).slice(0, 5);
       setProdutosCriticos(criticos);
 
-      // Calcula métricas extras caso o backend não mande tudo
+      
       const lucroCalculado = dadosGraficos.financeiro?.reduce((acc, curr) => acc + (curr.Lucro || 0), 0) || 0;
       const osEntregues = listaOS.filter(o => o.status === 'Entregue').length;
       

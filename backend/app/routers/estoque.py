@@ -10,7 +10,7 @@ from schemas import schemas
 
 router = APIRouter(tags=["Estoque e Logística"])
 
-# 🟢 NOVA FUNÇÃO DE LISTAGEM COM PAGINAÇÃO E BUSCA!
+
 @router.get("/produtos")
 def listar_produtos(skip: int = 0, limit: int = 50, busca: str = None, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
     query = db.query(models.Produto).filter(
@@ -29,7 +29,7 @@ def listar_produtos(skip: int = 0, limit: int = 50, busca: str = None, db: Sessi
             )
         )
 
-    # Ordena pelo ID (mais recentes primeiro)
+    
     return query.order_by(models.Produto.id.desc()).offset(skip).limit(limit).all()
 
 @router.put("/produtos/{id}")
@@ -39,7 +39,7 @@ def atualizar_produto(id: int, produto: schemas.ProdutoCreate, db: Session = Dep
         raise HTTPException(404, "Produto não encontrado")
     
     dados = produto.model_dump(exclude_unset=True)
-    dados.pop("loja_id", None) # Removemos para não correr risco de sobrescrever
+    dados.pop("loja_id", None) 
     
     for key, value in dados.items():
         setattr(p, key, value)
@@ -55,7 +55,7 @@ def listar_produtos(skip: int = 0, limit: int = 50, busca: str = None, categoria
         models.Produto.ativo == True
     )
 
-    # 🟢 FILTRO DE CATEGORIA ADICIONADO NO SERVIDOR
+    
     if categoria and categoria != "Todos":
         query = query.filter(models.Produto.categoria.ilike(categoria))
 

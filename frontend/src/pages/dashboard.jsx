@@ -10,7 +10,7 @@ import Configuracoes from './Configuracoes';
 import ConsultarOS from './ConsultarOS';
 
 export default function Dashboard({ onLogout }) {
-  // Começam vazios, pois vamos ler do Token
+  
   const [cargo, setCargo] = useState(''); 
   const [nomeUsuario, setNomeUsuario] = useState('');
   const [telaAtiva, setTelaAtiva] = useState('');
@@ -19,24 +19,24 @@ export default function Dashboard({ onLogout }) {
   const [osParaPDV, setOsParaPDV] = useState(null);
 
   useEffect(() => {
-    // 1. Pega o crachá (Token) guardado no navegador
+    
     const token = localStorage.getItem('techlab_token');
     
     if (token) {
       try {
-        // 2. Decodifica o Token para ler os dados do usuário
+        
         const payload = JSON.parse(atob(token.split('.')[1]));
         
         setCargo(payload.cargo);
-        setNomeUsuario(payload.nome); // Aqui pegamos o nome real do banco!
+        setNomeUsuario(payload.nome); 
 
-        // 3. Roteamento Inteligente: Define a tela inicial baseada no cargo
+        
         if (payload.cargo === 'balcao') {
           setTelaAtiva('vendas');
         } else if (payload.cargo === 'tecnico') {
           setTelaAtiva('bancada');
         } else {
-          setTelaAtiva('admin-home'); // ADM começa na Visão Geral
+          setTelaAtiva('admin-home'); 
         }
         
       } catch (e) {
@@ -45,7 +45,7 @@ export default function Dashboard({ onLogout }) {
     }
   }, []);
 
-  // Tela de loading rápida enquanto decodifica o token
+  
   if (!cargo) return <div className="h-screen bg-[#0b1120] text-white flex items-center justify-center">Carregando painel...</div>;
 
   const menus = [ 

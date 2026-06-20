@@ -12,7 +12,7 @@ export default function Estoque() {
   const [carregandoMais, setCarregandoMais] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // 🟢 MODO EDIÇÃO RESTAURADO
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState(null);
   const [novoProduto, setNovoProduto] = useState({
@@ -58,7 +58,7 @@ export default function Estoque() {
     carregarProdutos(novoSkip, buscaDebounced, false);
   };
 
-  // 🟢 ABRIR MODAL COM OS DADOS PREENCHIDOS
+  
   const abrirModalEditar = (prod) => {
     setProdutoEditando(prod.id);
     setNovoProduto({
@@ -89,11 +89,11 @@ export default function Estoque() {
         preco_venda: parseFloat(novoProduto.preco_venda || 0),
         estoque_atual: parseInt(novoProduto.estoque_atual || 0),
         estoque_minimo: parseInt(novoProduto.estoque_minimo || 0),
-        loja_id: 1 // 🔴 CORREÇÃO DO ERRO 422: O Python exige este campo!
+        loja_id: 1 
       };
 
       if (produtoEditando) {
-        // MODO ATUALIZAÇÃO (REPOSIÇÃO DE ESTOQUE OU ALTERAÇÃO DE PREÇO)
+        
         await apiFetch(`/produtos/${produtoEditando}`, { method: 'PUT', body: JSON.stringify(payload) });
         mostrarToast("Item atualizado com sucesso!");
       } else {

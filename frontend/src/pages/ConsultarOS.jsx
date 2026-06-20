@@ -8,7 +8,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
   const [busca, setBusca] = useState("");
   const [carregando, setCarregando] = useState(true);
   
-  // 🟢 NOVO ESTADO: GUARDA AS CONFIGURAÇÕES DA LOJA (LOGO, NOME, ETC)
+ 
   const [configLoja, setConfigLoja] = useState(null);
   
   const [skip, setSkip] = useState(0);
@@ -41,13 +41,13 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
     carregarOrdens(0, buscaDebounced, true);
   }, [buscaDebounced]);
 
-  // 🟢 CARREGA PRODUTOS E AS CONFIGURAÇÕES DA LOJA AO ABRIR A TELA
+ 
   useEffect(() => { 
     carregarProdutos(); 
-    carregarConfiguracoesLoja(); // 👈 Chamada adicionada
+    carregarConfiguracoesLoja(); 
   }, []);
 
-  // 🟢 FUNÇÃO PARA BUSCAR LOGO E NOME DA LOJA NO BACKEND
+  
   const carregarConfiguracoesLoja = async () => {
     try {
       const dados = await apiFetch('/lojas/configuracoes');

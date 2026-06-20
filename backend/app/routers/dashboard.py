@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from datetime import datetime, timedelta, timezone
-import time # 🟢 IMPORTANTE: Adicionado para controlar o relógio do Cache
+import time 
 
 from core.database import get_db
 from core.deps import admin_required
@@ -11,8 +11,7 @@ from services.os_service import StatusOS
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard e Inteligência"])
 
-# 🟢 O MOTOR DE CACHE (Memória de Curto Prazo)
-# Guarda os dados por 5 minutos (300 segundos) para não sobrecarregar o banco
+
 CACHE_DADOS = {}
 TEMPO_EXPIRACAO_SEGUNDOS = 300 
 
@@ -20,12 +19,12 @@ TEMPO_EXPIRACAO_SEGUNDOS = 300
 def obter_metricas_dashboard(db: Session = Depends(get_db), admin=Depends(admin_required)):
     chave_cache = f"metricas_loja_{admin.loja_id}"
     
-    # 1. VERIFICA O CACHE: Se já calculamos nos últimos 5 minutos, devolve instantaneamente!
+    
     if chave_cache in CACHE_DADOS:
         if time.time() - CACHE_DADOS[chave_cache]['tempo'] < TEMPO_EXPIRACAO_SEGUNDOS:
             return CACHE_DADOS[chave_cache]['dados']
 
-    # 2. CÁLCULO PESADO: Se não tem cache, o servidor trabalha
+    
     v = db.query(func.sum(models.Venda.valor_total)).filter(models.Venda.loja_id == admin.loja_id).scalar() or 0
     o = db.query(func.sum(models.OrdemServico.valor_orcamento)).filter(models.OrdemServico.loja_id == admin.loja_id, models.OrdemServico.status == StatusOS.ENTREGUE.value).scalar() or 0
     
@@ -34,7 +33,7 @@ def obter_metricas_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
         "os_pendentes": db.query(func.count(models.OrdemServico.id)).filter(models.OrdemServico.loja_id == admin.loja_id, models.OrdemServico.status.notin_([StatusOS.ENTREGUE.value, StatusOS.CANCELADA.value])).scalar()
     }
 
-    # 3. SALVA NO CACHE: Guarda o resultado e a hora exata para os próximos 5 minutos
+   
     CACHE_DADOS[chave_cache] = {'dados': resultado, 'tempo': time.time()}
     return resultado
 
@@ -42,7 +41,7 @@ def obter_metricas_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
 def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_required)):
     chave_cache = f"graficos_loja_{admin.loja_id}"
     
-    # 1. VERIFICA O CACHE
+  
     if chave_cache in CACHE_DADOS:
         if time.time() - CACHE_DADOS[chave_cache]['tempo'] < TEMPO_EXPIRACAO_SEGUNDOS:
             return CACHE_DADOS[chave_cache]['dados']
@@ -50,7 +49,7 @@ def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
     hoje = datetime.now(timezone.utc)
     seis_meses_atras = hoje - timedelta(days=180)
 
-    # 2. CÁLCULO PESADO (Consultas DRE Mensal e Ticket Médio)
+    
     vendas_mensais = db.query(
         func.to_char(models.Venda.data_venda, 'MM/YYYY').label('mes'),
         func.sum(models.Venda.valor_total).label('receita'),
@@ -81,7 +80,7 @@ def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
 
     ticket_medio_geral = total_receita / total_vendas if total_vendas > 0 else 0
 
-    # VENDAS POR CATEGORIA
+    
     categorias = db.query(
         models.Produto.categoria, func.sum(models.ItemVenda.quantidade * models.ItemVenda.preco_unitario).label('valor')
     ).join(models.ItemVenda, models.ItemVenda.produto_id == models.Produto.id).join(models.Venda, models.ItemVenda.venda_id == models.Venda.id).filter(
@@ -89,7 +88,7 @@ def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
     ).group_by(models.Produto.categoria).all()
     dados_categorias = [{"name": c.categoria or "Outros", "value": float(c.valor or 0)} for c in categorias]
 
-    # RANKING DE PRODUTOS
+    
     ranking = db.query(
         models.Produto.nome, func.sum(models.ItemVenda.quantidade).label('qtd'), func.sum(models.ItemVenda.quantidade * models.ItemVenda.preco_unitario).label('receita')
     ).join(models.ItemVenda, models.ItemVenda.produto_id == models.Produto.id).join(models.Venda, models.ItemVenda.venda_id == models.Venda.id).filter(
@@ -97,7 +96,7 @@ def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
     ).group_by(models.Produto.id).order_by(desc('qtd')).limit(5).all()
     dados_ranking = [{"nome": r.nome, "qtd": int(r.qtd), "receita": float(r.receita or 0)} for r in ranking]
 
-    # TEMPO MÉDIO DE REPARO
+   
     media_segundos = db.query(func.avg(func.extract('epoch', models.OrdemServico.data_conclusao - models.OrdemServico.data_entrada))).filter(
         models.OrdemServico.loja_id == admin.loja_id, models.OrdemServico.data_entrada.isnot(None), models.OrdemServico.data_conclusao.isnot(None), models.OrdemServico.status == StatusOS.ENTREGUE.value 
     ).scalar()
@@ -109,11 +108,11 @@ def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
         "kpis_extras": {"ticket_medio_geral": round(ticket_medio_geral, 2), "tempo_medio_reparo_horas": round(media_segundos / 3600, 1) if media_segundos else 0.0}
     }
 
-    # 3. SALVA NO CACHE
+    
     CACHE_DADOS[chave_cache] = {'dados': resultado_final, 'tempo': time.time()}
     return resultado_final
 
-# 🟢 ROTA EXTRA: Forçar limpeza do cache (Útil para o botão "Atualizar" na tela)
+
 @router.post("/limpar-cache")
 def limpar_cache(admin=Depends(admin_required)):
     chave_metricas = f"metricas_loja_{admin.loja_id}"

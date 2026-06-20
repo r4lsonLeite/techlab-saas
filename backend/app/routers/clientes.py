@@ -10,7 +10,7 @@ from services.os_service import StatusOS
 
 router = APIRouter(prefix="/clientes", tags=["Clientes e CRM"])
 
-# 🟢 NOVA ROTA: LISTAGEM PAGINADA COM BUSCA!
+
 @router.get("")
 def listar_clientes(skip: int = 0, limit: int = 50, busca: str = None, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
     query = db.query(models.Cliente).filter(models.Cliente.loja_id == user.loja_id)

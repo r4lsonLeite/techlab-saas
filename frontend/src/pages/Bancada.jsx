@@ -345,7 +345,7 @@ export default function Bancada() {
                     {osAtiva.defeito}
                 </div>
                 
-                {/* 🚨 8. PROTEÇÃO MÍNIMA DA SENHA - SÓ MOSTRA SE O TÉCNICO PRECISAR E CLICAR (Poderia evoluir para ofuscação no backend) */}
+                {/*  */}
                 {osAtiva.senha && (
                   <details className="mt-4 group">
                       <summary className="text-slate-300 text-sm flex items-center gap-2 cursor-pointer list-none">

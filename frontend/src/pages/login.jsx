@@ -12,9 +12,9 @@ export default function Login({ onLoginSucesso }) {
     setCarregando(true);
 
     try {
-      // O PULO DO GATO: O FastAPI exige formato de Formulário (x-www-form-urlencoded)
+      
       const formData = new URLSearchParams();
-      formData.append('username', email); // O FastAPI chama de 'username', mas enviamos o e-mail
+      formData.append('username', email); 
       formData.append('password', senha);
 
       const resposta = await fetch('http://localhost:8000/token', {
@@ -27,13 +27,13 @@ export default function Login({ onLoginSucesso }) {
 
       if (resposta.ok) {
         const dados = await resposta.json();
-        // Salva o "Crachá" (Token) no navegador do usuário
+        
         localStorage.setItem('techlab_token', dados.access_token);
         
-        // Avisa o App que o login deu certo para liberar o Dashboard!
+        
         onLoginSucesso();
       } else {
-        // Se der Erro 401 (Não autorizado)
+        
         setErro('E-mail ou senha incorretos. Tente novamente.');
       }
     } catch (error) {

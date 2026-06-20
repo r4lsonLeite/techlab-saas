@@ -4,17 +4,17 @@ export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [carregando, setCarregando] = useState(true);
   
-  // Controlo do Modal
+  
   const [modalAberto, setModalAberto] = useState(false);
   const [formUsuario, setFormUsuario] = useState({
     nome: '', email: '', senha: '', cargo: 'tecnico'
   });
 
-  // 🔴 NOVOS ESTADOS PARA GESTÃO DE COMISSÃO
+  
   const [editandoComissaoId, setEditandoComissaoId] = useState(null);
   const [novaComissao, setNovaComissao] = useState("");
 
-  // Busca os dados reais assim que o ecrã abre
+  
   useEffect(() => {
     carregarUsuarios();
   }, []);
@@ -94,7 +94,7 @@ export default function Usuarios() {
     }
   };
 
-  // 🔴 NOVA FUNÇÃO PARA SALVAR A COMISSÃO DO FUNCIONÁRIO
+  
   const salvarComissao = async (idUsuario) => {
     const token = localStorage.getItem('techlab_token');
     try {

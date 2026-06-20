@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vendas", tags=["Vendas e PDV"])
 
-# 🟢 NOVA ROTA: HISTÓRICO DE CAIXA PAGINADO!
+
 @router.get("")
 def listar_vendas(skip: int = 0, limit: int = 50, busca: str = None, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
     query = db.query(models.Venda).options(
@@ -24,7 +24,7 @@ def listar_vendas(skip: int = 0, limit: int = 50, busca: str = None, db: Session
 
     if busca:
         termo = f"%{busca}%"
-        # Precisamos fazer outerjoin porque o cliente pode ser avulso (não cadastrado)
+      
         query = query.outerjoin(models.Cliente).outerjoin(models.Usuario, models.Venda.usuario_id == models.Usuario.id).filter(
             or_(
                 cast(models.Venda.id, String).ilike(termo),
@@ -36,7 +36,7 @@ def listar_vendas(skip: int = 0, limit: int = 50, busca: str = None, db: Session
 
     res = query.order_by(models.Venda.data_venda.desc()).offset(skip).limit(limit).all()
     
-    # Formata a resposta para o React ler facilmente
+   
     vendas_formatadas = []
     for v in res:
         vendas_formatadas.append({
