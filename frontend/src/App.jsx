@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import dashboard from './pages/dashboard';
-import login from './pages/login';
+// Importamos com letra MAIÚSCULA, mas o caminho fica minúsculo
+import Dashboard from './pages/dashboard';
+import Login from './pages/login';
 
 const isTokenValido = (token) => {
   try {
@@ -31,11 +32,12 @@ function App() {
   };
 
   if (!estaLogado) {
-    return <login onLoginSucesso={() => setEstaLogado(true)} />;
+    // Componente React exige a primeira letra Maiúscula!
+    return <Login onLoginSucesso={() => setEstaLogado(true)} />;
   }
 
-  return <dashboard onLogout={handleLogout} />;
+  // Componente React exige a primeira letra Maiúscula!
+  return <Dashboard onLogout={handleLogout} />;
 }
 
 export default App;
-
