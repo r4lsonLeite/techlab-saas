@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import Dashboard from './pages/Dashboard';
-import Login from './pages/Login';
+import dashboard from './pages/dashboard';
+import login from './pages/login';
 
 // ✅ ADICIONA AQUI
 const isTokenValido = (token) => {
@@ -39,3 +39,4 @@ function App() {
 }
 
 export default App;
+
