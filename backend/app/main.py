@@ -16,21 +16,22 @@ app = FastAPI(title="TechLab API - Tech Ninja SaaS", version="1.0.0")
 os.makedirs("uploads/evidencias", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# ==============================
-# CORREÇÃO CORS: Lista explícita de origens permitidas
-# ==============================
 allowed_origins = [
     "http://localhost:5173",
-    "https://techlab-saas-n46xpcxf9-railson1.vercel.app" # O seu domínio exato da Vercel
+    "https://techlab-saas.vercel.app",
+    "https://techlab-saas-git-main-railson1.vercel.app",
+    "https://techlab-saas-n46xpcxf9-railson1.vercel.app"
 ]
-# Traz variáveis extras do Render, se houver
+
 env_origins = os.getenv("ALLOWED_ORIGINS", "")
 if env_origins:
-    allowed_origins.extend(env_origins.split(","))
+    allowed_origins.extend(
+        [origin.strip() for origin in env_origins.split(",")]
+    )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=list(set(allowed_origins)),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,15 +53,3 @@ app.include_router(configuracoes.router)
 def health_check():
     return {"status": "ok", "mensagem": "Motor Tech Ninja a rodar 100%!"}
 
-# Substitua o bloco do CORSMiddleware no seu main.py por este:
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://techlab-saas-git-main-railson1.vercel.app",
-        "https://techlab-saas.vercel.app"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
