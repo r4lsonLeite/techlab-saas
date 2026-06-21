@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 import logging
-from core.database import engine
+from core.database import engine, Base
 from models import models
 
 from routers import auth, usuarios, clientes, estoque, os as router_os, vendas, dashboard, configuracoes
