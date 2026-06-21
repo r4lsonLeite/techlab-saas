@@ -52,3 +52,15 @@ app.include_router(configuracoes.router)
 def health_check():
     return {"status": "ok", "mensagem": "Motor Tech Ninja a rodar 100%!"}
 
+# Substitua o bloco do CORSMiddleware no seu main.py por este:
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "https://techlab-saas-git-main-railson1.vercel.app",
+        "https://techlab-saas.vercel.app"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
