@@ -23,7 +23,6 @@ allowed_origins = [
     "http://localhost:5173",
     "https://techlab-saas-n46xpcxf9-railson1.vercel.app" # O seu domínio exato da Vercel
 ]
-
 # Traz variáveis extras do Render, se houver
 env_origins = os.getenv("ALLOWED_ORIGINS", "")
 if env_origins:
@@ -52,3 +51,4 @@ app.include_router(configuracoes.router)
 @app.get("/")
 def health_check():
     return {"status": "ok", "mensagem": "Motor Tech Ninja a rodar 100%!"}
+
