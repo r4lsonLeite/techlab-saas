@@ -12,9 +12,7 @@ export default function Login({ onLoginSucesso }) {
     setErro('');
     setCarregando(true);
 
-    try {
-      // Usa a função centralizada que aponta para o Render
-      // IMPORTANTE: Mude '/auth/token' para a rota exata do seu backend. 
+    try { 
       // Geralmente no FastAPI o padrão é '/token' ou '/auth/login'
       const dados = await loginFetch('/token', email, senha);
       
