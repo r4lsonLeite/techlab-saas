@@ -8,18 +8,27 @@ from models import models
 
 from routers import auth, usuarios, clientes, estoque, os as router_os, vendas, dashboard, configuracoes
 
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="TechLab API - Tech Ninja SaaS", version="1.0.0")
 
-
 os.makedirs("uploads/evidencias", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+# ==============================
+# CORREÇÃO CORS: Lista explícita de origens permitidas
+# ==============================
+allowed_origins = [
+    "http://localhost:5173",
+    "https://techlab-saas-n46xpcxf9-railson1.vercel.app" # O seu domínio exato da Vercel
+]
 
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+# Traz variáveis extras do Render, se houver
+env_origins = os.getenv("ALLOWED_ORIGINS", "")
+if env_origins:
+    allowed_origins.extend(env_origins.split(","))
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,

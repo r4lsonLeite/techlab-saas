@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { loginFetch } from '../services/api'; // Ajuste o caminho '../services/api' se a pasta for diferente
 
 export default function Login({ onLoginSucesso }) {
   const [email, setEmail] = useState('');
@@ -12,33 +13,20 @@ export default function Login({ onLoginSucesso }) {
     setCarregando(true);
 
     try {
+      // Usa a função centralizada que aponta para o Render
+      // IMPORTANTE: Mude '/auth/token' para a rota exata do seu backend. 
+      // Geralmente no FastAPI o padrão é '/token' ou '/auth/login'
+      const dados = await loginFetch('/token', email, senha);
       
-      const formData = new URLSearchParams();
-      formData.append('username', email); 
-      formData.append('password', senha);
+      // Salva o token fornecido pelo FastAPI
+      localStorage.setItem('techlab_token', dados.access_token);
+      
+      onLoginSucesso();
 
-      const resposta = await fetch('http://localhost:8000/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData,
-      });
-
-      if (resposta.ok) {
-        const dados = await resposta.json();
-        
-        localStorage.setItem('techlab_token', dados.access_token);
-        
-        
-        onLoginSucesso();
-      } else {
-        
-        setErro('E-mail ou senha incorretos. Tente novamente.');
-      }
     } catch (error) {
       console.error("Erro ao conectar:", error);
-      setErro('Erro de conexão com o servidor. Verifique se o sistema está online.');
+      // Pega a mensagem de erro que vem do backend (ex: Senha incorreta) ou erro de rede
+      setErro(error.message || 'Erro de conexão. Verifique se as credenciais estão corretas.');
     } finally {
       setCarregando(false);
     }
