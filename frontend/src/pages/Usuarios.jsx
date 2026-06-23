@@ -30,7 +30,7 @@ export default function Usuarios() {
     }
 
     try {
-      const resposta = await fetch('http://localhost:8000/usuarios', {
+      const resposta = await fetch('https://techlab-6vnh.onrender.com/usuarios', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

@@ -97,7 +97,7 @@ export default function Estoque() {
         await apiFetch(`/produtos/${produtoEditando}`, { method: 'PUT', body: JSON.stringify(payload) });
         mostrarToast("Item atualizado com sucesso!");
       } else {
-        // MODO CRIAÇÃO NOVO
+        
         await apiFetch('/produtos', { method: 'POST', body: JSON.stringify(payload) });
         mostrarToast("Item cadastrado com sucesso!");
       }
