@@ -48,16 +48,16 @@ export default function Dashboard({ onLogout }) {
   
   if (!cargo) return <div className="h-screen bg-[#0b1120] text-white flex items-center justify-center">Carregando painel...</div>;
 
-  const menus = [ 
-    { id: 'vendas', titulo: '🛒 Vendas / PDV', papeis: ['adm', 'balcao'] },
-    { id: 'entrada-os', titulo: '📝 Entrada de Aparelhos', papeis: ['adm', 'balcao'] },
-    { id: 'bancada', titulo: '🔧 Bancada Técnica', papeis: ['adm', 'tecnico'] },
-    { id: 'consultar-os', titulo: '🔍 Consultar OS', papeis: ['adm', 'balcao', 'tecnico'] },
-    { id: 'estoque', titulo: '📦 Estoque de Peças', papeis: ['adm'] },
-    { id: 'usuarios', titulo: '👥 Controle de Equipe', papeis: ['adm'] }, 
-    { id: 'financeiro', titulo: '💰 Financeiro', papeis: ['adm'] },
-    { id: 'admin-home', titulo: '📊 Visão Geral (ADM)', papeis: ['adm'] },
-    { id: 'configuracoes', titulo: '⚙️ Ajustes da Loja', papeis: ['adm'] }, 
+const menus = [ 
+    { id: 'vendas', titulo: '🛒 Vendas / PDV', papeis: ['admin', 'balcao'] },
+    { id: 'entrada-os', titulo: '📝 Entrada de Aparelhos', papeis: ['admin', 'balcao'] },
+    { id: 'bancada', titulo: '🔧 Bancada Técnica', papeis: ['admin', 'tecnico'] },
+    { id: 'consultar-os', titulo: '🔍 Consultar OS', papeis: ['admin', 'balcao', 'tecnico'] },
+    { id: 'estoque', titulo: '📦 Estoque de Peças', papeis: ['admin'] },
+    { id: 'usuarios', titulo: '👥 Controle de Equipe', papeis: ['admin'] }, 
+    { id: 'financeiro', titulo: '💰 Financeiro', papeis: ['admin'] },
+    { id: 'admin-home', titulo: '📊 Visão Geral (ADM)', papeis: ['admin'] },
+    { id: 'configuracoes', titulo: '⚙️ Ajustes da Loja', papeis: ['admin'] }, 
   ];
 
   const menusPermitidos = menus.filter(menu => menu.papeis.includes(cargo));
