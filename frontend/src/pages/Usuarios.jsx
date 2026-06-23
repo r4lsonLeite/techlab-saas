@@ -70,7 +70,7 @@ export default function Usuarios() {
     const token = localStorage.getItem('techlab_token');
 
     try {
-      const res = await fetch('http://localhost:8000/usuarios', {
+      const res = await fetch('https://techlab-6vnh.onrender.com/usuarios', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ export default function Usuarios() {
   const salvarComissao = async (idUsuario) => {
     const token = localStorage.getItem('techlab_token');
     try {
-      const res = await fetch(`http://localhost:8000/usuarios/${idUsuario}/comissao`, {
+      const res = await fetch(`https://techlab-6vnh.onrender.com/usuarios/${idUsuario}/comissao`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -130,7 +130,7 @@ export default function Usuarios() {
     const token = localStorage.getItem('techlab_token');
 
     try {
-      const res = await fetch(`http://localhost:8000/usuarios/${id}`, { 
+      const res = await fetch(`https://techlab-6vnh.onrender.com/usuarios/${id}`, { 
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -151,7 +151,7 @@ export default function Usuarios() {
     const token = localStorage.getItem('techlab_token');
 
     try {
-      const res = await fetch(`http://localhost:8000/usuarios/${id}/reativar`, { 
+      const res = await fetch(`https://techlab-6vnh.onrender.com/usuarios/${id}/reativar`, { 
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -177,7 +177,7 @@ export default function Usuarios() {
     const token = localStorage.getItem('techlab_token');
 
     try {
-      const res = await fetch(`http://localhost:8000/usuarios/${id}/senha`, {
+      const res = await fetch(`https://techlab-6vnh.onrender.com/usuarios/${id}/senha`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
