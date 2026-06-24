@@ -10,13 +10,26 @@ from schemas import schemas
 
 router = APIRouter(tags=["Estoque e Logística"])
 
+# 1. NOVA ROTA: Criar Produto (Apenas Admin)
+@router.post("/produtos", status_code=201)
+def criar_produto(produto: schemas.ProdutoCreate, db: Session = Depends(get_db), admin=Depends(admin_required)):
+    # Garante que o produto é criado exclusivamente na loja do admin logado
+    novo_produto = models.Produto(**produto.model_dump(), loja_id=admin.loja_id)
+    db.add(novo_produto)
+    db.commit()
+    db.refresh(novo_produto)
+    return novo_produto
 
+# 2. ROTA CORRIGIDA: Listar Produtos (Removida a duplicidade, mantida a versão com filtro de categoria)
 @router.get("/produtos")
-def listar_produtos(skip: int = 0, limit: int = 50, busca: str = None, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
+def listar_produtos(skip: int = 0, limit: int = 50, busca: str = None, categoria: str = None, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
     query = db.query(models.Produto).filter(
         models.Produto.loja_id == user.loja_id, 
         models.Produto.ativo == True
     )
+
+    if categoria and categoria != "Todos":
+        query = query.filter(models.Produto.categoria.ilike(categoria))
 
     if busca:
         termo = f"%{busca}%"
@@ -24,12 +37,10 @@ def listar_produtos(skip: int = 0, limit: int = 50, busca: str = None, db: Sessi
             or_(
                 models.Produto.nome.ilike(termo),
                 models.Produto.codigo_barras.ilike(termo),
-                models.Produto.categoria.ilike(termo),
                 models.Produto.marca.ilike(termo)
             )
         )
 
-    
     return query.order_by(models.Produto.id.desc()).offset(skip).limit(limit).all()
 
 @router.put("/produtos/{id}")
@@ -47,29 +58,6 @@ def atualizar_produto(id: int, produto: schemas.ProdutoCreate, db: Session = Dep
     db.commit()
     db.refresh(p)
     return p
-
-@router.get("/produtos")
-def listar_produtos(skip: int = 0, limit: int = 50, busca: str = None, categoria: str = None, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
-    query = db.query(models.Produto).filter(
-        models.Produto.loja_id == user.loja_id, 
-        models.Produto.ativo == True
-    )
-
-    
-    if categoria and categoria != "Todos":
-        query = query.filter(models.Produto.categoria.ilike(categoria))
-
-    if busca:
-        termo = f"%{busca}%"
-        query = query.filter(
-            or_(
-                models.Produto.nome.ilike(termo),
-                models.Produto.codigo_barras.ilike(termo),
-                models.Produto.marca.ilike(termo)
-            )
-        )
-
-    return query.order_by(models.Produto.id.desc()).offset(skip).limit(limit).all()
 
 @router.delete("/produtos/{id}")
 def deletar_produto(id: int, db: Session = Depends(get_db), admin=Depends(admin_required)):

@@ -51,7 +51,7 @@ export default function Configuracoes() {
       
       const token = localStorage.getItem('token') || localStorage.getItem('access_token') || localStorage.getItem('techlab_token');
       
-      const res = await fetch('http://127.0.0.1:8000/lojas/upload-logo', {
+      const res = await fetch('https://techlab-6vnh.onrender.com/lojas/upload-logo', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}` 
@@ -121,7 +121,7 @@ export default function Configuracoes() {
 
               <div className="mt-4 flex items-center gap-4">
                 {empresa.logo_url ? (
-                  <img src={`http://127.0.0.1:8000${empresa.logo_url}`} alt="Logo" className="h-16 w-16 object-contain bg-white rounded-lg p-1 border border-slate-600" />
+                  <img src={`https://techlab-6vnh.onrender.com${empresa.logo_url}`} alt="Logo" className="h-16 w-16 object-contain bg-white rounded-lg p-1 border border-slate-600" />
                 ) : (
                   <div className="w-16 h-16 bg-slate-800 rounded-lg flex items-center justify-center font-bold text-slate-500 border border-slate-600">Sem<br/>Logo</div>
                 )}
