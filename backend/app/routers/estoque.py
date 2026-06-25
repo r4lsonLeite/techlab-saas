@@ -14,7 +14,11 @@ router = APIRouter(tags=["Estoque e Logística"])
 @router.post("/produtos", status_code=201)
 def criar_produto(produto: schemas.ProdutoCreate, db: Session = Depends(get_db), admin=Depends(admin_required)):
     # Garante que o produto é criado exclusivamente na loja do admin logado
-    novo_produto = models.Produto(**produto.model_dump(), loja_id=admin.loja_id)
+    # (ignora qualquer loja_id enviado pelo cliente, evitando conflito e uso indevido)
+    dados = produto.model_dump()
+    dados["loja_id"] = admin.loja_id
+
+    novo_produto = models.Produto(**dados)
     db.add(novo_produto)
     db.commit()
     db.refresh(novo_produto)
