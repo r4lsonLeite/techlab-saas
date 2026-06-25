@@ -16,7 +16,7 @@ export default function Estoque() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState(null);
   const [novoProduto, setNovoProduto] = useState({
-    nome: "", marca: "", categoria: "Peças", preco_custo: "", preco_venda: "", estoque_atual: 0, estoque_minimo: 5, is_servico: false
+    nome: "", marca: "", categoria: "Peças", preco_custo: "", preco_venda: "", estoque_atual: 0, estoque_minimo: 5, is_servico: false, codigo_modelo: "",fornecedor: "",localizacao: "",estoque_reservado: 0
   });
 
   const mostrarToast = (mensagem, tipo = 'sucesso') => {
@@ -64,6 +64,7 @@ export default function Estoque() {
     setNovoProduto({
       nome: prod.nome,
       marca: prod.marca || "",
+    
       categoria: prod.categoria || "Peças",
       preco_custo: prod.preco_custo || "",
       preco_venda: prod.preco_venda || "",
@@ -74,10 +75,14 @@ export default function Estoque() {
     setIsModalOpen(true);
   };
 
-  const fecharModal = () => {
+const fecharModal = () => {
     setIsModalOpen(false);
     setProdutoEditando(null);
-    setNovoProduto({ nome: "", marca: "", categoria: "Peças", preco_custo: "", preco_venda: "", estoque_atual: 0, estoque_minimo: 5, is_servico: false });
+    setNovoProduto({ 
+      codigo_barras: "", nome: "", marca: "", categoria: "Peças", 
+      preco_custo: "", preco_venda: "", estoque_atual: 0, estoque_minimo: 5, 
+      is_servico: false, codigo_modelo: "", fornecedor: "", localizacao: "", estoque_reservado: 0 
+    });
   };
 
   const handleSalvarProduto = async (e) => {
@@ -89,7 +94,11 @@ export default function Estoque() {
         preco_venda: parseFloat(novoProduto.preco_venda || 0),
         estoque_atual: parseInt(novoProduto.estoque_atual || 0),
         estoque_minimo: parseInt(novoProduto.estoque_minimo || 0),
-        loja_id: 1 
+        estoque_reservado: parseInt(novoProduto.estoque_reservado || 0),
+        codigo_modelo: novoProduto.codigo_modelo || "",
+        fornecedor: novoProduto.fornecedor || "",
+        localizacao: novoProduto.localizacao || "",
+        loja_id: 1
       };
 
       if (produtoEditando) {
