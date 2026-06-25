@@ -12,11 +12,23 @@ export default function Estoque() {
   const [carregandoMais, setCarregandoMais] = useState(false);
   const [toast, setToast] = useState(null);
 
-  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState(null);
+  
   const [novoProduto, setNovoProduto] = useState({
-    nome: "", marca: "", categoria: "Peças", preco_custo: "", preco_venda: "", estoque_atual: 0, estoque_minimo: 5, is_servico: false, codigo_modelo: "",fornecedor: "",localizacao: "",estoque_reservado: 0
+    codigo_barras: "", 
+    nome: "", 
+    marca: "", 
+    categoria: "Peças", 
+    preco_custo: "", 
+    preco_venda: "", 
+    estoque_atual: 0, 
+    estoque_minimo: 5, 
+    is_servico: false,
+    codigo_modelo: "",
+    fornecedor: "",
+    localizacao: "",
+    estoque_reservado: 0
   });
 
   const mostrarToast = (mensagem, tipo = 'sucesso') => {
@@ -58,24 +70,27 @@ export default function Estoque() {
     carregarProdutos(novoSkip, buscaDebounced, false);
   };
 
-  
   const abrirModalEditar = (prod) => {
     setProdutoEditando(prod.id);
     setNovoProduto({
+      codigo_barras: prod.codigo_barras || "",
       nome: prod.nome,
       marca: prod.marca || "",
-    
       categoria: prod.categoria || "Peças",
       preco_custo: prod.preco_custo || "",
       preco_venda: prod.preco_venda || "",
       estoque_atual: prod.estoque_atual || 0,
       estoque_minimo: prod.estoque_minimo || 5,
-      is_servico: prod.is_servico || false
+      is_servico: prod.is_servico || false,
+      codigo_modelo: prod.codigo_modelo || "",
+      fornecedor: prod.fornecedor || "",
+      localizacao: prod.localizacao || "",
+      estoque_reservado: prod.estoque_reservado || 0
     });
     setIsModalOpen(true);
   };
 
-const fecharModal = () => {
+  const fecharModal = () => {
     setIsModalOpen(false);
     setProdutoEditando(null);
     setNovoProduto({ 
@@ -98,15 +113,13 @@ const fecharModal = () => {
         codigo_modelo: novoProduto.codigo_modelo || "",
         fornecedor: novoProduto.fornecedor || "",
         localizacao: novoProduto.localizacao || "",
-        loja_id: 1
+        loja_id: 1 
       };
 
       if (produtoEditando) {
-        
         await apiFetch(`/produtos/${produtoEditando}`, { method: 'PUT', body: JSON.stringify(payload) });
         mostrarToast("Item atualizado com sucesso!");
       } else {
-        
         await apiFetch('/produtos', { method: 'POST', body: JSON.stringify(payload) });
         mostrarToast("Item cadastrado com sucesso!");
       }
@@ -130,7 +143,7 @@ const fecharModal = () => {
     }
   };
 
-return (
+  return (
     <div className="p-8 h-full overflow-y-auto bg-[#0f172a] relative">
       
       {toast && (
@@ -189,7 +202,10 @@ return (
                   <tr key={p.id} className="hover:bg-slate-800/50 transition-colors">
                     <td className="p-4">
                       <p className="text-white font-bold">{p.nome}</p>
-                      <p className="text-xs text-slate-500">{p.codigo_barras ? `[${p.codigo_barras}] ` : ''}{p.marca || 'Sem marca'} {p.is_servico ? '• (Serviço)' : ''}</p>
+                      <p className="text-xs text-slate-500">
+                        {p.codigo_barras ? `[${p.codigo_barras}] ` : ''}
+                        {p.marca || 'Sem marca'} {p.localizacao ? `• 📍 Loc: ${p.localizacao}` : ''} {p.is_servico ? '• (Serviço)' : ''}
+                      </p>
                     </td>
                     <td className="p-4 text-center"><span className="bg-slate-700 px-3 py-1 rounded-full text-xs font-bold text-slate-300">{p.categoria}</span></td>
                     <td className="p-4 text-right">
@@ -228,20 +244,20 @@ return (
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1e293b] border border-slate-700 rounded-3xl p-8 w-full max-w-2xl shadow-2xl">
+          <div className="bg-[#1e293b] border border-slate-700 rounded-3xl p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
               <span>{produtoEditando ? '✏️' : '📦'}</span> 
               {produtoEditando ? 'Editar Produto' : 'Novo Item no Estoque'}
             </h2>
             <form onSubmit={handleSalvarProduto} className="space-y-4">
               
-              {/* NOME DO ITEM OCUPANDO A LINHA TODA */}
+              {/* LINHA 1: Nome */}
               <div>
                 <label className="block text-slate-400 text-sm mb-1">Nome do Item *</label>
                 <input required type="text" value={novoProduto.nome} onChange={e => setNovoProduto({...novoProduto, nome: e.target.value})} className="w-full p-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 outline-none focus:border-emerald-500" />
               </div>
 
-              {/* CÓDIGO DE BARRAS E MARCA */}
+              {/* LINHA 2: Código de Barras e Marca */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-slate-400 text-sm mb-1">Código (Barras/SKU)</label>
@@ -252,7 +268,20 @@ return (
                   <input type="text" value={novoProduto.marca} onChange={e => setNovoProduto({...novoProduto, marca: e.target.value})} className="w-full p-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 outline-none focus:border-emerald-500" />
                 </div>
               </div>
+
+              {/* 🟢 ADICIONADO - LINHA 3: Localização e Fornecedor */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-400 text-sm mb-1">Localização (Gaveta/Prateleira)</label>
+                  <input type="text" value={novoProduto.localizacao} onChange={e => setNovoProduto({...novoProduto, localizacao: e.target.value})} placeholder="Ex: Prateleira B2, Gaveta 3" className="w-full p-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 outline-none focus:border-emerald-500" />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-sm mb-1">Fornecedor</label>
+                  <input type="text" value={novoProduto.fornecedor} onChange={e => setNovoProduto({...novoProduto, fornecedor: e.target.value})} placeholder="Ex: Distribuidor Oficial" className="w-full p-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 outline-none focus:border-emerald-500" />
+                </div>
+              </div>
               
+              {/* LINHA 4: Categoria e Tipo de Serviço */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-slate-400 text-sm mb-1">Categoria</label>
@@ -268,6 +297,7 @@ return (
                 </div>
               </div>
 
+              {/* LINHA 5: Quantidades (Apenas se não for Serviço) */}
               {!novoProduto.is_servico && (
                 <div className="grid grid-cols-2 gap-4 bg-[#0f172a] p-4 rounded-xl border border-slate-700">
                   <div>
@@ -281,6 +311,7 @@ return (
                 </div>
               )}
 
+              {/* LINHA 6: Preços */}
               <div className="grid grid-cols-2 gap-4 border-t border-slate-700 pt-4 mt-4">
                 <div>
                   <label className="block text-slate-400 text-sm mb-1">Preço de Custo (R$)</label>
@@ -292,6 +323,7 @@ return (
                 </div>
               </div>
 
+              {/* BOTÕES */}
               <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-slate-700">
                 <button type="button" onClick={fecharModal} className="px-6 py-3 text-slate-400 font-bold hover:bg-slate-800 rounded-xl transition-colors">Cancelar</button>
                 <button type="submit" className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-1">
