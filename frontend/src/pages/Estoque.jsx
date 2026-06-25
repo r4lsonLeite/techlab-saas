@@ -130,7 +130,7 @@ const fecharModal = () => {
     }
   };
 
-  return (
+return (
     <div className="p-8 h-full overflow-y-auto bg-[#0f172a] relative">
       
       {toast && (
@@ -159,10 +159,11 @@ const fecharModal = () => {
             <span className="absolute left-4 top-3.5 text-slate-400">🔍</span>
             <input 
               type="text" 
-              placeholder="Buscar por nome, marca, código..." 
+              placeholder="Buscar por nome, marca ou bipar código..." 
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               className="w-full pl-11 pr-4 py-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none transition-colors"
+              autoFocus
             />
           </div>
         </div>
@@ -188,7 +189,7 @@ const fecharModal = () => {
                   <tr key={p.id} className="hover:bg-slate-800/50 transition-colors">
                     <td className="p-4">
                       <p className="text-white font-bold">{p.nome}</p>
-                      <p className="text-xs text-slate-500">{p.marca || 'Sem marca'} {p.is_servico ? '• (Serviço)' : ''}</p>
+                      <p className="text-xs text-slate-500">{p.codigo_barras ? `[${p.codigo_barras}] ` : ''}{p.marca || 'Sem marca'} {p.is_servico ? '• (Serviço)' : ''}</p>
                     </td>
                     <td className="p-4 text-center"><span className="bg-slate-700 px-3 py-1 rounded-full text-xs font-bold text-slate-300">{p.categoria}</span></td>
                     <td className="p-4 text-right">
@@ -202,7 +203,6 @@ const fecharModal = () => {
                     </td>
                     <td className="p-4 text-right font-bold text-white">R$ {Number(p.preco_venda).toFixed(2)}</td>
                     <td className="p-4 text-center">
-                      {/* 🟢 BOTÃO DE EDIÇÃO RESTAURADO! */}
                       <button onClick={() => abrirModalEditar(p)} className="text-blue-400 hover:bg-blue-500/10 p-2 rounded-lg transition-colors mr-2" title="Editar ou Repor Estoque">✏️</button>
                       <button onClick={() => handleDelete(p.id)} className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors" title="Excluir item">🗑️</button>
                     </td>
@@ -234,10 +234,18 @@ const fecharModal = () => {
               {produtoEditando ? 'Editar Produto' : 'Novo Item no Estoque'}
             </h2>
             <form onSubmit={handleSalvarProduto} className="space-y-4">
+              
+              {/* NOME DO ITEM OCUPANDO A LINHA TODA */}
+              <div>
+                <label className="block text-slate-400 text-sm mb-1">Nome do Item *</label>
+                <input required type="text" value={novoProduto.nome} onChange={e => setNovoProduto({...novoProduto, nome: e.target.value})} className="w-full p-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 outline-none focus:border-emerald-500" />
+              </div>
+
+              {/* CÓDIGO DE BARRAS E MARCA */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-slate-400 text-sm mb-1">Nome do Item *</label>
-                  <input required type="text" value={novoProduto.nome} onChange={e => setNovoProduto({...novoProduto, nome: e.target.value})} className="w-full p-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 outline-none focus:border-emerald-500" />
+                  <label className="block text-slate-400 text-sm mb-1">Código (Barras/SKU)</label>
+                  <input type="text" value={novoProduto.codigo_barras} onChange={e => setNovoProduto({...novoProduto, codigo_barras: e.target.value})} placeholder="Opcional" className="w-full p-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 outline-none focus:border-emerald-500" />
                 </div>
                 <div>
                   <label className="block text-slate-400 text-sm mb-1">Marca</label>
