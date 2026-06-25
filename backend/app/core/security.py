@@ -10,7 +10,12 @@ from dotenv import load_dotenv
 # ==============================
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "techlab_secreto_123")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY não configurada. Defina a variável de ambiente SECRET_KEY "
+        "(no .env local ou nas variáveis de ambiente do Render) antes de iniciar a aplicação."
+    )
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 480))
 

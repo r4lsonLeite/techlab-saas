@@ -1,9 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 import os
 import logging
 from core.database import engine, Base
+from core.rate_limit import limiter
 from models import models
 
 from routers import auth, usuarios, clientes, estoque, os as router_os, vendas, dashboard, configuracoes
@@ -12,6 +15,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="TechLab API - Tech Ninja SaaS", version="1.0.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 os.makedirs("uploads/evidencias", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

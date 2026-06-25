@@ -10,9 +10,9 @@ from models import models
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# Puxa a chave secreta com segurança
-SECRET_KEY = os.getenv("SECRET_KEY", getattr(security, "SECRET_KEY", "techlab_secreto_123"))
-ALGORITHM = getattr(security, "ALGORITHM", "HS256")
+# Reaproveita a SECRET_KEY já validada em core.security (lá já garante que existe)
+SECRET_KEY = security.SECRET_KEY
+ALGORITHM = security.ALGORITHM
 
 def obter_usuario_logado(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:

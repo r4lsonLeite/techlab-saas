@@ -34,6 +34,13 @@ def upload_logo(file: UploadFile = File(...), user=Depends(obter_usuario_logado)
 
 @router.post("/ordens-servico/{os_id}/foto")
 def upload_foto_os(os_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
+    os_db = db.query(models.OrdemServico).filter(
+        models.OrdemServico.id == os_id,
+        models.OrdemServico.loja_id == user.loja_id
+    ).first()
+    if not os_db:
+        raise HTTPException(404, "Ordem de serviço não encontrada.")
+
     ext = Path(file.filename).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(400, f"Extensão de arquivo não permitida. Use: {', '.join(ALLOWED_EXTENSIONS)}")
