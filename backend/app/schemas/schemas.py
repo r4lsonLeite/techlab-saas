@@ -207,11 +207,11 @@ class ItemVendaResponse(BaseModel):
 
 
 class VendaCreate(BaseModel):
-    valor_total: Decimal
     forma_pagamento: str
     itens: List[ItemVendaCreate]
     os_id: Optional[int] = None
     usuario_id: Optional[int] = None
+    desconto: Decimal = 0
 
 
 class VendaResponse(BaseModel):

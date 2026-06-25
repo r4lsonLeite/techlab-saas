@@ -90,6 +90,13 @@ def atualizar_os(os_id: int, payload: schemas.OSUpdate, db: Session = Depends(ge
             if "status" in dados and dados["status"] in [StatusOS.APROVADO.value, StatusOS.RECUSADO.value, StatusOS.ENTREGUE.value]:
                 raise HTTPException(403, "Falha de Segurança: O Técnico não tem permissão para faturar ou cancelar OS.")
 
+        if "status" in dados and dados["status"] == StatusOS.ENTREGUE.value:
+            raise HTTPException(
+                400,
+                "Uma OS só pode ser marcada como 'Entregue' através do pagamento no PDV/Vendas, "
+                "que gera o registro financeiro e a baixa de estoque corretamente."
+            )
+
         if "pecas_selecionadas" in dados:
             pecas = dados.pop("pecas_selecionadas")
             for item in db.query(models.ItemOS).filter(models.ItemOS.os_id == os_id).all():

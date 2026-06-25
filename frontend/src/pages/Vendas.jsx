@@ -136,7 +136,7 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
     const os_id_final = itemOS ? itemOS.originalOsId : null;
 
     const payloadDaVenda = {
-      valor_total: totalComDesconto, 
+      desconto: valorDesconto, 
       forma_pagamento: formaPagamento, 
       itens: itensFisicos, 
       os_id: os_id_final,

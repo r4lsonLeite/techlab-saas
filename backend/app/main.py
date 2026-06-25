@@ -9,7 +9,7 @@ from core.database import engine, Base
 from core.rate_limit import limiter
 from models import models
 
-from routers import auth, usuarios, clientes, estoque, os as router_os, vendas, dashboard, configuracoes
+from routers import auth, usuarios, clientes, estoque, os as router_os, vendas, dashboard, configuracoes, financeiro
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -53,6 +53,7 @@ app.include_router(router_os.router)
 app.include_router(vendas.router)
 app.include_router(dashboard.router)
 app.include_router(configuracoes.router)
+app.include_router(financeiro.router)
 
 @app.get("/")
 def health_check():
