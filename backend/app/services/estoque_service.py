@@ -19,7 +19,12 @@ class EstoqueService:
         if getattr(produto, 'is_servico', False) or produto.categoria.lower() in ['serviços', 'servicos', 'mão de obra']:
             return produto
 
-
+        estoque_disponivel = produto.estoque_atual - (produto.estoque_reservado or 0)
+        if estoque_disponivel < quantidade:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Estoque insuficiente para reservar '{produto.nome}'. Disponível: {estoque_disponivel}, solicitado: {quantidade}."
+            )
 
         produto.estoque_reservado = (produto.estoque_reservado or 0) + quantidade
 
