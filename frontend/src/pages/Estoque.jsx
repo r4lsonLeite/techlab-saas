@@ -269,7 +269,7 @@ export default function Estoque() {
                 </div>
               </div>
 
-              {/* 🟢 ADICIONADO - LINHA 3: Localização e Fornecedor */}
+              {/* LINHA 3: Localização e Fornecedor */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-slate-400 text-sm mb-1">Localização (Gaveta/Prateleira)</label>
@@ -281,12 +281,21 @@ export default function Estoque() {
                 </div>
               </div>
               
-              {/* LINHA 4: Categoria e Tipo de Serviço */}
+              {/* LINHA 4: Categoria Atualizada */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-slate-400 text-sm mb-1">Categoria</label>
                   <select value={novoProduto.categoria} onChange={e => setNovoProduto({...novoProduto, categoria: e.target.value})} className="w-full p-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 outline-none focus:border-emerald-500">
-                    <option>Peças</option><option>Acessórios</option><option>Serviços</option><option>Aparelhos Usados</option><option>Outros</option>
+                    <option>Peças</option>
+                    <option>Capinhas</option>
+                    <option>Carregadores</option>
+                    <option>Cabos</option>
+                    <option>Películas</option>
+                    <option>Fones</option>
+                    <option>Acessórios</option>
+                    <option>Serviços</option>
+                    <option>Aparelhos Usados</option>
+                    <option>Outros</option>
                   </select>
                 </div>
                 <div className="flex items-center mt-6">
