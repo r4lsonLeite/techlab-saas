@@ -38,7 +38,7 @@ export default function Usuarios() {
       
       if (resposta.ok) {
         const dados = await resposta.json();
-        console.log("🔍 Dados recebidos da Base de Dados:", dados); // Ajuda a depurar no F12
+        console.log("🔍 Dados recebidos da Base de Dados:", dados); 
         
         if (Array.isArray(dados)) {
           setUsuarios(dados); 

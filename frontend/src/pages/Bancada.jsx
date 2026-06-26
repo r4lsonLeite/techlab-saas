@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiFetch, apiUpload } from '../services/api'; // Ajuste o caminho conforme onde você salvou o api.js
+import { apiFetch, apiUpload } from '../services/api'; 
 
 export default function Bancada() {
   const [ordens, setOrdens] = useState([]);
@@ -53,7 +53,7 @@ export default function Bancada() {
     
     setPecasSelecionadas(Array.isArray(os.pecas_selecionadas) ? os.pecas_selecionadas : []);
     
-    // 🚨 5. PREVENÇÃO DE DUPLA CHAMADA DO RELÓGIO
+    
     if (os.status === 'APROVADO - Fila de Conserto' && !os.data_inicio_reparo) {
          iniciarRelogio(os.id);
     }
@@ -110,7 +110,7 @@ export default function Bancada() {
         body: JSON.stringify(payload)
       });
 
-      // 🚨 4. PROTEÇÃO DO UPLOAD DE FOTO (Não quebra silenciosamente)
+      
       if (foto) {
         try {
           const formData = new FormData();

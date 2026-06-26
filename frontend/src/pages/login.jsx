@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { loginFetch } from '../services/api'; // Ajuste o caminho '../services/api' se a pasta for diferente
+import { loginFetch } from '../services/api'; 
 
 export default function Login({ onLoginSucesso }) {
   const [email, setEmail] = useState('');
@@ -13,7 +13,7 @@ export default function Login({ onLoginSucesso }) {
     setCarregando(true);
 
     try { 
-      // Geralmente no FastAPI o padrão é '/token' ou '/auth/login'
+      
       const dados = await loginFetch('/token', email, senha);
       
       // Salva o token fornecido pelo FastAPI
@@ -23,7 +23,7 @@ export default function Login({ onLoginSucesso }) {
 
     } catch (error) {
       console.error("Erro ao conectar:", error);
-      // Pega a mensagem de erro que vem do backend (ex: Senha incorreta) ou erro de rede
+      
       setErro(error.message || 'Erro de conexão. Verifique se as credenciais estão corretas.');
     } finally {
       setCarregando(false);
