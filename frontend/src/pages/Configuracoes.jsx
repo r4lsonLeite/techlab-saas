@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { apiFetch } from '../services/api';
+import { apiFetch, apiUpload, API_BASE_URL } from '../services/api';
 
 export default function Configuracoes() {
   const [carregando, setCarregando] = useState(true);
@@ -48,20 +48,7 @@ export default function Configuracoes() {
     formData.append('file', file);
 
     try {
-      
-      const token = localStorage.getItem('token') || localStorage.getItem('access_token') || localStorage.getItem('techlab_token');
-      
-      const res = await fetch('https://techlab-6vnh.onrender.com/lojas/upload-logo', {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}` 
-        },
-        body: formData
-      });
-      
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Erro no upload");
-
+      const data = await apiUpload('/lojas/upload-logo', formData);
       setEmpresa({ ...empresa, logo_url: data.url });
       alert("✅ Logo enviada com sucesso! Não se esqueça de 'Salvar Configurações'.");
     } catch (erro) {
@@ -121,7 +108,7 @@ export default function Configuracoes() {
 
               <div className="mt-4 flex items-center gap-4">
                 {empresa.logo_url ? (
-                  <img src={`https://techlab-6vnh.onrender.com${empresa.logo_url}`} alt="Logo" className="h-16 w-16 object-contain bg-white rounded-lg p-1 border border-slate-600" />
+                  <img src={`${API_BASE_URL}${empresa.logo_url}`} alt="Logo" className="h-16 w-16 object-contain bg-white rounded-lg p-1 border border-slate-600" />
                 ) : (
                   <div className="w-16 h-16 bg-slate-800 rounded-lg flex items-center justify-center font-bold text-slate-500 border border-slate-600">Sem<br/>Logo</div>
                 )}

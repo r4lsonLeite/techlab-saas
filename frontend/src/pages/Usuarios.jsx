@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../services/api';
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -21,102 +22,49 @@ export default function Usuarios() {
 
   const carregarUsuarios = async () => {
     setCarregando(true);
-    const token = localStorage.getItem('techlab_token');
-
-    if (!token) {
-      alert("Sessão expirada. Por favor, inicie sessão novamente.");
-      setCarregando(false);
-      return;
-    }
-
     try {
-      const resposta = await fetch('https://techlab-6vnh.onrender.com/usuarios', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (resposta.ok) {
-        const dados = await resposta.json();
-        console.log("🔍 Dados recebidos da Base de Dados:", dados); 
-        
-        if (Array.isArray(dados)) {
-          setUsuarios(dados); 
-        } else {
-          console.error("Formato de dados inesperado do servidor:", dados);
-          setUsuarios([]);
-        }
+      const dados = await apiFetch('/usuarios');
+      console.log("🔍 Dados recebidos da Base de Dados:", dados);
+      if (Array.isArray(dados)) {
+        setUsuarios(dados);
       } else {
-        const erroMsg = await resposta.text();
-        console.error('Falha na requisição. Status:', resposta.status, 'Detalhe:', erroMsg);
-        
-        if (resposta.status === 401) {
-           alert("Acesso Negado (401). O seu token expirou ou é inválido. Por favor, clique em 'Sair do Sistema' e inicie sessão novamente.");
-        } else {
-           alert(`Erro do servidor. Status: ${resposta.status}`);
-        }
+        console.error("Formato de dados inesperado do servidor:", dados);
+        setUsuarios([]);
       }
     } catch (erro) {
       console.error("Erro ao buscar utilizadores da base de dados:", erro);
       alert("Erro de ligação com a base de dados.");
     } finally {
-      setCarregando(false); 
+      setCarregando(false);
     }
   };
 
   const salvarUsuario = async (e) => {
     e.preventDefault();
     const payload = { ...formUsuario, loja_id: 1 };
-    const token = localStorage.getItem('techlab_token');
-
     try {
-      const res = await fetch('https://techlab-6vnh.onrender.com/usuarios', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        alert("✅ Acesso criado com sucesso!");
-        setModalAberto(false);
-        setFormUsuario({ nome: '', email: '', senha: '', cargo: 'tecnico' });
-        carregarUsuarios();
-      } else {
-        const erroData = await res.json();
-        alert(`Erro: ${erroData.detail || "Não foi possível registar."}`);
-      }
-    } catch (e) { 
-      console.error("Erro de ligação ao tentar guardar:", e); 
-      alert("Erro de ligação com o servidor.");
+      await apiFetch('/usuarios', { method: 'POST', body: JSON.stringify(payload) });
+      alert("✅ Acesso criado com sucesso!");
+      setModalAberto(false);
+      setFormUsuario({ nome: '', email: '', senha: '', cargo: 'tecnico' });
+      carregarUsuarios();
+    } catch (e) {
+      alert(`Erro: ${e.message || "Não foi possível registar."}`);
     }
   };
 
   
   const salvarComissao = async (idUsuario) => {
-    const token = localStorage.getItem('techlab_token');
     try {
-      const res = await fetch(`https://techlab-6vnh.onrender.com/usuarios/${idUsuario}/comissao`, {
+      await apiFetch(`/usuarios/${idUsuario}/comissao`, {
         method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({ taxa_comissao: parseFloat(novaComissao || 0) })
       });
-
-      if (res.ok) {
-        alert("✅ Comissão atualizada com sucesso!");
-        setEditandoComissaoId(null);
-        carregarUsuarios(); // Atualiza a tela com o valor novo
-      } else {
-        alert("Erro ao tentar atualizar a comissão.");
-      }
+      alert("✅ Comissão atualizada com sucesso!");
+      setEditandoComissaoId(null);
+      carregarUsuarios();
     } catch (e) {
-      console.error("Erro ao salvar comissão:", e);
-      alert("Erro de ligação com o servidor.");
+      alert("Erro ao tentar atualizar a comissão.");
     }
   };
 
@@ -126,74 +74,36 @@ export default function Usuarios() {
       return;
     }
     if (!window.confirm(`Tem a certeza que deseja ELIMINAR o acesso de "${nome}"?`)) return;
-    
-    const token = localStorage.getItem('techlab_token');
-
     try {
-      const res = await fetch(`https://techlab-6vnh.onrender.com/usuarios/${id}`, { 
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        carregarUsuarios(); 
-      } else {
-        alert("Erro ao tentar revogar acesso.");
-      }
-    } catch (e) { 
-      console.error("Erro ao eliminar utilizador:", e); 
-      alert("Erro de ligação com o servidor.");
+      await apiFetch(`/usuarios/${id}`, { method: 'DELETE' });
+      carregarUsuarios();
+    } catch (e) {
+      alert("Erro ao tentar revogar acesso.");
     }
   };
 
   const reativarAcesso = async (id, nome) => {
     if (!window.confirm(`Deseja REATIVAR o acesso de "${nome}" ao sistema?`)) return;
-    
-    const token = localStorage.getItem('techlab_token');
-
     try {
-      const res = await fetch(`https://techlab-6vnh.onrender.com/usuarios/${id}/reativar`, { 
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (res.ok) {
-        carregarUsuarios(); 
-        alert(`✅ Acesso de ${nome} reativado com sucesso!`);
-      } else if (res.status === 404) {
-        alert("⚠️ O Backend ainda não sabe como reativar utilizadores! Precisa de adicionar a rota '/reativar' no seu ficheiro Python.");
-      } else {
-        alert("Erro ao tentar reativar acesso.");
-      }
-    } catch (e) { 
-      console.error("Erro ao reativar utilizador:", e); 
-      alert("Erro de ligação com o servidor.");
+      await apiFetch(`/usuarios/${id}/reativar`, { method: 'PUT' });
+      carregarUsuarios();
+      alert(`✅ Acesso de ${nome} reativado com sucesso!`);
+    } catch (e) {
+      alert(`Erro ao tentar reativar acesso: ${e.message}`);
     }
   };
 
   const resetarSenha = async (id, nome) => {
     const novaSenha = window.prompt(`🔒 Digite a nova palavra-passe provisória para ${nome}:`);
-    if (!novaSenha) return; 
-
-    const token = localStorage.getItem('techlab_token');
-
+    if (!novaSenha) return;
     try {
-      const res = await fetch(`https://techlab-6vnh.onrender.com/usuarios/${id}/senha`, {
+      await apiFetch(`/usuarios/${id}/senha`, {
         method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({ senha: novaSenha })
       });
-
-      if (res.ok) {
-        alert(`✅ Palavra-passe de ${nome} atualizada com sucesso!`);
-      } else {
-        alert("Erro ao tentar atualizar a palavra-passe.");
-      }
-    } catch (e) { 
-      console.error("Erro ao repor palavra-passe:", e); 
-      alert("Erro de ligação com o servidor.");
+      alert(`✅ Palavra-passe de ${nome} atualizada com sucesso!`);
+    } catch (e) {
+      alert("Erro ao tentar atualizar a palavra-passe.");
     }
   };
 
