@@ -153,12 +153,12 @@ export default function Estoque() {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">📦 Gestão de Estoque</h1>
           <p className="text-slate-400">Controle de peças, serviços e mercadorias</p>
         </div>
-        <button 
+        <button
           onClick={() => { setProdutoEditando(null); setIsModalOpen(true); }}
           className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-1"
         >
@@ -258,7 +258,7 @@ export default function Estoque() {
               </div>
 
               {/* LINHA 2: Código de Barras e Marca */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-slate-400 text-sm mb-1">Código (Barras/SKU)</label>
                   <input type="text" value={novoProduto.codigo_barras} onChange={e => setNovoProduto({...novoProduto, codigo_barras: e.target.value})} placeholder="Opcional" className="w-full p-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 outline-none focus:border-emerald-500" />
@@ -270,7 +270,7 @@ export default function Estoque() {
               </div>
 
               {/* LINHA 3: Localização e Fornecedor */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-slate-400 text-sm mb-1">Localização (Gaveta/Prateleira)</label>
                   <input type="text" value={novoProduto.localizacao} onChange={e => setNovoProduto({...novoProduto, localizacao: e.target.value})} placeholder="Ex: Prateleira B2, Gaveta 3" className="w-full p-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 outline-none focus:border-emerald-500" />
@@ -282,7 +282,7 @@ export default function Estoque() {
               </div>
               
               {/* LINHA 4: Categoria Atualizada */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-slate-400 text-sm mb-1">Categoria</label>
                   <select value={novoProduto.categoria} onChange={e => setNovoProduto({...novoProduto, categoria: e.target.value})} className="w-full p-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 outline-none focus:border-emerald-500">
@@ -308,7 +308,7 @@ export default function Estoque() {
 
               {/* LINHA 5: Quantidades (Apenas se não for Serviço) */}
               {!novoProduto.is_servico && (
-                <div className="grid grid-cols-2 gap-4 bg-[#0f172a] p-4 rounded-xl border border-slate-700">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-[#0f172a] p-4 rounded-xl border border-slate-700">
                   <div>
                     <label className="block text-slate-400 text-sm mb-1">Qtd em Estoque</label>
                     <input type="number" min="0" value={novoProduto.estoque_atual} onChange={e => setNovoProduto({...novoProduto, estoque_atual: e.target.value})} className="w-full p-3 rounded-xl bg-[#1e293b] text-white border border-slate-600 outline-none focus:border-emerald-500" />
@@ -321,7 +321,7 @@ export default function Estoque() {
               )}
 
               {/* LINHA 6: Preços */}
-              <div className="grid grid-cols-2 gap-4 border-t border-slate-700 pt-4 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-700 pt-4 mt-4">
                 <div>
                   <label className="block text-slate-400 text-sm mb-1">Preço de Custo (R$)</label>
                   <input type="number" step="0.01" value={novoProduto.preco_custo} onChange={e => setNovoProduto({...novoProduto, preco_custo: e.target.value})} className="w-full p-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 outline-none focus:border-emerald-500" />

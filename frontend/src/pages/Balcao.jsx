@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '../services/api'; 
+import { apiFetch, API_BASE_URL } from '../services/api';
 
 export default function Balcao({ abrirOSNaConsulta }) {
   const estadoInicial = {
@@ -42,9 +42,8 @@ export default function Balcao({ abrirOSNaConsulta }) {
     iframe.style.display = 'none';
     document.body.appendChild(iframe);
     
-    const urlBase = 'http://127.0.0.1:8000';
-    const logoHtml = lojaConfig.logo_url 
-      ? `<img src="${urlBase}${lojaConfig.logo_url}" class="logo" />` 
+    const logoHtml = lojaConfig.logo_url
+      ? `<img src="${API_BASE_URL}${lojaConfig.logo_url}" class="logo" />`
       : `<h1 class="titulo">${lojaConfig.nome || 'TECHLAB'}</h1>`;
 
     const termosGarantia = lojaConfig.termos_garantia || '1. Orçamentos válidos por 5 dias. 2. Aparelhos não retirados em 90 dias serão descartados. 3. Garantia de 90 dias p/ peças trocadas. 4. Não nos responsabilizamos por perda de dados.';

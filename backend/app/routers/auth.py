@@ -17,7 +17,9 @@ def login_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends
     usuario = db.query(models.Usuario).filter(models.Usuario.email == form_data.username).first()
     if not usuario or not security.verify_password(form_data.password, usuario.senha_hash):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
-    
+    if not usuario.ativo:
+        raise HTTPException(status_code=401, detail="Usuário inativo. Contate o administrador.")
+
     token_data = {"sub": usuario.email, "cargo": usuario.cargo, "nome": usuario.nome}
     return {"access_token": security.create_access_token(data=token_data), "token_type": "bearer"}
 
@@ -27,6 +29,8 @@ def login_json(request: Request, credenciais: schemas.UsuarioLogin, db: Session 
     usuario = db.query(models.Usuario).filter(models.Usuario.email == credenciais.email).first()
     if not usuario or not security.verify_password(credenciais.senha, usuario.senha_hash):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
+    if not usuario.ativo:
+        raise HTTPException(status_code=401, detail="Usuário inativo. Contate o administrador.")
 
     token_data = {"sub": usuario.email, "cargo": usuario.cargo, "nome": usuario.nome}
     return {

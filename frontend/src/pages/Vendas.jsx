@@ -75,7 +75,7 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
 
       setTemMais(dados.length >= 24);
     } catch (e) {
-      mostrarToast("Erro ao buscar catálogo de produtos", "erro");
+      mostrarToast(`Erro ao buscar catálogo de produtos: ${e.message}`, "erro");
     } finally {
       setCarregandoProdutos(false);
       setCarregandoMais(false);
@@ -190,8 +190,8 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
   };
 
   return (
-    <div className="flex h-full w-full bg-[#0f172a] relative">
-      
+    <div className="flex h-full w-full bg-[#0f172a] relative overflow-x-auto">
+
       {toast && (
         <div className={`fixed top-8 right-8 px-6 py-4 rounded-xl shadow-2xl z-[100] flex items-center gap-3 text-white font-bold transition-all animate-bounce ${toast.tipo === 'sucesso' ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-red-500 shadow-red-500/20'}`}>
           <span className="text-xl">{toast.tipo === 'sucesso' ? '✅' : '🚨'}</span>
@@ -199,7 +199,7 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
         </div>
       )}
 
-      <div className="flex-1 flex flex-col p-6 overflow-hidden">
+      <div className="flex-1 min-w-[420px] flex flex-col p-6 overflow-hidden">
         <div className="mb-4 space-y-4">
           <div className="flex gap-4 items-center">
             <div className="flex-1 relative">
@@ -294,7 +294,7 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
         </div>
       </div>
 
-      <div className="w-80 bg-[#1e293b] border-l border-r border-slate-700 flex flex-col shadow-xl z-10">
+      <div className="w-80 min-w-[280px] shrink-0 bg-[#1e293b] border-l border-r border-slate-700 flex flex-col shadow-xl z-10">
         <div className="p-4 border-b border-slate-700 flex items-center gap-2">
           <span className="text-xl">🛒</span>
           <h2 className="text-lg font-bold text-white">Caixa Aberto</h2>
@@ -363,7 +363,7 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
         </div>
       </div>
 
-      <div className="w-64 bg-[#1e293b] flex flex-col">
+      <div className="w-64 min-w-[220px] shrink-0 bg-[#1e293b] flex flex-col">
         <div className="p-4 bg-emerald-600/10 border-b border-emerald-500/20">
           <h2 className="text-sm font-bold text-emerald-400 flex items-center gap-2">✅ Prontos para Entrega</h2>
         </div>

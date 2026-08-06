@@ -115,7 +115,7 @@ export default function Financeiro() {
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* CABEÇALHO E FILTROS */}
-        <div className="flex justify-between items-end mb-4">
+        <div className="flex flex-wrap justify-between items-end gap-4 mb-4">
           <div>
             <h1 className="text-3xl font-bold text-white">Relatórios Financeiros</h1>
             <p className="text-slate-400 mt-1">Análise detalhada de DRE, receitas e comissões da equipe</p>
@@ -126,7 +126,7 @@ export default function Financeiro() {
         </div>
 
         {/* PÍLULAS DE FILTRO */}
-        <div className="flex gap-2 mb-6 no-print">
+        <div className="flex flex-wrap gap-2 mb-6 no-print">
           {['Este Mês', 'Últimos 3 Meses', 'Últimos 6 Meses', 'Este Ano'].map(f => (
             <button 
               key={f} onClick={() => setFiltro(f)}
@@ -167,7 +167,7 @@ export default function Financeiro() {
 
         {/* 2º ANDAR: GESTÃO DE COMISSÕES DA EQUIPE (MOVIDO PARA CIMA PELA IMPORTÂNCIA) */}
         <div className="bg-[#1e293b] rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
-          <div className="p-6 border-b border-slate-700 flex justify-between items-center">
+          <div className="p-6 border-b border-slate-700 flex flex-wrap justify-between items-center gap-4">
             <div>
               <h3 className="text-slate-300 font-bold text-lg flex items-center gap-2"><span>👥</span> Folha de Pagamento & Fechamento de Comissões</h3>
               <p className="text-slate-500 text-xs mt-1">Insira vales, adiantamentos ou peças quebradas na coluna de Descontos.</p>
