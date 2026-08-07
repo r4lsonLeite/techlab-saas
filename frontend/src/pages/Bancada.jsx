@@ -169,10 +169,10 @@ export default function Bancada() {
   const pecasFiltradas = estoquePecas.filter(p => p.nome.toLowerCase().includes(buscaPeca.toLowerCase()));
 
   return (
-    <div className="flex h-full w-full bg-[#0f172a] overflow-hidden">
-      
+    <div className="flex h-full w-full bg-[#0f172a] overflow-x-auto">
+
       {/* PAINEL 1: LUPA DE PEÇAS E "CARRINHO DO TÉCNICO" */}
-      <div className="w-1/4 bg-[#1e293b] border-r border-slate-700 flex flex-col z-10 shadow-xl overflow-hidden">
+      <div className="w-1/4 min-w-[260px] bg-[#1e293b] border-r border-slate-700 flex flex-col z-10 shadow-xl overflow-hidden shrink-0">
         
         <div className="p-4 border-b border-slate-700">
           <h2 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
@@ -253,7 +253,7 @@ export default function Bancada() {
       </div>
 
       {/* PAINEL 2: FILA DA BANCADA */}
-      <div className="w-1/4 bg-[#1e293b] border-r border-slate-700 flex flex-col z-10 shadow-xl">
+      <div className="w-1/4 min-w-[260px] bg-[#1e293b] border-r border-slate-700 flex flex-col z-10 shadow-xl shrink-0">
         <div className="p-4 border-b border-slate-700 bg-slate-800/50">
           <h2 className="text-sm font-bold text-white flex items-center gap-2">
             <span>🔧</span> Fila de Trabalho
@@ -299,7 +299,7 @@ export default function Bancada() {
       </div>
 
       {/* PAINEL 3: ÁREA DO TÉCNICO */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div className="flex-1 min-w-[380px] flex flex-col h-full overflow-hidden">
         {!osAtiva ? (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
             <span className="text-6xl mb-4">🛠️</span>

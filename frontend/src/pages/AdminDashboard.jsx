@@ -89,7 +89,7 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* CABEÇALHO */}
-        <div className="flex justify-between items-end mb-6 border-b border-slate-700/50 pb-4">
+        <div className="flex flex-wrap justify-between items-end gap-4 mb-6 border-b border-slate-700/50 pb-4">
           <div>
             <h1 className="text-3xl font-bold text-white flex items-center gap-3">
               <span>📊</span> Dashboard Administrativo

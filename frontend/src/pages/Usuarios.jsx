@@ -24,7 +24,6 @@ export default function Usuarios() {
     setCarregando(true);
     try {
       const dados = await apiFetch('/usuarios');
-      console.log("🔍 Dados recebidos da Base de Dados:", dados);
       if (Array.isArray(dados)) {
         setUsuarios(dados);
       } else {
@@ -64,7 +63,7 @@ export default function Usuarios() {
       setEditandoComissaoId(null);
       carregarUsuarios();
     } catch (e) {
-      alert("Erro ao tentar atualizar a comissão.");
+      alert(`Erro ao tentar atualizar a comissão: ${e.message}`);
     }
   };
 
@@ -78,7 +77,7 @@ export default function Usuarios() {
       await apiFetch(`/usuarios/${id}`, { method: 'DELETE' });
       carregarUsuarios();
     } catch (e) {
-      alert("Erro ao tentar revogar acesso.");
+      alert(`Erro ao tentar revogar acesso: ${e.message}`);
     }
   };
 
@@ -103,7 +102,7 @@ export default function Usuarios() {
       });
       alert(`✅ Palavra-passe de ${nome} atualizada com sucesso!`);
     } catch (e) {
-      alert("Erro ao tentar atualizar a palavra-passe.");
+      alert(`Erro ao tentar atualizar a palavra-passe: ${e.message}`);
     }
   };
 
@@ -123,12 +122,12 @@ export default function Usuarios() {
     <div className="p-8 max-w-7xl mx-auto w-full h-full overflow-y-auto custom-scrollbar">
       
       {/* CABEÇALHO */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white mb-1">Controle de Equipe</h1>
           <p className="text-slate-400 text-sm">Faça a gestão dos acessos ao sistema e dos cargos dos funcionários.</p>
         </div>
-        <button 
+        <button
           onClick={() => setModalAberto(true)}
           className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-lg font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2"
         >
@@ -326,7 +325,7 @@ export default function Usuarios() {
                 <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">E-mail</label>
                 <input type="email" required value={formUsuario.email} onChange={e => setFormUsuario({...formUsuario, email: e.target.value})} className="w-full p-2.5 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none text-sm" placeholder="joao@techlab.com" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Palavra-passe Provisória</label>
                   <input type="text" required value={formUsuario.senha} onChange={e => setFormUsuario({...formUsuario, senha: e.target.value})} className="w-full p-2.5 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none text-sm" placeholder="Min. 6 letras" />

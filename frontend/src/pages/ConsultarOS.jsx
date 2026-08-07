@@ -112,9 +112,9 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
         if (osDesejada) setOsAtiva(osDesejada);
         setOsIdParaAbrir(null);
       }
-    } catch (erro) { 
-      mostrarToast("Erro ao buscar OS", "erro"); 
-    } finally { 
+    } catch (erro) {
+      mostrarToast(`Erro ao buscar OS: ${erro.message}`, "erro");
+    } finally {
       setCarregando(false); setCarregandoMais(false);
     }
   };
@@ -240,8 +240,8 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
   };
 
   return (
-    <div className="flex h-full w-full bg-[#0f172a] relative">
-      
+    <div className="flex h-full w-full bg-[#0f172a] relative overflow-x-auto">
+
       {toast && (
         <div className={`fixed top-8 right-8 px-6 py-4 rounded-xl shadow-2xl z-[100] flex items-center gap-3 text-white font-bold transition-all animate-bounce ${toast.tipo === 'sucesso' ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-red-500 shadow-red-500/20'}`}>
           <span className="text-xl">{toast.tipo === 'sucesso' ? '✅' : '🚨'}</span>
@@ -249,7 +249,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
         </div>
       )}
 
-      <div className="w-1/3 bg-[#1e293b] border-r border-slate-700 flex flex-col z-10 shadow-xl">
+      <div className="w-1/3 min-w-[300px] shrink-0 bg-[#1e293b] border-r border-slate-700 flex flex-col z-10 shadow-xl">
         <div className="p-6 border-b border-slate-700">
           <h2 className="text-2xl font-bold text-white mb-4">Consultar OS</h2>
           <div className="relative">
@@ -287,12 +287,12 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0f172a]">
+      <div className="flex-1 min-w-[380px] flex flex-col h-full overflow-hidden bg-[#0f172a]">
         {!osAtiva ? (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-500"><span className="text-6xl mb-4">📂</span><h2 className="text-xl font-medium">Selecione uma OS</h2></div>
         ) : (
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          <div className="flex justify-between items-center border-b border-slate-700 pb-6 mb-6 mt-2">
+          <div className="flex flex-wrap justify-between items-center gap-4 border-b border-slate-700 pb-6 mb-6 mt-2">
             <h1 className="text-3xl font-bold text-white flex items-center gap-3">
               OS #{osAtiva.id}
               <span className={`text-sm font-bold border px-3 py-1 rounded-full ${osAtiva.status.includes('Aguardando') ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' : 'bg-slate-800 text-slate-300 border-slate-600'}`}>{osAtiva.status}</span>
@@ -441,8 +441,8 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                   <label className="block text-slate-400 text-sm font-bold mb-2">Observações para o Técnico</label>
                   <textarea value={obsBalcao} onChange={(e) => setObsBalcao(e.target.value)} disabled={processando} className="w-full p-4 rounded-xl bg-[#0f172a] text-white border-2 border-slate-600 focus:border-purple-500 resize-none disabled:opacity-50" rows="2" placeholder="Ex: Cliente tem pressa..." />
                 </div>
-                <div className="flex gap-6 items-end relative z-10">
-                  <div className="flex-1">
+                <div className="flex flex-wrap gap-4 md:gap-6 items-end relative z-10">
+                  <div className="flex-1 min-w-[200px]">
                     <label className="block text-slate-400 text-sm font-bold mb-3">Valor Final Negociado (R$)</label>
                     <input type="number" value={valorDigitado} onChange={(e) => setValorDigitado(e.target.value)} disabled={processando} className="w-full p-4 rounded-xl bg-[#0f172a] text-white text-xl font-bold border-2 border-emerald-500 focus:outline-none disabled:opacity-50" />
                   </div>

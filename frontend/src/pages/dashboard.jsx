@@ -11,12 +11,13 @@ import ConsultarOS from './ConsultarOS';
 
 export default function Dashboard({ onLogout }) {
   
-  const [cargo, setCargo] = useState(''); 
+  const [cargo, setCargo] = useState('');
   const [nomeUsuario, setNomeUsuario] = useState('');
   const [telaAtiva, setTelaAtiva] = useState('');
-  
+
   const [osIdParaAbrir, setOsIdParaAbrir] = useState(null);
   const [osParaPDV, setOsParaPDV] = useState(null);
+  const [menuAberto, setMenuAberto] = useState(false);
 
   useEffect(() => {
     
@@ -72,16 +73,55 @@ const menus = [
     setTelaAtiva('vendas');
   };
 
+  const selecionarMenu = (id) => {
+    setTelaAtiva(id);
+    setMenuAberto(false);
+  };
+
   return (
     <div className="flex h-screen bg-[#0f172a] text-white font-sans overflow-hidden">
-      
+
+      {/* TOPO MOBILE: botão para abrir o menu (some em telas grandes) */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-[#1e293b] border-b border-slate-700 flex items-center justify-between px-4 z-30">
+        <button
+          onClick={() => setMenuAberto(true)}
+          aria-label="Abrir menu"
+          className="text-white p-2 -ml-2 rounded-lg hover:bg-slate-800 transition-colors"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+        </button>
+        <h2 className="text-lg font-bold text-emerald-400 tracking-wider">TechLab</h2>
+        <div className="w-10" />
+      </div>
+
+      {/* OVERLAY (mobile) por trás do menu quando aberto */}
+      {menuAberto && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/60 z-30"
+          onClick={() => setMenuAberto(false)}
+        />
+      )}
+
       {/* MENU LATERAL */}
-      <aside className="w-64 bg-[#1e293b] border-r border-slate-700 flex flex-col shadow-2xl z-10">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-emerald-400 tracking-wider">TechLab</h2>
-          <p className="text-slate-400 text-sm mt-1">SaaS Management</p>
+      <aside
+        className={`w-64 bg-[#1e293b] border-r border-slate-700 flex flex-col shadow-2xl z-40 fixed inset-y-0 left-0 transform transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
+          menuAberto ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="p-6 flex items-start justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-emerald-400 tracking-wider">TechLab</h2>
+            <p className="text-slate-400 text-sm mt-1">SaaS Management</p>
+          </div>
+          <button
+            onClick={() => setMenuAberto(false)}
+            aria-label="Fechar menu"
+            className="lg:hidden text-slate-400 hover:text-white p-1 -mr-2"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
         </div>
-        
+
         {/* IDENTIFICAÇÃO DINÂMICA DO USUÁRIO */}
         <div className="px-6 pb-4 border-b border-slate-700/50 mb-4">
           <p className="text-sm text-slate-300">
@@ -94,12 +134,12 @@ const menus = [
 
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
           {menusPermitidos.map((menu) => (
-            <button 
+            <button
               key={menu.id}
-              onClick={() => setTelaAtiva(menu.id)} 
+              onClick={() => selecionarMenu(menu.id)}
               className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all ${
-                telaAtiva === menu.id 
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                telaAtiva === menu.id
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                 : 'text-slate-300 hover:bg-slate-800 border border-transparent'
               }`}
             >
@@ -109,8 +149,8 @@ const menus = [
         </nav>
 
         <div className="p-4 border-t border-slate-700">
-          <button 
-            onClick={onLogout} 
+          <button
+            onClick={onLogout}
             className="mt-auto w-full bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white font-bold py-3 rounded-xl transition-all border border-red-500/20"
           >
             Sair do Sistema
@@ -119,7 +159,7 @@ const menus = [
       </aside>
 
       {/* ÁREA CENTRAL */}
-      <main className="flex-1 overflow-y-auto bg-[#0f172a]">
+      <main className="flex-1 overflow-y-auto bg-[#0f172a] pt-14 lg:pt-0">
         {telaAtiva === 'entrada-os' && <Balcao abrirOSNaConsulta={abrirOSNaConsulta} />}
         {telaAtiva === 'consultar-os' && <ConsultarOS cargo={cargo} osIdParaAbrir={osIdParaAbrir} setOsIdParaAbrir={setOsIdParaAbrir} abrirPDVComOS={abrirPDVComOS} />}
         {telaAtiva === 'vendas' && <Vendas osParaPDV={osParaPDV} setOsParaPDV={setOsParaPDV} />}
