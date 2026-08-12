@@ -31,6 +31,7 @@ class UsuarioBase(BaseModel):
     email: str
     loja_id: int
     ativo: Optional[bool] = True
+    cargo: str = "tecnico"
 
 
 class UsuarioCreate(UsuarioBase):

@@ -15,6 +15,9 @@ router = APIRouter(prefix="/usuarios", tags=["Usuários e Equipe"])
 class ComissaoUpdate(BaseModel):
     taxa_comissao: float
 
+class SenhaUpdate(BaseModel):
+    senha: str
+
 @router.post("", response_model=schemas.UsuarioResponse)
 def criar_usuario(usuario: schemas.UsuarioCreate, db: Session = Depends(get_db), admin=Depends(admin_required)):
     if db.query(models.Usuario).filter(models.Usuario.email == usuario.email).first():
@@ -44,6 +47,14 @@ def reativar_usuario(id: int, db: Session = Depends(get_db), admin=Depends(admin
     u.ativo = True
     db.commit()
     return {"mensagem": f"Acesso de {u.nome} reativado"}
+
+@router.put("/{id}/senha")
+def resetar_senha(id: int, payload: SenhaUpdate, db: Session = Depends(get_db), admin=Depends(admin_required)):
+    u = db.query(models.Usuario).filter(models.Usuario.id == id, models.Usuario.loja_id == admin.loja_id).first()
+    if not u: raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+    u.senha_hash = security.get_password_hash(payload.senha)
+    db.commit()
+    return {"mensagem": f"Palavra-passe de {u.nome} atualizada"}
 
 @router.get("")
 def listar_usuarios_com_metricas(skip: int = 0, limit: int = 50, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
