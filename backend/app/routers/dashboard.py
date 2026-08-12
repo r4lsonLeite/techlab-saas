@@ -27,29 +27,40 @@ def obter_metricas_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
     
     v = db.query(func.sum(models.Venda.valor_total)).filter(models.Venda.loja_id == admin.loja_id).scalar() or 0
     o = db.query(func.sum(models.OrdemServico.valor_orcamento)).filter(models.OrdemServico.loja_id == admin.loja_id, models.OrdemServico.status == StatusOS.ENTREGUE.value).scalar() or 0
-    
+
+    alertas_estoque = db.query(func.count(models.Produto.id)).filter(
+        models.Produto.loja_id == admin.loja_id,
+        models.Produto.ativo == True,
+        models.Produto.is_servico == False,
+        models.Produto.estoque_atual <= models.Produto.estoque_minimo
+    ).scalar() or 0
+
     resultado = {
-        "faturamento_total": float(v) + float(o), 
+        "faturamento_total": float(v) + float(o),
+        "total_vendas_balcao": float(v),
+        "total_servicos_os": float(o),
+        "alertas_estoque": alertas_estoque,
         "os_pendentes": db.query(func.count(models.OrdemServico.id)).filter(models.OrdemServico.loja_id == admin.loja_id, models.OrdemServico.status.notin_([StatusOS.ENTREGUE.value, StatusOS.CANCELADA.value])).scalar()
     }
 
-   
+
     CACHE_DADOS[chave_cache] = {'dados': resultado, 'tempo': time.time()}
     return resultado
 
 @router.get("/graficos")
-def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_required)):
-    chave_cache = f"graficos_loja_{admin.loja_id}"
-    
-  
+def obter_graficos_dashboard(meses: int = 6, db: Session = Depends(get_db), admin=Depends(admin_required)):
+    meses = max(1, min(meses, 24))
+    chave_cache = f"graficos_loja_{admin.loja_id}_{meses}"
+
+
     if chave_cache in CACHE_DADOS:
         if time.time() - CACHE_DADOS[chave_cache]['tempo'] < TEMPO_EXPIRACAO_SEGUNDOS:
             return CACHE_DADOS[chave_cache]['dados']
 
     hoje = datetime.now(timezone.utc)
-    seis_meses_atras = hoje - timedelta(days=180)
+    seis_meses_atras = hoje - timedelta(days=meses * 30)
 
-    
+
     vendas_mensais = db.query(
         func.to_char(models.Venda.data_venda, 'MM/YYYY').label('mes'),
         func.sum(models.Venda.valor_total).label('receita'),
@@ -115,8 +126,19 @@ def obter_graficos_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
 
 @router.post("/limpar-cache")
 def limpar_cache(admin=Depends(admin_required)):
-    chave_metricas = f"metricas_loja_{admin.loja_id}"
-    chave_graficos = f"graficos_loja_{admin.loja_id}"
-    if chave_metricas in CACHE_DADOS: del CACHE_DADOS[chave_metricas]
-    if chave_graficos in CACHE_DADOS: del CACHE_DADOS[chave_graficos]
+    prefixos = (f"metricas_loja_{admin.loja_id}", f"graficos_loja_{admin.loja_id}")
+    for chave in list(CACHE_DADOS.keys()):
+        if chave.startswith(prefixos):
+            del CACHE_DADOS[chave]
     return {"mensagem": "Cache limpo. Os próximos dados serão calculados em tempo real."}
+
+
+@router.get("/estoque-critico")
+def obter_estoque_critico(limit: int = 20, db: Session = Depends(get_db), admin=Depends(admin_required)):
+    produtos = db.query(models.Produto).filter(
+        models.Produto.loja_id == admin.loja_id,
+        models.Produto.ativo == True,
+        models.Produto.is_servico == False,
+        models.Produto.estoque_atual <= models.Produto.estoque_minimo
+    ).order_by(models.Produto.estoque_atual.asc()).limit(limit).all()
+    return produtos

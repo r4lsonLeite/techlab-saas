@@ -27,15 +27,22 @@ export default function Financeiro() {
   const [equipe, setEquipe] = useState([]);
   const [descontos, setDescontos] = useState({}); 
 
+  const mesesDoFiltro = (f) => ({
+    'Este Mês': 1,
+    'Últimos 3 Meses': 3,
+    'Últimos 6 Meses': 6,
+    'Este Ano': 12,
+  }[f] || 6);
+
   useEffect(() => {
     const carregarDados = async () => {
       setCarregando(true);
       setErro(null);
-      
+
       try {
         const [dadosMetricas, dadosGraficos, dadosEquipe] = await Promise.all([
           apiFetch('/dashboard/metricas'),
-          apiFetch('/dashboard/graficos'),
+          apiFetch(`/dashboard/graficos?meses=${mesesDoFiltro(filtro)}`),
           apiFetch('/usuarios')
         ]);
 

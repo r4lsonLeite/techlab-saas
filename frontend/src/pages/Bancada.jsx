@@ -48,12 +48,20 @@ export default function Bancada() {
   const selecionarOS = (os) => {
     setOsAtiva(os);
     setLaudo(os.laudo_tecnico || "");
-    setPecasUsadasTexto(os.pecas_necessarias || ""); 
+    setPecasUsadasTexto(os.pecas_necessarias || "");
     setFoto(null);
-    
-    setPecasSelecionadas(Array.isArray(os.pecas_selecionadas) ? os.pecas_selecionadas : []);
-    
-    
+
+    // A API não devolve "pecas_selecionadas" (isso é só o formato de entrada do PUT);
+    // as peças já vinculadas vêm em "itens". Precisamos converter de volta pro
+    // formato do carrinho para não perder o que já foi salvo ao reabrir a OS.
+    const itensExistentes = Array.isArray(os.itens) ? os.itens : [];
+    setPecasSelecionadas(itensExistentes.map(item => ({
+      produto_id: item.produto_id,
+      nome: item.nome_produto,
+      qtd: item.quantidade,
+      preco: Number(item.preco_unitario || 0),
+    })));
+
     if (os.status === 'APROVADO - Fila de Conserto' && !os.data_inicio_reparo) {
          iniciarRelogio(os.id);
     }
@@ -345,15 +353,14 @@ export default function Bancada() {
                     {osAtiva.defeito}
                 </div>
                 
-                {/*  */}
-                {osAtiva.senha && (
+                {osAtiva.senha_aparelho && (
                   <details className="mt-4 group">
                       <summary className="text-slate-300 text-sm flex items-center gap-2 cursor-pointer list-none">
-                          <span className="font-bold text-slate-500 uppercase text-xs">🔒 Senha do Aparelho</span> 
+                          <span className="font-bold text-slate-500 uppercase text-xs">🔒 Senha do Aparelho</span>
                           <span className="text-xs text-blue-400 group-open:hidden">(Clique para revelar)</span>
                       </summary>
                       <p className="mt-2 font-mono bg-slate-800 border border-slate-600 px-3 py-2 rounded text-lg text-emerald-400 inline-block">
-                          {osAtiva.senha}
+                          {osAtiva.senha_aparelho}
                       </p>
                   </details>
                 )}
@@ -411,13 +418,19 @@ export default function Bancada() {
 
                 {osAtiva.status === 'APROVADO - Fila de Conserto' && (
                   <>
-                    <button onClick={() => handleAtualizarOS('Aguardando Reavaliação')} className="flex-1 bg-[#1e293b] hover:bg-amber-900/30 text-amber-500 border border-amber-500/30 font-bold py-4 rounded-xl shadow-lg transition-all" title="Devolve para o balcão entrar em contato com o cliente">
+                    <button onClick={() => handleAtualizarOS('Aguardando Cliente')} className="flex-1 bg-[#1e293b] hover:bg-amber-900/30 text-amber-500 border border-amber-500/30 font-bold py-4 rounded-xl shadow-lg transition-all" title="Devolve para o balcão entrar em contato com o cliente">
                       ⚠️ Pausar / Problema Complexo
                     </button>
                     <button onClick={() => handleAtualizarOS('Pronto para Retirada')} className="flex-2 w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-[0_4px_20px_rgba(16,185,129,0.3)] transition-all text-lg flex items-center justify-center gap-2 hover:-translate-y-1">
                       <span>✅</span> Finalizar Serviço (Travar Tempo)
                     </button>
                   </>
+                )}
+
+                {osAtiva.status === 'Aguardando Peça' && (
+                  <button onClick={() => handleAtualizarOS('APROVADO - Fila de Conserto')} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all text-lg hover:-translate-y-1">
+                    📦 Peça Chegou — Voltar para a Fila de Conserto
+                  </button>
                 )}
               </div>
 

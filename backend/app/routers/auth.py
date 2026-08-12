@@ -20,7 +20,7 @@ def login_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends
     if not usuario.ativo:
         raise HTTPException(status_code=401, detail="Usuário inativo. Contate o administrador.")
 
-    token_data = {"sub": usuario.email, "cargo": usuario.cargo, "nome": usuario.nome}
+    token_data = {"sub": usuario.email, "cargo": usuario.cargo, "nome": usuario.nome, "id": usuario.id}
     return {"access_token": security.create_access_token(data=token_data), "token_type": "bearer"}
 
 @router.post("/login")
@@ -32,7 +32,7 @@ def login_json(request: Request, credenciais: schemas.UsuarioLogin, db: Session 
     if not usuario.ativo:
         raise HTTPException(status_code=401, detail="Usuário inativo. Contate o administrador.")
 
-    token_data = {"sub": usuario.email, "cargo": usuario.cargo, "nome": usuario.nome}
+    token_data = {"sub": usuario.email, "cargo": usuario.cargo, "nome": usuario.nome, "id": usuario.id}
     return {
         "id": usuario.id, "nome": usuario.nome, "cargo": usuario.cargo, "email": usuario.email,
         "access_token": security.create_access_token(data=token_data), "token_type": "bearer"

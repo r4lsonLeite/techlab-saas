@@ -15,6 +15,11 @@ const isTokenValido = (token) => {
 function App() {
   const [estaLogado, setEstaLogado] = useState(false);
 
+  const handleLogout = () => {
+    localStorage.removeItem('techlab_token');
+    setEstaLogado(false);
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('techlab_token');
 
@@ -24,12 +29,13 @@ function App() {
       localStorage.removeItem('techlab_token');
       setEstaLogado(false);
     }
-  }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('techlab_token');
-    setEstaLogado(false);
-  };
+    // Qualquer chamada à API que receber 401 (token expirado/inválido no
+    // meio da sessão) dispara este evento para devolver o usuário ao login,
+    // em vez de deixar a tela travada em erros de "Sessão expirada".
+    window.addEventListener('techlab:sessao-expirada', handleLogout);
+    return () => window.removeEventListener('techlab:sessao-expirada', handleLogout);
+  }, []);
 
   if (!estaLogado) {
     

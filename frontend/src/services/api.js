@@ -1,5 +1,23 @@
-export const API_BASE_URL = 'https://techlab-6vnh.onrender.com'; 
-const API_URL = 'https://techlab-6vnh.onrender.com';
+// Em desenvolvimento local (npm run dev), aponta por padrão para o backend
+// rodando em localhost. Em produção, defina VITE_API_URL no ambiente de
+// build (Vercel etc.) para apontar para o backend real.
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://techlab-6vnh.onrender.com';
+const API_URL = API_BASE_URL;
+
+// Extrai a mensagem de erro do corpo da resposta da API. O FastAPI devolve
+// JSON no formato {"detail": "..."}; se o corpo não for JSON (ex: erro de
+// proxy/gateway), cai para o texto puro.
+const extrairMensagemErro = async (res) => {
+  const texto = await res.text();
+  try {
+    const json = JSON.parse(texto);
+    if (typeof json.detail === 'string') return json.detail;
+    if (Array.isArray(json.detail)) return json.detail.map(d => d.msg).join(', ');
+    return texto;
+  } catch {
+    return texto || `Erro ${res.status} de comunicação com o servidor.`;
+  }
+};
 
 // ==============================
 // CORREÇÃO: FUNÇÃO EXCLUSIVA PARA LOGIN
@@ -19,8 +37,7 @@ export const loginFetch = async (endpoint, email, senha) => {
   });
 
   if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(errorText || "Erro de comunicação com o servidor.");
+    throw new Error(await extrairMensagemErro(res));
   }
 
   return res.json();
@@ -46,9 +63,13 @@ export const apiFetch = async (endpoint, options = {}) => {
     }
   });
 
+  if (res.status === 401) {
+    localStorage.removeItem('techlab_token');
+    window.dispatchEvent(new Event('techlab:sessao-expirada'));
+  }
+
   if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(errorText || "Erro de comunicação com o servidor.");
+    throw new Error(await extrairMensagemErro(res));
   }
 
   if (res.status === 204) return null;
@@ -66,7 +87,12 @@ export const apiUpload = async (endpoint, formData) => {
     body: formData
   });
 
-  if (!res.ok) throw new Error(await res.text());
+  if (res.status === 401) {
+    localStorage.removeItem('techlab_token');
+    window.dispatchEvent(new Event('techlab:sessao-expirada'));
+  }
+
+  if (!res.ok) throw new Error(await extrairMensagemErro(res));
   return res.json();
 };
 

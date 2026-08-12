@@ -33,23 +33,23 @@ export default function AdminDashboard() {
     try {
      
       
-      const [dadosMetricas, dadosGraficos, listaOS, listaProdutos] = await Promise.all([
+      const [dadosMetricas, dadosGraficos, listaOS, criticos] = await Promise.all([
         apiFetch('/dashboard/metricas').catch(() => ({})),
         apiFetch('/dashboard/graficos').catch(() => ({ financeiro: [], categorias: [] })),
         apiFetch('/ordens-servico').catch(() => []),
-        apiFetch('/produtos').catch(() => [])
+        // Endpoint dedicado: consulta TODO o catálogo no banco (não só os
+        // primeiros 50 produtos), então itens antigos com estoque baixo
+        // continuam aparecendo mesmo em lojas com catálogo grande.
+        apiFetch('/dashboard/estoque-critico?limit=5').catch(() => [])
       ]);
 
       setDadosFinanceiros(dadosGraficos.financeiro || []);
       setDadosCategorias(dadosGraficos.categorias || []);
 
-      
+
       const osRecentes = [...listaOS].sort((a, b) => b.id - a.id).slice(0, 5);
       setUltimasOS(osRecentes);
 
-      
-      
-      const criticos = listaProdutos.filter(p => p.estoque_atual <= p.estoque_minimo).slice(0, 5);
       setProdutosCriticos(criticos);
 
       

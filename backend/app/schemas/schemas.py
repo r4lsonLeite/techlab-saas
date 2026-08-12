@@ -65,12 +65,23 @@ class TokenData(BaseModel):
 class ClienteCreate(BaseModel):
     nome: str
     telefone: str
+    email: Optional[str] = None
+    cpf: Optional[str] = None
+
+
+class ClienteUpdate(BaseModel):
+    nome: Optional[str] = None
+    telefone: Optional[str] = None
+    email: Optional[str] = None
+    cpf: Optional[str] = None
 
 
 class ClienteResponse(BaseModel):
     id: int
     nome: str
     telefone: str
+    email: Optional[str] = None
+    cpf: Optional[str] = None
     loja_id: int
 
     class Config:
@@ -90,6 +101,7 @@ class OSCreate(BaseModel):
     imei: Optional[str] = None
     senha_aparelho: Optional[str] = None
     acessorios: Optional[str] = None
+    checklist: Optional[str] = None
     prioridade: Optional[str] = "Normal"
 
 

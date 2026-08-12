@@ -3,7 +3,7 @@ import { apiFetch, API_BASE_URL } from '../services/api';
 
 export default function Balcao({ abrirOSNaConsulta }) {
   const estadoInicial = {
-    nome: '', telefone: '', email: '',
+    nome: '', telefone: '', email: '', cpf: '',
     marca: '', modelo: '', imei: '', senha: '',
     defeito: '', acessorios: '', prioridade: 'Normal'
   };
@@ -20,8 +20,6 @@ export default function Balcao({ abrirOSNaConsulta }) {
   const [abaLateral, setAbaLateral] = useState('prontos');
   const [aparelhosProntos, setAparelhosProntos] = useState([]);
   const [aparelhosAprovacao, setAparelhosAprovacao] = useState([]);
-  const [usuariosLoja, setUsuariosLoja] = useState([]);
-  const [vendedorSelecionado, setVendedorSelecionado] = useState(null);
 
   
   const [modalImpressao, setModalImpressao] = useState({ aberto: false, dados: null, id: null, checklist: [] });
@@ -244,7 +242,8 @@ export default function Balcao({ abrirOSNaConsulta }) {
         body: JSON.stringify({
           nome: os.nome,
           telefone: os.telefone,
-          email: os.email || "nao_informado@email.com"
+          email: os.email || "nao_informado@email.com",
+          cpf: os.cpf || null
         })
       });
 
@@ -256,8 +255,9 @@ export default function Balcao({ abrirOSNaConsulta }) {
           defeito: os.defeito,
           cliente_id: dadosCliente.id,
           imei: os.imei,
-          senha_aparelho: os.senha, 
+          senha_aparelho: os.senha,
           acessorios: os.acessorios,
+          checklist: checklistMarcados.join(', '),
           prioridade: os.prioridade
         })
       });
@@ -292,15 +292,6 @@ export default function Balcao({ abrirOSNaConsulta }) {
 
   useEffect(() => {
     carregarListasLaterais();
-    
-    const carregarUsuarios = async () => {
-      try {
-        const res = await apiFetch('/usuarios');
-        setUsuariosLoja(res);
-        if (res.length > 0) setVendedorSelecionado(res[0]); 
-      } catch (e) { console.error("Erro ao carregar vendedores", e); }
-    };
-    carregarUsuarios();
 
     const carregarConfigs = async () => {
       try {
@@ -335,9 +326,13 @@ export default function Balcao({ abrirOSNaConsulta }) {
                   <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Telefone *</label>
                   <input type="text" name="telefone" required value={os.telefone} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none" placeholder="(11) 98765-4321" />
                 </div>
-                <div className="md:col-span-2">
+                <div>
                   <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">E-mail (opcional)</label>
                   <input type="email" name="email" value={os.email} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none" placeholder="cliente@email.com" />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">CPF (opcional)</label>
+                  <input type="text" name="cpf" value={os.cpf} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none" placeholder="000.000.000-00" />
                 </div>
               </div>
             </div>

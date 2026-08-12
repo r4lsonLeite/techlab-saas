@@ -100,7 +100,7 @@ def atualizar_os(os_id: int, payload: schemas.OSUpdate, db: Session = Depends(ge
         if "pecas_selecionadas" in dados:
             pecas = dados.pop("pecas_selecionadas")
             for item in db.query(models.ItemOS).filter(models.ItemOS.os_id == os_id).all():
-                EstoqueService.devolver_reserva(db, item.produto_id, item.quantidade, user.id, os_id)
+                EstoqueService.devolver_reserva(db, item.produto_id, item.quantidade, user.id, user.loja_id, os_id)
                 db.delete(item)
             db.flush()
             for p in pecas:
@@ -130,7 +130,7 @@ def atualizar_os(os_id: int, payload: schemas.OSUpdate, db: Session = Depends(ge
 def deletar_os(id: int, db: Session = Depends(get_db), admin=Depends(admin_required)):
     os_db = db.query(models.OrdemServico).filter(models.OrdemServico.id == id, models.OrdemServico.loja_id == admin.loja_id).first()
     if not os_db: raise HTTPException(404, "OS não encontrada")
-    for item in os_db.itens: EstoqueService.devolver_reserva(db, item.produto_id, item.quantidade, admin.id, id)
+    for item in os_db.itens: EstoqueService.devolver_reserva(db, item.produto_id, item.quantidade, admin.id, admin.loja_id, id)
     if os_db.status in [StatusOS.AGUARDANDO_ANALISE.value, StatusOS.AGUARDANDO_CLIENTE.value]: db.delete(os_db)
     else: os_db.status = StatusOS.CANCELADA.value; os_db.ativo = False
     db.commit()

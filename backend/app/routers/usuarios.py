@@ -15,6 +15,9 @@ router = APIRouter(prefix="/usuarios", tags=["Usuários e Equipe"])
 class ComissaoUpdate(BaseModel):
     taxa_comissao: float
 
+class SenhaUpdate(BaseModel):
+    senha: str
+
 @router.post("", response_model=schemas.UsuarioResponse)
 def criar_usuario(usuario: schemas.UsuarioCreate, db: Session = Depends(get_db), admin=Depends(admin_required)):
     if db.query(models.Usuario).filter(models.Usuario.email == usuario.email).first():
@@ -54,8 +57,19 @@ def listar_usuarios_com_metricas(skip: int = 0, limit: int = 50, db: Session = D
     vendas_bulk = db.query(models.Venda.usuario_id, func.count(models.Venda.id).label('qtd'), func.sum(models.Venda.valor_total).label('soma')).filter(models.Venda.usuario_id.in_(user_ids)).group_by(models.Venda.usuario_id).all()
     v_map = {r.usuario_id: {'qtd': r.qtd, 'soma': r.soma or 0} for r in vendas_bulk}
 
-    os_tec_bulk = db.query(models.OrdemServico.tecnico_id, func.count(models.OrdemServico.id).label('qtd'), func.sum(models.OrdemServico.valor_mao_de_obra).label('mao')).filter(models.OrdemServico.tecnico_id.in_(user_ids), models.OrdemServico.status == StatusOS.PRONTO.value).group_by(models.OrdemServico.tecnico_id).all()
-    t_map = {r.tecnico_id: {'qtd': r.qtd, 'mao': r.mao or 0} for r in os_tec_bulk}
+    os_tec_bulk = db.query(
+        models.OrdemServico.tecnico_id,
+        func.count(models.OrdemServico.id).label('qtd'),
+        func.sum(models.OrdemServico.valor_mao_de_obra).label('mao'),
+        func.sum(models.OrdemServico.horas_tecnicas).label('horas')
+    ).filter(models.OrdemServico.tecnico_id.in_(user_ids), models.OrdemServico.status.in_([StatusOS.PRONTO.value, StatusOS.ENTREGUE.value])).group_by(models.OrdemServico.tecnico_id).all()
+    t_map = {r.tecnico_id: {'qtd': r.qtd, 'mao': r.mao or 0, 'horas': r.horas or 0} for r in os_tec_bulk}
+
+    atendente_bulk = db.query(
+        models.OrdemServico.atendente_id,
+        func.count(func.distinct(models.OrdemServico.cliente_id)).label('clientes')
+    ).filter(models.OrdemServico.atendente_id.in_(user_ids)).group_by(models.OrdemServico.atendente_id).all()
+    a_map = {r.atendente_id: r.clientes for r in atendente_bulk}
 
     res = []
     for u in usuarios:
@@ -63,12 +77,30 @@ def listar_usuarios_com_metricas(skip: int = 0, limit: int = 50, db: Session = D
         d = {"id": u.id, "nome": u.nome, "email": u.email, "cargo": u.cargo, "ativo": u.ativo, "taxa_comissao": float(u.taxa_comissao or 0)}
         if u.cargo == "balcao":
             v = v_map.get(u.id, {'qtd': 0, 'soma': 0})
-            d.update({"vendas_realizadas": v['qtd'], "comissao_vendas": float(v['soma']) * taxa})
+            d.update({
+                "vendas_realizadas": v['qtd'],
+                "comissao_vendas": float(v['soma']) * taxa,
+                "clientes_atendidos": a_map.get(u.id, 0),
+            })
         elif u.cargo == "tecnico":
-            t = t_map.get(u.id, {'qtd': 0, 'mao': 0})
-            d.update({"reparos_concluidos": t['qtd'], "comissao_reparos": float(t['mao']) * taxa})
+            t = t_map.get(u.id, {'qtd': 0, 'mao': 0, 'horas': 0})
+            d.update({
+                "reparos_concluidos": t['qtd'],
+                "comissao_reparos": float(t['mao']) * taxa,
+                "horas_tecnicas": round(float(t['horas']), 1),
+            })
         res.append(d)
     return res
+
+@router.put("/{id}/senha")
+def redefinir_senha(id: int, payload: SenhaUpdate, db: Session = Depends(get_db), admin=Depends(admin_required)):
+    if len(payload.senha) < 6:
+        raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 6 caracteres.")
+    u = db.query(models.Usuario).filter(models.Usuario.id == id, models.Usuario.loja_id == admin.loja_id).first()
+    if not u: raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+    u.senha_hash = security.get_password_hash(payload.senha)
+    db.commit()
+    return {"mensagem": f"Senha de {u.nome} atualizada com sucesso"}
 
 @router.put("/{id}/comissao")
 def atualizar_comissao(id: int, payload: ComissaoUpdate, db: Session = Depends(get_db), admin=Depends(admin_required)):
