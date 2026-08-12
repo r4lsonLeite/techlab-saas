@@ -19,6 +19,9 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
   
   const [modalCrmAberto, setModalCrmAberto] = useState(false);
   const [dadosCrm, setDadosCrm] = useState(null);
+  const [editandoCliente, setEditandoCliente] = useState(false);
+  const [formCliente, setFormCliente] = useState({ nome: '', telefone: '', email: '', cpf: '' });
+  const [salvandoCliente, setSalvandoCliente] = useState(false);
   const [obsBalcao, setObsBalcao] = useState("");
   const [valorDigitado, setValorDigitado] = useState("");
   const [pecasNegociacao, setPecasNegociacao] = useState([]); 
@@ -163,11 +166,41 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
   };
 
   const verPerfilCliente = async (clienteId) => {
+    setEditandoCliente(false);
     if (dadosCrm) { setModalCrmAberto(true); return; }
     try {
       const dados = await apiFetch(`/clientes/${clienteId}/resumo`);
       setDadosCrm(dados); setModalCrmAberto(true);
     } catch (erro) { mostrarToast(`Erro ao buscar perfil: ${erro.message}`, "erro"); }
+  };
+
+  const iniciarEdicaoCliente = () => {
+    setFormCliente({
+      nome: dadosCrm?.cliente?.nome || '',
+      telefone: dadosCrm?.cliente?.telefone || '',
+      email: dadosCrm?.cliente?.email || '',
+      cpf: dadosCrm?.cliente?.cpf || '',
+    });
+    setEditandoCliente(true);
+  };
+
+  const salvarEdicaoCliente = async () => {
+    if (!osAtiva?.cliente_id) return;
+    setSalvandoCliente(true);
+    try {
+      const atualizado = await apiFetch(`/clientes/${osAtiva.cliente_id}`, {
+        method: 'PUT',
+        body: JSON.stringify(formCliente)
+      });
+      setDadosCrm(prev => ({ ...prev, cliente: { ...prev.cliente, ...atualizado } }));
+      if (atualizado.telefone) setTelefoneTela(atualizado.telefone);
+      setEditandoCliente(false);
+      mostrarToast('Dados do cliente atualizados!');
+    } catch (erro) {
+      mostrarToast(`Erro ao salvar cliente: ${erro.message}`, 'erro');
+    } finally {
+      setSalvandoCliente(false);
+    }
   };
 
   const formatarTelefone = (tel) => tel ? String(tel).replace(/\D/g, '') : '';
@@ -221,7 +254,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
       }));
     }
     
-    if (novoStatus.includes('Recusado')) {
+    if (novoStatus.includes('Recusad')) {
       payload.observacoes_balcao = obsBalcao;
     }
 
@@ -269,7 +302,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                 <div key={os.id} onClick={() => !processando && setOsAtiva(os)} className={`p-4 rounded-xl border cursor-pointer transition-all ${osAtiva?.id === os.id ? 'bg-[#0f172a] border-emerald-500 shadow-md' : 'bg-[#1e293b] border-slate-700 hover:border-slate-500'} ${processando ? 'opacity-50 pointer-events-none' : ''}`}>
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-xs font-bold text-white bg-slate-700 px-2 py-1 rounded">OS #{os.id}</span>
-                    {(os.status === 'Aguardando Cliente' || os.status === 'Aguardando Reavaliação') && <span className="text-amber-500 animate-pulse text-xs font-bold">⏱️ Aprovação</span>}
+                    {os.status === 'Aguardando Cliente' && <span className="text-amber-500 animate-pulse text-xs font-bold">⏱️ Aprovação</span>}
                   </div>
                   <h3 className="text-emerald-400 font-bold">{os.cliente_nome || "Cliente"}</h3>
                   <p className="text-slate-300 text-sm">{os.marca} {os.modelo}</p>
@@ -416,7 +449,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                 </table>
               </div>
 
-              {!isTecnico && (osAtiva.status === 'Aguardando Cliente' || osAtiva.status === 'Aguardando Reavaliação') && (
+              {!isTecnico && osAtiva.status === 'Aguardando Cliente' && (
                 <div className="relative">
                   <input type="text" placeholder="🔍 Adicionar Peça ou Serviço ao Orçamento..." value={termoBuscaProduto} onChange={(e) => setTermoBuscaProduto(e.target.value)} disabled={processando} className="w-full p-3 rounded-lg bg-[#0f172a] border border-slate-600 text-white focus:border-purple-500 outline-none disabled:opacity-50" />
                   {produtosFiltradosCatalogo.length > 0 && (
@@ -433,7 +466,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
               )}
             </div>
 
-            {(osAtiva.status === 'Aguardando Cliente' || osAtiva.status === 'Aguardando Reavaliação') && !isTecnico && (
+            {osAtiva.status === 'Aguardando Cliente' && !isTecnico && (
               <div className="bg-[#1e293b] p-8 rounded-2xl border border-purple-500/40 shadow-xl mt-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 text-8xl">📞</div>
                 <h3 className="text-white font-bold text-xl mb-6 border-b border-slate-700 pb-3 relative z-10">📞 Finalizar e Aprovar Orçamento</h3>
@@ -449,7 +482,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                   <button onClick={() => handleAtualizarStatus('APROVADO - Fila de Conserto')} disabled={processando} className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0">
                     {processando ? '⏳ A processar...' : '✅ Aprovar OS'}
                   </button>
-                  <button onClick={() => handleAtualizarStatus('Recusado - Devolver ao Cliente')} disabled={processando} className="bg-red-600 hover:bg-red-500 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0">
+                  <button onClick={() => handleAtualizarStatus('Recusada')} disabled={processando} className="bg-red-600 hover:bg-red-500 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0">
                     ❌ Recusar
                   </button>
                 </div>
@@ -475,15 +508,46 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
           <div className="bg-[#1e293b] border border-slate-700 rounded-3xl p-8 w-full max-w-md shadow-2xl">
             <div className="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
               <h2 className="text-2xl font-bold text-white flex items-center gap-2"><span>👤</span> Perfil do Cliente</h2>
-              <button onClick={() => setModalCrmAberto(false)} className="text-slate-500 hover:text-white text-xl">✖</button>
+              <div className="flex items-center gap-3">
+                {!editandoCliente && (
+                  <button onClick={iniciarEdicaoCliente} className="text-blue-400 hover:text-blue-300 text-xs font-bold uppercase">✏️ Editar</button>
+                )}
+                <button onClick={() => setModalCrmAberto(false)} className="text-slate-500 hover:text-white text-xl">✖</button>
+              </div>
             </div>
-            
+
+            {editandoCliente ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-slate-400 text-xs font-bold uppercase mb-1">Nome</label>
+                  <input type="text" value={formCliente.nome} onChange={e => setFormCliente({...formCliente, nome: e.target.value})} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-xs font-bold uppercase mb-1">Telefone</label>
+                  <input type="text" value={formCliente.telefone} onChange={e => setFormCliente({...formCliente, telefone: e.target.value})} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-xs font-bold uppercase mb-1">E-mail</label>
+                  <input type="email" value={formCliente.email} onChange={e => setFormCliente({...formCliente, email: e.target.value})} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-xs font-bold uppercase mb-1">CPF</label>
+                  <input type="text" value={formCliente.cpf} onChange={e => setFormCliente({...formCliente, cpf: e.target.value})} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none" />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button onClick={() => setEditandoCliente(false)} disabled={salvandoCliente} className="flex-1 py-3 rounded-xl font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors disabled:opacity-50">Cancelar</button>
+                  <button onClick={salvarEdicaoCliente} disabled={salvandoCliente} className="flex-1 py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors disabled:opacity-50">
+                    {salvandoCliente ? 'Salvando...' : 'Salvar'}
+                  </button>
+                </div>
+              </div>
+            ) : (
             <div className="space-y-4">
               <div className="bg-[#0f172a] p-4 rounded-xl border border-slate-700/50">
                 <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Nome Completo</p>
                 <p className="text-lg text-white font-medium">{dadosCrm.cliente?.nome}</p>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-[#0f172a] p-4 rounded-xl border border-slate-700/50">
                   <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Telefone</p>
@@ -493,6 +557,11 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                   <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">E-mail</p>
                   <p className="text-white truncate" title={dadosCrm.cliente?.email}>{dadosCrm.cliente?.email || '-'}</p>
                 </div>
+              </div>
+
+              <div className="bg-[#0f172a] p-4 rounded-xl border border-slate-700/50">
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">CPF</p>
+                <p className="text-white">{dadosCrm.cliente?.cpf || '-'}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mt-6">
@@ -506,10 +575,13 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                 </div>
               </div>
             </div>
+            )}
 
-            <button onClick={() => setModalCrmAberto(false)} className="w-full mt-8 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-colors">
-              Fechar Perfil
-            </button>
+            {!editandoCliente && (
+              <button onClick={() => setModalCrmAberto(false)} className="w-full mt-8 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-colors">
+                Fechar Perfil
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -144,13 +144,12 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
     };
 
     try {
+      // O backend já marca a OS vinculada como "Entregue" dentro do próprio
+      // POST /vendas (efetiva baixa de estoque + lançamento financeiro).
+      // Um PUT extra aqui era redundante e sempre falhava (a API bloqueia
+      // marcar "Entregue" fora do fluxo do PDV), fazendo a venda aparecer
+      // como erro mesmo já concluída com sucesso.
       await apiFetch('/vendas', { method: 'POST', body: JSON.stringify(payloadDaVenda) });
-      
-      if (os_id_final) {
-        await apiFetch(`/ordens-servico/${os_id_final}`, {
-          method: 'PUT', body: JSON.stringify({ status: 'Entregue' })
-        });
-      }
 
       mostrarToast(`Venda de R$ ${totalComDesconto.toFixed(2)} recebida com sucesso!`);
       setCarrinho([]); 

@@ -57,6 +57,41 @@ export default function Configuracoes() {
   };
 
   
+  const handleAlterarSenha = async () => {
+    const token = localStorage.getItem('techlab_token');
+    let usuarioId = null;
+    try {
+      usuarioId = JSON.parse(atob(token.split('.')[1])).id;
+    } catch { /* ignora, tratado abaixo */ }
+
+    if (!usuarioId) {
+      alert('Não foi possível identificar o seu usuário. Faça login novamente.');
+      return;
+    }
+
+    const novaSenha = window.prompt('Digite a nova senha (mínimo 6 caracteres):');
+    if (!novaSenha) return;
+    if (novaSenha.length < 6) {
+      alert('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    const confirmacao = window.prompt('Confirme a nova senha:');
+    if (novaSenha !== confirmacao) {
+      alert('As senhas não coincidem.');
+      return;
+    }
+
+    try {
+      await apiFetch(`/usuarios/${usuarioId}/senha`, {
+        method: 'PUT',
+        body: JSON.stringify({ senha: novaSenha })
+      });
+      alert('✅ Senha atualizada com sucesso!');
+    } catch (erro) {
+      alert(`Erro ao alterar senha: ${erro.message}`);
+    }
+  };
+
   const handleSave = async () => {
     try {
       const payload = {
@@ -176,7 +211,7 @@ export default function Configuracoes() {
             <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
               <h4 className="text-purple-400 font-bold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">🛡️ Segurança</h4>
               <p className="text-slate-400 text-xs mb-4">Suas informações estão protegidas e criptografadas</p>
-              <button className="w-full bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-lg text-sm font-bold transition-colors">Alterar Senha</button>
+              <button onClick={handleAlterarSenha} className="w-full bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-lg text-sm font-bold transition-colors">Alterar Senha</button>
             </div>
             <div className="bg-blue-600/10 border border-blue-500/30 p-6 rounded-2xl">
               <h4 className="text-blue-400 font-bold text-sm uppercase tracking-wider mb-2">Dicas Rápidas</h4>

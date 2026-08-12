@@ -70,11 +70,11 @@ def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db), u
         if os_v:
             total_servico = float(os_v.valor_orcamento or 0)
             total += total_servico
-            for i in os_v.itens: EstoqueService.efetivar_baixa(db, i.produto_id, i.quantidade, user.id, nova_venda.id, True)
+            for i in os_v.itens: EstoqueService.efetivar_baixa(db, i.produto_id, i.quantidade, user.id, nova_venda.id, user.loja_id, True)
             OSService.atualizar_status(db, os_v, StatusOS.ENTREGUE.value, user.id)
 
         for i in venda.itens:
-            p = EstoqueService.efetivar_baixa(db, i.produto_id, i.quantidade, user.id, nova_venda.id, False)
+            p = EstoqueService.efetivar_baixa(db, i.produto_id, i.quantidade, user.id, nova_venda.id, user.loja_id, False)
             subtotal_item = float(p.preco_venda) * i.quantidade
             total += subtotal_item
             total_produtos += subtotal_item

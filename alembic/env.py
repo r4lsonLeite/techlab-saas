@@ -12,7 +12,7 @@ sys.path.insert(0, APP_DIR)
 
 
 from models import models
-from core.database import SQLALCHEMY_DATABASE_URL  
+from core.database import DATABASE_URL as SQLALCHEMY_DATABASE_URL
 
 target_metadata = models.Base.metadata
 

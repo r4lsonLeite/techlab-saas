@@ -36,10 +36,13 @@ class EstoqueService:
         return produto
 
     @staticmethod
-    def devolver_reserva(db: Session, produto_id: int, quantidade: int, usuario_id: int, os_id: int = None):
-        produto = db.query(models.Produto).filter(models.Produto.id == produto_id).with_for_update().first()
-        
-        
+    def devolver_reserva(db: Session, produto_id: int, quantidade: int, usuario_id: int, loja_id: int, os_id: int = None):
+        produto = db.query(models.Produto).filter(
+            models.Produto.id == produto_id,
+            models.Produto.loja_id == loja_id
+        ).with_for_update().first()
+
+
         if produto and not getattr(produto, 'is_servico', False) and produto.categoria.lower() not in ['serviços', 'servicos', 'mão de obra']:
             produto.estoque_reservado -= quantidade
             if produto.estoque_reservado < 0:
@@ -52,8 +55,11 @@ class EstoqueService:
         return produto
 
     @staticmethod
-    def efetivar_baixa(db: Session, produto_id: int, quantidade: int, usuario_id: int, venda_id: int, is_os: bool = False):
-        produto = db.query(models.Produto).filter(models.Produto.id == produto_id).with_for_update().first()
+    def efetivar_baixa(db: Session, produto_id: int, quantidade: int, usuario_id: int, venda_id: int, loja_id: int, is_os: bool = False):
+        produto = db.query(models.Produto).filter(
+            models.Produto.id == produto_id,
+            models.Produto.loja_id == loja_id
+        ).with_for_update().first()
         if not produto:
             raise HTTPException(status_code=404, detail="Item não encontrado para baixa.")
 

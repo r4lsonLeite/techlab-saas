@@ -36,6 +36,20 @@ def criar_cliente(cliente: schemas.ClienteCreate, db: Session = Depends(get_db),
     db.refresh(novo)
     return novo
 
+@router.put("/{cliente_id}", response_model=schemas.ClienteResponse)
+def atualizar_cliente(cliente_id: int, cliente: schemas.ClienteUpdate, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
+    c = db.query(models.Cliente).filter(models.Cliente.id == cliente_id, models.Cliente.loja_id == user.loja_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+
+    dados = cliente.model_dump(exclude_unset=True)
+    for campo, valor in dados.items():
+        setattr(c, campo, valor)
+
+    db.commit()
+    db.refresh(c)
+    return c
+
 @router.get("/{cliente_id}/resumo")
 def resumo_cliente(cliente_id: int, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
     c = db.query(models.Cliente).filter(models.Cliente.id == cliente_id, models.Cliente.loja_id == user.loja_id).first()
@@ -46,7 +60,7 @@ def resumo_cliente(cliente_id: int, db: Session = Depends(get_db), user=Depends(
     h_v = db.query(models.Venda).filter(models.Venda.cliente_id == cliente_id).all()
     
     return {
-        "cliente": {"nome": c.nome, "telefone": c.telefone, "email": getattr(c, 'email', '')},
+        "cliente": {"nome": c.nome, "telefone": c.telefone, "email": c.email or "", "cpf": c.cpf or ""},
         "metricas": {
             "total_os": len(h_os), 
             "investimento_total": sum([float(o.valor_orcamento or 0) for o in h_os if o.status == StatusOS.ENTREGUE.value]) + sum([float(v.valor_total or 0) for v in h_v])

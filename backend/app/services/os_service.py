@@ -12,16 +12,19 @@ class StatusOS(str, Enum):
     ENTREGUE = "Entregue"
     CANCELADA = "Cancelada"
     AGUARDANDO_PECA = "Aguardando Peça"
+    RECUSADO = "Recusada"
 
 class OSService:
-    
+
     FLUXO_VALIDO = {
         StatusOS.AGUARDANDO_ANALISE: [StatusOS.AGUARDANDO_CLIENTE, StatusOS.CANCELADA],
-        StatusOS.AGUARDANDO_CLIENTE: [StatusOS.APROVADO, StatusOS.CANCELADA, StatusOS.AGUARDANDO_ANALISE],
-        StatusOS.APROVADO: [StatusOS.PRONTO, StatusOS.CANCELADA],
+        StatusOS.AGUARDANDO_CLIENTE: [StatusOS.APROVADO, StatusOS.CANCELADA, StatusOS.AGUARDANDO_ANALISE, StatusOS.RECUSADO],
+        StatusOS.APROVADO: [StatusOS.PRONTO, StatusOS.CANCELADA, StatusOS.AGUARDANDO_PECA, StatusOS.AGUARDANDO_CLIENTE],
         StatusOS.PRONTO: [StatusOS.ENTREGUE, StatusOS.APROVADO],
         StatusOS.ENTREGUE: [], # Status final
-        StatusOS.CANCELADA: [StatusOS.AGUARDANDO_ANALISE]
+        StatusOS.CANCELADA: [StatusOS.AGUARDANDO_ANALISE],
+        StatusOS.AGUARDANDO_PECA: [StatusOS.APROVADO, StatusOS.CANCELADA],
+        StatusOS.RECUSADO: [], # Status final
     }
 
     @staticmethod
@@ -48,13 +51,18 @@ class OSService:
 
         
         agora = datetime.now(timezone.utc)
-        
-        if novo_status == StatusOS.APROVADO.value:
+
+        if novo_status == StatusOS.APROVADO.value and not os_db.data_inicio_reparo:
             os_db.data_inicio_reparo = agora
-        
+
         if novo_status == StatusOS.PRONTO.value:
             os_db.data_fim_reparo = agora
-            
-            
+            if os_db.data_inicio_reparo:
+                horas = (agora - os_db.data_inicio_reparo).total_seconds() / 3600
+                os_db.horas_tecnicas = max(0.0, round(horas, 2))
+
+        if novo_status == StatusOS.ENTREGUE.value:
+            os_db.data_conclusao = agora
+
         os_db.status = novo_status
         return os_db

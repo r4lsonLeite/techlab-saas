@@ -58,14 +58,19 @@ def upload_foto_os(os_id: int, file: UploadFile = File(...), db: Session = Depen
         
     return {"mensagem": "Foto salva com segurança!", "url": f"/{caminho_arquivo}"}
 
+CAMPOS_CONFIGURAVEIS_LOJA = {
+    "nome", "cnpj", "telefone", "endereco", "email", "website", "logo_url", "termos_garantia"
+}
+
 @router.put("/lojas/configuracoes")
 def atualizar_configuracoes_loja(dados: dict, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):
     loja = db.query(models.Loja).filter(models.Loja.id == user.loja_id).first()
     if not loja: raise HTTPException(status_code=404, detail="Loja não encontrada")
-    
+
     for campo, valor in dados.items():
-        if hasattr(loja, campo): setattr(loja, campo, valor)
-            
+        if campo in CAMPOS_CONFIGURAVEIS_LOJA:
+            setattr(loja, campo, valor)
+
     db.commit()
     return {"mensagem": "Configurações salvas com sucesso!"}
 

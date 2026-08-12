@@ -89,13 +89,9 @@ export default function Login({ onLoginSucesso }) {
               </div>
             </div>
 
-            <div className="flex justify-between items-center text-sm">
-              <label className="flex items-center text-slate-400 cursor-pointer hover:text-white transition-colors">
-                <input type="checkbox" className="mr-2 rounded bg-slate-800 border-slate-600 text-emerald-500 focus:ring-emerald-500" />
-                Lembrar de mim
-              </label>
-              <a href="#" className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">Esqueceu a senha?</a>
-            </div>
+            <p className="text-slate-500 text-xs text-center">
+              Esqueceu a senha? Peça a um administrador para redefini-la em Controle de Equipe.
+            </p>
 
             {/* BOTÃO DE ENTRAR */}
             <button 
