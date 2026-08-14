@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -41,6 +42,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Sem este handler, uma exceção não tratada em qualquer rota resulta num 500
+# devolvido pelo ServerErrorMiddleware do Starlette, que fica FORA do
+# CORSMiddleware — a resposta sai sem cabeçalhos CORS e o navegador reporta
+# isso como bloqueio de CORS, mascarando o erro real do servidor.
+@app.exception_handler(Exception)
+async def tratador_excecoes_globais(request: Request, exc: Exception):
+    logger.exception("Erro não tratado em %s %s: %s", request.method, request.url.path, exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Erro interno no servidor. Tente novamente em instantes."},
+    )
 
 # ==============================
 # REGISTRO DAS ROTAS MODULARES

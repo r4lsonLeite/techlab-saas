@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from decimal import Decimal
@@ -26,6 +26,9 @@ class LojaResponse(BaseModel):
 # USUÁRIO
 # =========================
 
+CARGOS_VALIDOS = {"admin", "adm", "administrador", "tecnico", "balcao"}
+
+
 class UsuarioBase(BaseModel):
     nome: str
     email: str
@@ -33,12 +36,30 @@ class UsuarioBase(BaseModel):
     ativo: Optional[bool] = True
 
 
-class UsuarioCreate(UsuarioBase):
+class UsuarioCreate(BaseModel):
+    nome: str
+    email: str
     senha: str
+    cargo: str = "tecnico"
+    # A loja é sempre derivada do admin autenticado no servidor. O campo é
+    # aceite por compatibilidade com o frontend, mas o seu valor é ignorado.
+    loja_id: Optional[int] = None
+    ativo: Optional[bool] = True
+
+    @field_validator("cargo")
+    @classmethod
+    def validar_cargo(cls, valor: str) -> str:
+        cargo = (valor or "").strip().lower()
+        if cargo not in CARGOS_VALIDOS:
+            raise ValueError(
+                f"Cargo inválido. Valores aceites: {', '.join(sorted(CARGOS_VALIDOS))}"
+            )
+        return cargo
 
 
 class UsuarioResponse(UsuarioBase):
     id: int
+    cargo: str
 
     class Config:
         from_attributes = True
