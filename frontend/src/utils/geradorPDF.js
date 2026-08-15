@@ -17,6 +17,11 @@ export const gerarOrcamentoPDF = (configLoja, osAtiva, pecasNegociacao, valorDig
   const endLoja = configLoja?.endereco || '';
   const termosGarantia = configLoja?.termos_garantia || '1. O prazo de garantia para serviços é de 90 dias.\n2. A garantia não cobre mau uso, quedas ou contato com líquidos.\n3. Aparelhos não retirados em 90 dias poderão ser vendidos para custear o serviço.';
 
+  // A evidência anexada pelo técnico segue no orçamento entregue ao cliente.
+  const urlFoto = osAtiva.foto_url
+    ? (osAtiva.foto_url.startsWith('http') ? osAtiva.foto_url : `${API_BASE_URL}${osAtiva.foto_url}`)
+    : null;
+
   const telefoneCliente = telefoneTela || 'Não informado';
   const dataEntrada = osAtiva.data_entrada ? new Date(osAtiva.data_entrada).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
 
@@ -125,6 +130,13 @@ export const gerarOrcamentoPDF = (configLoja, osAtiva, pecasNegociacao, valorDig
           </div>
         ` : ''}
 
+        ${urlFoto ? `
+          <div class="section data-box">
+            <div class="section-title" style="margin: -10px -10px 10px -10px;">📸 EVIDÊNCIA FOTOGRÁFICA</div>
+            <img src="${urlFoto}" alt="Evidência do aparelho" style="max-width: 100%; max-height: 320px; border-radius: 6px; border: 1px solid #e2e8f0;" />
+          </div>
+        ` : ''}
+
         <div class="section">
           <div class="section-title">🔧 ORÇAMENTO - PEÇAS E SERVIÇOS</div>
           <table>
@@ -167,14 +179,30 @@ export const gerarOrcamentoPDF = (configLoja, osAtiva, pecasNegociacao, valorDig
 
         <script>
           window.onload = function() {
-            var logo = document.getElementById('logoLoja');
-            if (logo) {
-              logo.onload = function() { window.print(); }
-              // Fallback caso a imagem dê erro ou demore muito
-              setTimeout(function(){ window.print(); }, 800);
-            } else {
+            // Espera por todas as imagens (logo e evidência): imprimir a 800ms
+            // como antes cortava a foto e podia abrir dois diálogos.
+            var jaImprimiu = false;
+            function imprimir() {
+              if (jaImprimiu) return;
+              jaImprimiu = true;
               window.print();
             }
+
+            var pendentes = Array.prototype.slice.call(document.images).filter(function(img) {
+              return !img.complete;
+            });
+
+            if (pendentes.length === 0) { imprimir(); return; }
+
+            var restantes = pendentes.length;
+            pendentes.forEach(function(img) {
+              function concluida() { if (--restantes === 0) imprimir(); }
+              img.addEventListener('load', concluida);
+              img.addEventListener('error', concluida);
+            });
+
+            // Rede lenta não pode travar a impressão.
+            setTimeout(imprimir, 3000);
           };
         </script>
       </body>

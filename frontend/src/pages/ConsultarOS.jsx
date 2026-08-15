@@ -194,8 +194,13 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
       ? `\n*👨‍🔧 LAUDO DO TÉCNICO:*\n${osAtiva.laudo_tecnico}\n`
       : '';
 
+    // A evidência do técnico segue com o orçamento; o link é público.
+    const fotoTexto = osAtiva.foto_url
+      ? `\n*📸 FOTO DO APARELHO:*\n${API_BASE_URL}${osAtiva.foto_url}\n`
+      : '';
+
     const valorFinalFormatado = Number(valorDigitado || 0).toFixed(2);
-    const texto = `Olá *${osAtiva.cliente_nome}*, tudo bem?\nAqui é da assistência técnica.\n\nAvaliamos o seu aparelho *${osAtiva.marca} ${osAtiva.modelo}* (OS #${osAtiva.id}).\n\n*📋 DETALHES DO SERVIÇO:*\n${itensTexto}${laudoTexto}\n*💰 VALOR FINAL NEGOCIADO: R$ ${valorFinalFormatado}*\n\nPodemos dar andamento no serviço?`;
+    const texto = `Olá *${osAtiva.cliente_nome}*, tudo bem?\nAqui é da assistência técnica.\n\nAvaliamos o seu aparelho *${osAtiva.marca} ${osAtiva.modelo}* (OS #${osAtiva.id}).\n\n*📋 DETALHES DO SERVIÇO:*\n${itensTexto}${laudoTexto}${fotoTexto}\n*💰 VALOR FINAL NEGOCIADO: R$ ${valorFinalFormatado}*\n\nPodemos dar andamento no serviço?`;
 
     abrirWhatsApp(telefoneTela, texto);
   };
