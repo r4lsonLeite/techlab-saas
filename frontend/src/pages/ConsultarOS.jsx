@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
-import { apiFetch } from '../services/api'; 
+import { apiFetch, API_BASE_URL } from '../services/api';
 import { gerarOrcamentoPDF, imprimirComprovanteOS } from '../utils/geradorPDF';
 
 export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, abrirPDVComOS }) {
@@ -194,8 +194,13 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
       ? `\n*👨‍🔧 LAUDO DO TÉCNICO:*\n${osAtiva.laudo_tecnico}\n`
       : '';
 
+    // A evidência do técnico segue com o orçamento; o link é público.
+    const fotoTexto = osAtiva.foto_url
+      ? `\n*📸 FOTO DO APARELHO:*\n${API_BASE_URL}${osAtiva.foto_url}\n`
+      : '';
+
     const valorFinalFormatado = Number(valorDigitado || 0).toFixed(2);
-    const texto = `Olá *${osAtiva.cliente_nome}*, tudo bem?\nAqui é da assistência técnica.\n\nAvaliamos o seu aparelho *${osAtiva.marca} ${osAtiva.modelo}* (OS #${osAtiva.id}).\n\n*📋 DETALHES DO SERVIÇO:*\n${itensTexto}${laudoTexto}\n*💰 VALOR FINAL NEGOCIADO: R$ ${valorFinalFormatado}*\n\nPodemos dar andamento no serviço?`;
+    const texto = `Olá *${osAtiva.cliente_nome}*, tudo bem?\nAqui é da assistência técnica.\n\nAvaliamos o seu aparelho *${osAtiva.marca} ${osAtiva.modelo}* (OS #${osAtiva.id}).\n\n*📋 DETALHES DO SERVIÇO:*\n${itensTexto}${laudoTexto}${fotoTexto}\n*💰 VALOR FINAL NEGOCIADO: R$ ${valorFinalFormatado}*\n\nPodemos dar andamento no serviço?`;
 
     abrirWhatsApp(telefoneTela, texto);
   };
@@ -386,6 +391,19 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                     <p className="text-slate-300 text-sm bg-[#0f172a] p-3 rounded-lg border border-slate-700 whitespace-pre-wrap">
                       {osAtiva.pecas_necessarias}
                     </p>
+                  </div>
+                )}
+
+                {osAtiva.foto_url && (
+                  <div>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">📸 Evidência anexada pelo técnico</p>
+                    <a href={`${API_BASE_URL}${osAtiva.foto_url}`} target="_blank" rel="noreferrer">
+                      <img
+                        src={`${API_BASE_URL}${osAtiva.foto_url}`}
+                        alt="Evidência do reparo"
+                        className="max-h-64 rounded-lg border border-slate-700 hover:border-blue-500 transition-colors"
+                      />
+                    </a>
                   </div>
                 )}
 

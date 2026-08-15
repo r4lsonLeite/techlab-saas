@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiFetch, apiUpload } from '../services/api'; 
+import { apiFetch, apiUpload, API_BASE_URL } from '../services/api';
 
 export default function Bancada() {
   const [ordens, setOrdens] = useState([]);
@@ -153,25 +153,66 @@ export default function Bancada() {
         body: JSON.stringify(payload)
       });
 
-      
       if (foto) {
         try {
-          const formData = new FormData();
-          formData.append("file", foto);
-          await apiUpload(`/ordens-servico/${osAtiva.id}/foto`, formData);
+          await enviarFoto(osAtiva.id, foto);
         } catch (erroFoto) {
-          alert("A OS foi salva, mas ocorreu um erro ao enviar a foto de evidência.");
+          alert(`A OS foi salva, mas a foto de evidência não subiu: ${erroFoto.message}`);
           console.error(erroFoto);
         }
       }
 
       alert(`Sucesso! OS atualizada para: ${novoStatus}`);
       setOsAtiva(null);
-      setFoto(null); 
-      carregarOrdens(); 
-    } catch (erro) { 
-      alert(`Erro ao salvar OS: ${erro.message}`);
-      console.error(erro); 
+      setFoto(null);
+      carregarOrdens();
+    } catch (erro) {
+      alert(
+        `Erro ao salvar OS: ${erro.message}` +
+        (foto ? '\n\nA foto também não foi enviada. Tente novamente.' : '')
+      );
+      console.error(erro);
+    }
+  };
+
+  // Mesmas regras do backend, para o técnico saber o motivo antes de gravar a
+  // OS em vez de descobrir depois que a evidência não subiu.
+  const EXTENSOES_FOTO = ['.jpg', '.jpeg', '.png', '.webp'];
+  const TAMANHO_MAX_FOTO = 5 * 1024 * 1024;
+
+  const selecionarFoto = (arquivo) => {
+    if (!arquivo) { setFoto(null); return; }
+
+    const extensao = arquivo.name.slice(arquivo.name.lastIndexOf('.')).toLowerCase();
+    if (!EXTENSOES_FOTO.includes(extensao)) {
+      alert(`Formato "${extensao}" não aceito. Use: ${EXTENSOES_FOTO.join(', ')}.`);
+      return;
+    }
+    if (arquivo.size > TAMANHO_MAX_FOTO) {
+      alert(`A foto tem ${(arquivo.size / 1024 / 1024).toFixed(1)}MB e o limite é 5MB.`);
+      return;
+    }
+    setFoto(arquivo);
+  };
+
+  const enviarFoto = async (osId, arquivo) => {
+    const formData = new FormData();
+    formData.append("file", arquivo);
+    return apiUpload(`/ordens-servico/${osId}/foto`, formData);
+  };
+
+  // Anexar evidência não devia depender de mudar o status da OS.
+  const enviarFotoAgora = async () => {
+    if (!osAtiva || !foto) return;
+    try {
+      const resposta = await enviarFoto(osAtiva.id, foto);
+      setOsAtiva(prev => ({ ...prev, foto_url: resposta?.url || prev.foto_url }));
+      setFoto(null);
+      alert("✅ Foto de evidência anexada à OS.");
+      carregarOrdens();
+    } catch (erro) {
+      alert(`Não foi possível enviar a foto: ${erro.message}`);
+      console.error(erro);
     }
   };
 
@@ -449,11 +490,30 @@ export default function Bancada() {
                     <span>👨‍🔧</span> Área de Diagnóstico e Reparo
                   </h3>
                   
-                  <div>
-                    <input type="file" id="upload-foto" accept="image/*" className="hidden" onChange={(e) => setFoto(e.target.files[0])} />
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    {osAtiva.foto_url && (
+                      <a
+                        href={`${API_BASE_URL}${osAtiva.foto_url}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-bold px-4 py-2 rounded-lg border bg-blue-500/10 text-blue-400 border-blue-500/40 hover:bg-blue-500/20 transition-all"
+                      >
+                        🖼️ Ver foto anexada
+                      </a>
+                    )}
+                    <input type="file" id="upload-foto" accept=".jpg,.jpeg,.png,.webp" className="hidden" onChange={(e) => selecionarFoto(e.target.files[0])} />
                     <label htmlFor="upload-foto" className={`cursor-pointer text-xs font-bold px-4 py-2 rounded-lg border transition-all flex items-center gap-2 ${foto ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700 hover:border-slate-500'}`}>
-                      {foto ? '✅ Foto Pronta para Envio' : '📸 Anexar Prova/Foto'}
+                      {foto ? `✅ ${foto.name}` : '📸 Anexar Prova/Foto'}
                     </label>
+                    {foto && (
+                      <button
+                        onClick={enviarFotoAgora}
+                        className="text-xs font-bold px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all"
+                        title="Envia a foto já, sem mudar o status da OS"
+                      >
+                        📤 Enviar Foto Agora
+                      </button>
+                    )}
                   </div>
                 </div>
                 

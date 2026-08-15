@@ -360,3 +360,41 @@ def test_falta_anotada_no_pdv_chega_ao_adm():
 
     listagem = client.get("/solicitacoes")
     assert any(s["id"] == criada.json()["id"] and s["origem"] == "Balcao" for s in listagem.json())
+
+
+# ==============================
+# FOTO DE EVIDÊNCIA
+# ==============================
+
+def test_foto_de_evidencia_fica_vinculada_a_os():
+    """A rota gravava o ficheiro em disco mas nunca escrevia foto_url na OS:
+    a evidência ficava órfã e ninguém lhe chegava."""
+    import io
+
+    os_id = criar_os_de_teste()
+
+    with logado_como("tecnico"):
+        resposta = client.post(
+            f"/ordens-servico/{os_id}/foto",
+            files={"file": ("evidencia.png", io.BytesIO(b"conteudo-de-imagem"), "image/png")},
+        )
+    assert resposta.status_code == 200, resposta.text
+    url = resposta.json()["url"]
+    assert url.startswith("/uploads/evidencias/")
+
+    listagem = client.get("/ordens-servico")
+    os_listada = next(o for o in listagem.json() if o["id"] == os_id)
+    assert os_listada["foto_url"] == url
+
+
+def test_foto_com_extensao_proibida_e_recusada():
+    os_id = criar_os_de_teste()
+    import io
+
+    with logado_como("tecnico"):
+        resposta = client.post(
+            f"/ordens-servico/{os_id}/foto",
+            files={"file": ("virus.exe", io.BytesIO(b"MZ"), "application/octet-stream")},
+        )
+    assert resposta.status_code == 400
+    assert "não permitida" in resposta.json()["detail"]
