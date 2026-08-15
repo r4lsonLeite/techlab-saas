@@ -449,3 +449,95 @@ def test_balcao_nao_pode_entregar_os_por_fora_do_pdv():
     resposta = client.put(f"/ordens-servico/{os_id}", json={"status": StatusOS.ENTREGUE.value})
     assert resposta.status_code == 400
     assert "PDV" in resposta.json()["detail"]
+
+
+# ==============================
+# COMISSÃO DO TÉCNICO
+# ==============================
+
+def preparar_os_concluida(valor_orcamento, peca_id=None, preco_peca=0.0):
+    """Leva uma OS até 'Pronto para Retirada' com o técnico id=1 associado."""
+    os_id = criar_os_de_teste()
+
+    with logado_como("tecnico"):
+        client.put(f"/ordens-servico/{os_id}", json={"status": StatusOS.AGUARDANDO_CLIENTE.value})
+
+    corpo = {"status": StatusOS.APROVADO.value, "valor_orcamento": valor_orcamento}
+    if peca_id:
+        corpo["pecas_selecionadas"] = [{"produto_id": peca_id, "qtd": 1, "preco": preco_peca}]
+    client.put(f"/ordens-servico/{os_id}", json=corpo)
+    client.put(f"/ordens-servico/{os_id}", json={"status": StatusOS.PRONTO.value})
+    return os_id
+
+
+def garantir_tecnico_com_comissao(taxa=5):
+    """O utilizador autenticado nos testes (id=1) é um objeto solto; para
+    aparecer em /usuarios tem de existir mesmo na base."""
+    db = TestingSessionLocal()
+    existente = db.query(models.Usuario).filter_by(id=1).first()
+    if existente:
+        existente.cargo = "tecnico"
+        existente.taxa_comissao = taxa
+    else:
+        db.add(models.Usuario(
+            id=1, nome="Testador", email="tecnico-teste@techlab.com",
+            senha_hash="x", cargo="tecnico", taxa_comissao=taxa,
+            loja_id=1, ativo=True,
+        ))
+    db.commit()
+    db.close()
+
+
+def comissao_do_tecnico():
+    return next(u for u in client.get("/usuarios").json() if u["id"] == 1)
+
+
+def test_comissao_do_tecnico_e_calculada_sobre_a_mao_de_obra():
+    """valor_mao_de_obra nunca era escrito, pelo que a comissão dava sempre 0."""
+    garantir_tecnico_com_comissao(5)
+
+    db = TestingSessionLocal()
+    peca = models.Produto(nome="Bateria", preco_venda=100.0, estoque_atual=5,
+                          categoria="Peças", is_servico=False, loja_id=1, ativo=True)
+    db.add(peca); db.commit(); db.refresh(peca)
+    peca_id = peca.id
+    db.close()
+
+    # Outros testes já deixaram OS concluídas para o mesmo técnico, por isso
+    # mede-se a variação e não o valor absoluto.
+    antes = comissao_do_tecnico()
+
+    # Orçamento 300, peça de 100 => mão de obra 200 => 5% = 10.
+    preparar_os_concluida(300.0, peca_id=peca_id, preco_peca=100.0)
+
+    depois = comissao_do_tecnico()
+    assert depois["reparos_concluidos"] == antes["reparos_concluidos"] + 1
+    assert depois["mao_de_obra_total"] - antes["mao_de_obra_total"] == 200.0
+    assert round(depois["comissao_reparos"] - antes["comissao_reparos"], 2) == 10.0
+
+
+def test_comissao_nao_desaparece_quando_o_cliente_paga():
+    """A contagem filtrava só por 'Pronto para Retirada': ao pagar, a OS passava
+    a 'Entregue' e o técnico perdia o reparo e a comissão."""
+    garantir_tecnico_com_comissao(5)
+
+    os_id = preparar_os_concluida(400.0)
+    antes = comissao_do_tecnico()
+
+    venda = client.post("/vendas", json={
+        "forma_pagamento": "PIX", "itens": [], "os_id": os_id})
+    assert venda.status_code == 200, venda.text
+
+    depois = comissao_do_tecnico()
+    assert depois["reparos_concluidos"] == antes["reparos_concluidos"]
+    assert depois["comissao_reparos"] == antes["comissao_reparos"]
+    assert depois["comissao_reparos"] > 0
+
+
+def test_metricas_devolvem_receita_de_servicos_separada():
+    """A tela de Financeiro lia total_servicos_os, que a API nunca devolvia:
+    o cartão mostrava 'R$ NaN'."""
+    metricas = client.get("/dashboard/metricas").json()
+    assert "total_servicos_os" in metricas
+    assert "total_vendas_balcao" in metricas
+    assert isinstance(metricas["faturamento_total"], float)

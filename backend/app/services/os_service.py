@@ -73,21 +73,44 @@ class OSService:
             )
 
     @staticmethod
+    def calcular_mao_de_obra(os_db: models.OrdemServico) -> float:
+        """Base da comissão do técnico: o que sobra do orçamento depois das
+        peças. Comissionar sobre o valor da peça pagaria o técnico pelo custo
+        de compra da loja."""
+        total_pecas = sum(
+            float(item.preco_unitario or 0) * (item.quantidade or 0)
+            for item in os_db.itens
+        )
+        return max(0.0, float(os_db.valor_orcamento or 0) - total_pecas)
+
+    @staticmethod
     def atualizar_status(db: Session, os_db: models.OrdemServico, novo_status: str, user_id: int):
-        
+
         OSService.validar_transicao(os_db.status, novo_status)
 
-        
+
         agora = datetime.now(timezone.utc)
-        
+
         if novo_status == StatusOS.APROVADO.value:
             os_db.data_inicio_reparo = agora
-        
+
         if novo_status == StatusOS.PRONTO.value:
             os_db.data_fim_reparo = agora
 
-        # Sem isto data_conclusao ficava sempre NULL e o KPI de tempo médio de
-        # reparo do painel do ADM devolvia 0.0 para todas as lojas.
+            inicio = os_db.data_inicio_reparo
+            if inicio:
+                # O SQLite devolve datetimes ingénuos; assume-se UTC para não
+                # rebentar a subtração com o 'agora' com fuso.
+                if inicio.tzinfo is None:
+                    inicio = inicio.replace(tzinfo=timezone.utc)
+                os_db.horas_tecnicas = round((agora - inicio).total_seconds() / 3600, 2)
+
+        # Estes campos nunca eram escritos: valor_mao_de_obra ficava a 0 e a
+        # comissão do técnico dava sempre R$ 0,00, e data_conclusao NULL
+        # mantinha o KPI de tempo médio de reparo em 0.0.
+        if novo_status in (StatusOS.PRONTO.value, StatusOS.ENTREGUE.value):
+            os_db.valor_mao_de_obra = OSService.calcular_mao_de_obra(os_db)
+
         if novo_status == StatusOS.ENTREGUE.value:
             os_db.data_conclusao = agora
 
