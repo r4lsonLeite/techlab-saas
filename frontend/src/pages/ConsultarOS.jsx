@@ -179,15 +179,24 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
   };
 
   const enviarOrcamentoWhatsApp = () => {
-    if (pecasNegociacao.length === 0) return mostrarToast('Adicione itens ao orçamento primeiro.', 'erro');
+    // O técnico pode descrever todo o serviço apenas no laudo (ex.: "troca de
+    // tela e limpeza"), sem peças lançadas. Nesse caso o laudo é o orçamento.
+    if (pecasNegociacao.length === 0 && !osAtiva.laudo_tecnico) {
+      return mostrarToast('Sem laudo do técnico nem itens no orçamento para enviar.', 'erro');
+    }
     if (!telefoneTela || telefoneTela === "Sem telefone" || telefoneTela === "A buscar...") return mostrarToast('Aguarde o telefone carregar.', 'erro');
-    
+
     let itensTexto = '';
     pecasNegociacao.forEach(p => { itensTexto += `▫️ ${p.quantidade}x ${p.nome_produto}\n`; });
-    
+    if (!itensTexto) itensTexto = '▫️ Serviço conforme laudo técnico abaixo.\n';
+
+    const laudoTexto = osAtiva.laudo_tecnico
+      ? `\n*👨‍🔧 LAUDO DO TÉCNICO:*\n${osAtiva.laudo_tecnico}\n`
+      : '';
+
     const valorFinalFormatado = Number(valorDigitado || 0).toFixed(2);
-    const texto = `Olá *${osAtiva.cliente_nome}*, tudo bem?\nAqui é da assistência técnica.\n\nAvaliamos o seu aparelho *${osAtiva.marca} ${osAtiva.modelo}* (OS #${osAtiva.id}).\n\n*📋 DETALHES DO SERVIÇO:*\n${itensTexto}\n*💰 VALOR FINAL NEGOCIADO: R$ ${valorFinalFormatado}*\n\nPodemos dar andamento no serviço?`;
-    
+    const texto = `Olá *${osAtiva.cliente_nome}*, tudo bem?\nAqui é da assistência técnica.\n\nAvaliamos o seu aparelho *${osAtiva.marca} ${osAtiva.modelo}* (OS #${osAtiva.id}).\n\n*📋 DETALHES DO SERVIÇO:*\n${itensTexto}${laudoTexto}\n*💰 VALOR FINAL NEGOCIADO: R$ ${valorFinalFormatado}*\n\nPodemos dar andamento no serviço?`;
+
     abrirWhatsApp(telefoneTela, texto);
   };
 
@@ -345,11 +354,57 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
               </div>
             </div>
 
+            <div className="bg-[#1e293b] p-6 rounded-2xl border border-blue-500/30 shadow-lg">
+              <h3 className="text-blue-400 font-bold mb-4 border-b border-slate-700 pb-2 flex items-center gap-2">
+                <span>👨‍🔧</span> Diagnóstico do Técnico
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">⚠️ Defeito relatado pelo cliente</p>
+                  <p className="text-slate-300 text-sm bg-[#0f172a] p-3 rounded-lg border border-slate-700 whitespace-pre-wrap">
+                    {osAtiva.defeito || "Nenhum defeito registado."}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">📋 Laudo técnico (procedimento a realizar)</p>
+                  {osAtiva.laudo_tecnico ? (
+                    <p className="text-white text-base bg-[#0f172a] p-3 rounded-lg border border-blue-500/40 whitespace-pre-wrap">
+                      {osAtiva.laudo_tecnico}
+                    </p>
+                  ) : (
+                    <p className="text-slate-500 text-sm italic bg-[#0f172a] p-3 rounded-lg border border-slate-700">
+                      O técnico ainda não enviou o laudo desta OS.
+                    </p>
+                  )}
+                </div>
+
+                {osAtiva.pecas_necessarias && (
+                  <div>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">🧰 Observações / Materiais do técnico</p>
+                    <p className="text-slate-300 text-sm bg-[#0f172a] p-3 rounded-lg border border-slate-700 whitespace-pre-wrap">
+                      {osAtiva.pecas_necessarias}
+                    </p>
+                  </div>
+                )}
+
+                {osAtiva.observacoes_balcao && (
+                  <div>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">📢 Recado enviado ao técnico</p>
+                    <p className="text-slate-300 text-sm bg-[#0f172a] p-3 rounded-lg border border-slate-700 whitespace-pre-wrap">
+                      {osAtiva.observacoes_balcao}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="bg-[#1e293b] p-6 rounded-2xl border border-purple-500/30 shadow-lg">
               <div className="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
                 <h3 className="text-purple-400 font-bold flex items-center gap-2"><span>🔧</span> Orçamento (Peças e Serviços)</h3>
                 
-                {!isTecnico && pecasNegociacao.length > 0 && (
+                {!isTecnico && (pecasNegociacao.length > 0 || osAtiva.laudo_tecnico) && (
                   <div className="flex gap-2">
                     <button onClick={enviarOrcamentoWhatsApp} disabled={processando} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 shadow-lg transition-colors disabled:opacity-50">
                       Enviar Zap
@@ -357,9 +412,11 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                     {/* 🟢 AQUI PASSAMOS O 'configLoja' PARA O GERADOR DE PDF */}
                     <button 
                       onClick={() => {
-                        if (pecasNegociacao.length === 0) return mostrarToast('Adicione itens ao orçamento primeiro.', 'erro');
+                        if (pecasNegociacao.length === 0 && !osAtiva.laudo_tecnico) {
+                          return mostrarToast('Sem laudo do técnico nem itens no orçamento.', 'erro');
+                        }
                         gerarOrcamentoPDF(configLoja, osAtiva, pecasNegociacao, valorDigitado, telefoneTela);
-                      }} 
+                      }}
                       disabled={processando} 
                       className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 border border-slate-500 transition-colors disabled:opacity-50"
                     >

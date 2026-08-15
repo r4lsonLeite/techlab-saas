@@ -7,18 +7,44 @@ from enum import Enum
 class StatusOS(str, Enum):
     AGUARDANDO_ANALISE = "Aguardando Análise"
     AGUARDANDO_CLIENTE = "Aguardando Cliente"
+    AGUARDANDO_REAVALIACAO = "Aguardando Reavaliação"
     APROVADO = "APROVADO - Fila de Conserto"
+    RECUSADO = "Recusado - Devolver ao Cliente"
     PRONTO = "Pronto para Retirada"
     ENTREGUE = "Entregue"
     CANCELADA = "Cancelada"
     AGUARDANDO_PECA = "Aguardando Peça"
 
 class OSService:
-    
+
+    # Cada estado lista para onde pode seguir. Estados sem saída (ou em falta
+    # neste mapa) tornam-se becos sem saída, por isso qualquer estado usado
+    # pelo frontend tem de constar aqui.
     FLUXO_VALIDO = {
-        StatusOS.AGUARDANDO_ANALISE: [StatusOS.AGUARDANDO_CLIENTE, StatusOS.CANCELADA],
-        StatusOS.AGUARDANDO_CLIENTE: [StatusOS.APROVADO, StatusOS.CANCELADA, StatusOS.AGUARDANDO_ANALISE],
-        StatusOS.APROVADO: [StatusOS.PRONTO, StatusOS.CANCELADA],
+        StatusOS.AGUARDANDO_ANALISE: [
+            StatusOS.AGUARDANDO_CLIENTE, StatusOS.AGUARDANDO_PECA, StatusOS.CANCELADA
+        ],
+        StatusOS.AGUARDANDO_CLIENTE: [
+            StatusOS.APROVADO, StatusOS.RECUSADO, StatusOS.AGUARDANDO_ANALISE,
+            StatusOS.AGUARDANDO_PECA, StatusOS.CANCELADA
+        ],
+        StatusOS.AGUARDANDO_REAVALIACAO: [
+            StatusOS.APROVADO, StatusOS.RECUSADO, StatusOS.AGUARDANDO_ANALISE,
+            StatusOS.AGUARDANDO_PECA, StatusOS.CANCELADA
+        ],
+        StatusOS.APROVADO: [
+            StatusOS.PRONTO, StatusOS.AGUARDANDO_PECA,
+            StatusOS.AGUARDANDO_REAVALIACAO, StatusOS.CANCELADA
+        ],
+        # A peça foi pedida ao ADM: quando chegar, o técnico retoma o reparo
+        # ou devolve o orçamento ao balcão.
+        StatusOS.AGUARDANDO_PECA: [
+            StatusOS.APROVADO, StatusOS.AGUARDANDO_ANALISE, StatusOS.AGUARDANDO_CLIENTE,
+            StatusOS.AGUARDANDO_REAVALIACAO, StatusOS.CANCELADA
+        ],
+        StatusOS.RECUSADO: [
+            StatusOS.ENTREGUE, StatusOS.AGUARDANDO_CLIENTE, StatusOS.CANCELADA
+        ],
         StatusOS.PRONTO: [StatusOS.ENTREGUE, StatusOS.APROVADO],
         StatusOS.ENTREGUE: [], # Status final
         StatusOS.CANCELADA: [StatusOS.AGUARDANDO_ANALISE]
@@ -35,10 +61,15 @@ class OSService:
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Status inválido: {novo_status}")
 
-        if novo not in OSService.FLUXO_VALIDO.get(atual, []):
+        permitidos = OSService.FLUXO_VALIDO.get(atual, [])
+        if novo not in permitidos:
+            destinos = ", ".join(s.value for s in permitidos) or "nenhum (estado final)"
             raise HTTPException(
-                status_code=400, 
-                detail=f"Transição proibida: Não é possível mudar de '{status_atual}' para '{novo_status}'."
+                status_code=400,
+                detail=(
+                    f"Transição proibida: Não é possível mudar de '{status_atual}' para "
+                    f"'{novo_status}'. A partir de '{status_atual}' só é possível ir para: {destinos}."
+                )
             )
 
     @staticmethod

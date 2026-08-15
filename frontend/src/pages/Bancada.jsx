@@ -93,13 +93,15 @@ export default function Bancada() {
   };
 
   const handleAtualizarOS = async (novoStatus) => {
+    if (!osAtiva) return;
+
     const payload = {
         status: novoStatus,
         laudo_tecnico: laudo,
-        pecas_necessarias: pecasUsadasTexto, 
-        pecas_selecionadas: pecasSelecionadas 
+        pecas_necessarias: pecasUsadasTexto,
+        pecas_selecionadas: pecasSelecionadas
     };
-    
+
     if (novoStatus === 'Pronto para Retirada') {
         payload.data_fim_reparo = new Date().toISOString();
     }
@@ -154,15 +156,42 @@ export default function Bancada() {
         method: 'POST',
         body: JSON.stringify(payload)
       });
-
-      alert("✅ Solicitação enviada para o ADM com sucesso!");
       setModalAberto(false);
-      if (osParaSolicitacao) {
-          handleAtualizarOS('Aguardando Peça');
+
+      if (!osParaSolicitacao) {
+        alert("✅ Solicitação enviada para o ADM com sucesso!");
+        return;
       }
-    } catch (e) { 
+
+      // A OS fica em espera até a peça chegar. A solicitação já foi criada,
+      // por isso uma falha aqui não pode ser reportada como falha do pedido.
+      const ehOsAberta = osAtiva?.id === osParaSolicitacao.id;
+      const payloadOS = { status: 'Aguardando Peça' };
+      if (ehOsAberta) {
+        payloadOS.laudo_tecnico = laudo;
+        payloadOS.pecas_necessarias = pecasUsadasTexto;
+        payloadOS.pecas_selecionadas = pecasSelecionadas;
+      }
+
+      try {
+        await apiFetch(`/ordens-servico/${osParaSolicitacao.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payloadOS)
+        });
+        alert(`✅ Solicitação enviada ao ADM! A OS #${osParaSolicitacao.id} ficou em "Aguardando Peça".`);
+        if (ehOsAberta) setOsAtiva(null);
+      } catch (erroStatus) {
+        alert(
+          `✅ Solicitação enviada ao ADM, mas não foi possível colocar a OS #${osParaSolicitacao.id} ` +
+          `em "Aguardando Peça": ${erroStatus.message}`
+        );
+        console.error(erroStatus);
+      }
+
+      carregarOrdens();
+    } catch (e) {
       alert(`Erro ao enviar solicitação: ${e.message}`);
-      console.error(e); 
+      console.error(e);
     }
   };
 
@@ -409,6 +438,17 @@ export default function Bancada() {
                   </button>
                 )}
 
+                {osAtiva.status === 'Aguardando Peça' && (
+                  <>
+                    <button onClick={() => handleAtualizarOS('Aguardando Cliente')} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all" title="Envia o laudo e o orçamento para o balcão negociar com o cliente">
+                      Enviar Orçamento Detalhado para o Balcão
+                    </button>
+                    <button onClick={() => handleAtualizarOS('APROVADO - Fila de Conserto')} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all" title="A peça chegou: volta para a fila de conserto">
+                      📦 Peça Recebida / Retomar Reparo
+                    </button>
+                  </>
+                )}
+
                 {osAtiva.status === 'APROVADO - Fila de Conserto' && (
                   <>
                     <button onClick={() => handleAtualizarOS('Aguardando Reavaliação')} className="flex-1 bg-[#1e293b] hover:bg-amber-900/30 text-amber-500 border border-amber-500/30 font-bold py-4 rounded-xl shadow-lg transition-all" title="Devolve para o balcão entrar em contato com o cliente">
@@ -434,7 +474,7 @@ export default function Bancada() {
             </h2>
             {osParaSolicitacao && (
               <p className="text-amber-400 text-xs mb-4 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-                Vinculado à <b>OS #{osParaSolicitacao.id} - {osParaSolicitacao.aparelho}</b>
+                Vinculado à <b>OS #{osParaSolicitacao.id} - {osParaSolicitacao.marca} {osParaSolicitacao.modelo}</b>
               </p>
             )}
             
