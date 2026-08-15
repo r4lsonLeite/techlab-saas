@@ -282,3 +282,38 @@ def test_laudo_do_tecnico_chega_ao_atendimento():
     os_listada = next(o for o in listagem.json() if o["id"] == os_id)
     assert os_listada["laudo_tecnico"] == "troca de tela e limpeza"
     assert os_listada["pecas_necessarias"] == "pasta térmica"
+
+
+def test_pecas_vinculadas_voltam_na_listagem_da_os():
+    """A Bancada envia 'pecas_selecionadas' mas a API só devolve 'itens'. Se
+    esse contrato mudar, o carrinho do técnico reabre vazio e a gravação
+    seguinte apaga as peças já vinculadas."""
+    os_id = criar_os_de_teste()
+
+    db = TestingSessionLocal()
+    peca = models.Produto(nome="Tela iPhone 15", preco_venda=900.0, estoque_atual=3,
+                          categoria="Peças", is_servico=False, loja_id=1, ativo=True)
+    servico = models.Produto(nome="Limpeza interna", preco_venda=50.0, estoque_atual=0,
+                             categoria="Serviços", is_servico=True, loja_id=1, ativo=True)
+    db.add_all([peca, servico])
+    db.commit()
+    db.refresh(peca)
+    db.refresh(servico)
+    peca_id, servico_id = peca.id, servico.id
+    db.close()
+
+    with logado_como("tecnico"):
+        resposta = client.put(f"/ordens-servico/{os_id}", json={"pecas_selecionadas": [
+            {"produto_id": peca_id, "qtd": 1, "preco": 900.0},
+            {"produto_id": servico_id, "qtd": 1, "preco": 50.0},
+        ]})
+    assert resposta.status_code == 200, resposta.text
+
+    listagem = client.get("/ordens-servico")
+    os_listada = next(o for o in listagem.json() if o["id"] == os_id)
+    vinculados = {i["produto_id"]: i for i in os_listada["itens"]}
+
+    # Um serviço sem estoque tem de poder ser vinculado à OS.
+    assert peca_id in vinculados and servico_id in vinculados
+    assert vinculados[peca_id]["quantidade"] == 1
+    assert vinculados[peca_id]["nome_produto"] == "Tela iPhone 15"
