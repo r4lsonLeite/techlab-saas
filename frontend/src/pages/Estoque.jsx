@@ -14,6 +14,10 @@ export default function Estoque() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState(null);
+
+  const [solicitacoes, setSolicitacoes] = useState([]);
+  const [carregandoSolicitacoes, setCarregandoSolicitacoes] = useState(true);
+  const [verSolicitacoesResolvidas, setVerSolicitacoesResolvidas] = useState(false);
   
   const [novoProduto, setNovoProduto] = useState({
     codigo_barras: "", 
@@ -41,6 +45,31 @@ export default function Estoque() {
     setProdutos([]);
     carregarProdutos(0, buscaDebounced, true);
   }, [buscaDebounced]);
+
+  useEffect(() => { carregarSolicitacoes(); }, []);
+
+  // Os pedidos de peça da Bancada e as faltas anotadas no PDV chegam aqui:
+  // até agora nada no frontend consumia GET /solicitacoes e o ADM nunca as via.
+  const carregarSolicitacoes = async () => {
+    setCarregandoSolicitacoes(true);
+    try {
+      setSolicitacoes(await apiFetch('/solicitacoes'));
+    } catch (erro) {
+      mostrarToast(`Erro ao carregar solicitações: ${erro.message}`, 'erro');
+    } finally {
+      setCarregandoSolicitacoes(false);
+    }
+  };
+
+  const responderSolicitacao = async (id, statusNovo) => {
+    try {
+      await apiFetch(`/solicitacoes/${id}/status?status_novo=${encodeURIComponent(statusNovo)}`, { method: 'PUT' });
+      setSolicitacoes(prev => prev.map(s => (s.id === id ? { ...s, status: statusNovo } : s)));
+      mostrarToast(`Solicitação marcada como "${statusNovo}".`);
+    } catch (erro) {
+      mostrarToast(`Erro ao atualizar solicitação: ${erro.message}`, 'erro');
+    }
+  };
 
   const carregarProdutos = async (currentSkip = 0, termo = "", limparLista = false) => {
     if (limparLista) setCarregando(true);
@@ -143,9 +172,14 @@ export default function Estoque() {
     }
   };
 
+  const solicitacoesPendentes = solicitacoes.filter(
+    s => String(s.status || '').toLowerCase() === 'pendente'
+  );
+  const solicitacoesVisiveis = verSolicitacoesResolvidas ? solicitacoes : solicitacoesPendentes;
+
   return (
     <div className="p-8 h-full overflow-y-auto bg-[#0f172a] relative">
-      
+
       {toast && (
         <div className={`fixed top-8 right-8 px-6 py-4 rounded-xl shadow-2xl z-[100] flex items-center gap-3 text-white font-bold transition-all animate-bounce ${toast.tipo === 'sucesso' ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-red-500 shadow-red-500/20'}`}>
           <span className="text-xl">{toast.tipo === 'sucesso' ? '✅' : '🚨'}</span>
@@ -164,6 +198,97 @@ export default function Estoque() {
         >
           <span>➕</span> Novo Item
         </button>
+      </div>
+
+      <div className="bg-[#1e293b] rounded-2xl border border-amber-500/30 shadow-xl overflow-hidden mb-8">
+        <div className="p-6 border-b border-slate-700 flex flex-wrap justify-between items-center gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <span>🛒</span> Solicitações de Compra
+              {solicitacoesPendentes.length > 0 && (
+                <span className="bg-amber-500 text-amber-950 text-xs font-black px-2.5 py-1 rounded-full">
+                  {solicitacoesPendentes.length}
+                </span>
+              )}
+            </h2>
+            <p className="text-slate-400 text-sm mt-1">Peças pedidas pela Bancada e faltas anotadas no PDV</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setVerSolicitacoesResolvidas(v => !v)}
+              className="px-4 py-2 rounded-xl text-sm font-bold border border-slate-600 text-slate-300 hover:bg-slate-700 transition-colors"
+            >
+              {verSolicitacoesResolvidas ? 'Ver só pendentes' : 'Ver histórico'}
+            </button>
+            <button
+              onClick={carregarSolicitacoes}
+              className="px-4 py-2 rounded-xl text-sm font-bold border border-slate-600 text-slate-300 hover:bg-slate-700 transition-colors"
+            >
+              🔄 Atualizar
+            </button>
+          </div>
+        </div>
+
+        <div className="divide-y divide-slate-700">
+          {carregandoSolicitacoes ? (
+            <p className="p-8 text-center text-amber-500 font-bold animate-pulse">A carregar solicitações...</p>
+          ) : solicitacoesVisiveis.length === 0 ? (
+            <p className="p-8 text-center text-slate-500">
+              {verSolicitacoesResolvidas ? 'Nenhuma solicitação registada.' : 'Nenhuma solicitação pendente. 🎉'}
+            </p>
+          ) : (
+            solicitacoesVisiveis.map(s => {
+              const pendente = String(s.status || '').toLowerCase() === 'pendente';
+              const urgente = String(s.prioridade || '').toLowerCase() === 'urgente';
+              return (
+                <div key={s.id} className="p-5 flex flex-wrap gap-4 justify-between items-start hover:bg-slate-800/40 transition-colors">
+                  <div className="min-w-[240px] flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h3 className="text-white font-bold">{s.quantidade}x {s.produto_solicitado}</h3>
+                      {urgente && <span className="text-[10px] font-black px-2 py-0.5 rounded bg-red-500/20 text-red-400">URGENTE</span>}
+                      {!pendente && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-700 text-slate-300 uppercase">{s.status}</span>
+                      )}
+                    </div>
+                    <p className="text-slate-400 text-xs">
+                      Origem: <b className="text-slate-300">{s.origem}</b>
+                      {s.os_id ? <> • Vinculada à <b className="text-slate-300">OS #{s.os_id}</b></> : null}
+                      {s.data_solicitacao ? ` • ${new Date(s.data_solicitacao).toLocaleString('pt-BR')}` : ''}
+                    </p>
+                    {s.observacao && (
+                      <p className="text-slate-300 text-sm mt-2 bg-[#0f172a] p-2 rounded-lg border border-slate-700 italic">"{s.observacao}"</p>
+                    )}
+                  </div>
+
+                  {pendente && (
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => responderSolicitacao(s.id, 'Comprada')}
+                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors"
+                        title="Pedido feito ao fornecedor"
+                      >
+                        🛍️ Comprada
+                      </button>
+                      <button
+                        onClick={() => responderSolicitacao(s.id, 'Recebida')}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors"
+                        title="A peça chegou — lembre-se de dar entrada no estoque"
+                      >
+                        ✅ Recebida
+                      </button>
+                      <button
+                        onClick={() => responderSolicitacao(s.id, 'Recusada')}
+                        className="bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 px-4 py-2 rounded-xl text-sm font-bold transition-colors"
+                      >
+                        ✖
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       <div className="bg-[#1e293b] rounded-2xl border border-slate-700 shadow-xl overflow-hidden">

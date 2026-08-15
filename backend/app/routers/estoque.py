@@ -76,6 +76,7 @@ def criar_solicitacao(s: schemas.SolicitacaoCompraCreate, db: Session = Depends(
     nova = models.SolicitacaoCompra(**s.model_dump(), loja_id=user.loja_id)
     db.add(nova)
     db.commit()
+    db.refresh(nova)
     return nova
 
 @router.get("/solicitacoes")

@@ -317,3 +317,46 @@ def test_pecas_vinculadas_voltam_na_listagem_da_os():
     assert peca_id in vinculados and servico_id in vinculados
     assert vinculados[peca_id]["quantidade"] == 1
     assert vinculados[peca_id]["nome_produto"] == "Tela iPhone 15"
+
+
+# ==============================
+# SOLICITAÇÕES DE COMPRA
+# ==============================
+
+def test_solicitacao_da_bancada_chega_ao_adm():
+    """O técnico pede a peça ao ADM; o ADM tem de a ver na listagem e poder
+    responder. Nenhum ecrã consumia GET /solicitacoes."""
+    os_id = criar_os_de_teste()
+
+    with logado_como("tecnico"):
+        criada = client.post("/solicitacoes", json={
+            "produto_solicitado": "Tela Frontal Moto G20",
+            "quantidade": 1, "origem": "Bancada", "prioridade": "Urgente",
+            "os_id": os_id, "observacao": "Pegar da marca Original China.",
+        })
+    assert criada.status_code == 200, criada.text
+    solicitacao_id = criada.json()["id"]
+    assert criada.json()["status"] == "Pendente"
+
+    listagem = client.get("/solicitacoes")
+    assert listagem.status_code == 200
+    pedido = next(s for s in listagem.json() if s["id"] == solicitacao_id)
+    assert pedido["produto_solicitado"] == "Tela Frontal Moto G20"
+    assert pedido["origem"] == "Bancada"
+    assert pedido["os_id"] == os_id
+
+    resposta = client.put(f"/solicitacoes/{solicitacao_id}/status?status_novo=Recebida")
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()["status"] == "Recebida"
+
+
+def test_falta_anotada_no_pdv_chega_ao_adm():
+    with logado_como("balcao"):
+        criada = client.post("/solicitacoes", json={
+            "produto_solicitado": "Película 3D iPhone 15",
+            "quantidade": 1, "origem": "Balcao", "prioridade": "Sugestão",
+        })
+    assert criada.status_code == 200, criada.text
+
+    listagem = client.get("/solicitacoes")
+    assert any(s["id"] == criada.json()["id"] and s["origem"] == "Balcao" for s in listagem.json())
