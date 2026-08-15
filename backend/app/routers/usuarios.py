@@ -65,8 +65,20 @@ def listar_usuarios_com_metricas(skip: int = 0, limit: int = 50, db: Session = D
     vendas_bulk = db.query(models.Venda.usuario_id, func.count(models.Venda.id).label('qtd'), func.sum(models.Venda.valor_total).label('soma')).filter(models.Venda.usuario_id.in_(user_ids)).group_by(models.Venda.usuario_id).all()
     v_map = {r.usuario_id: {'qtd': r.qtd, 'soma': r.soma or 0} for r in vendas_bulk}
 
-    os_tec_bulk = db.query(models.OrdemServico.tecnico_id, func.count(models.OrdemServico.id).label('qtd'), func.sum(models.OrdemServico.valor_mao_de_obra).label('mao')).filter(models.OrdemServico.tecnico_id.in_(user_ids), models.OrdemServico.status == StatusOS.PRONTO.value).group_by(models.OrdemServico.tecnico_id).all()
-    t_map = {r.tecnico_id: {'qtd': r.qtd, 'mao': r.mao or 0} for r in os_tec_bulk}
+    # Um reparo continua concluído depois de o cliente pagar. Filtrar só por
+    # 'Pronto para Retirada' fazia o técnico perder reparos e comissão no
+    # instante em que a OS era entregue.
+    status_concluidos = [StatusOS.PRONTO.value, StatusOS.ENTREGUE.value]
+    os_tec_bulk = db.query(
+        models.OrdemServico.tecnico_id,
+        func.count(models.OrdemServico.id).label('qtd'),
+        func.sum(models.OrdemServico.valor_mao_de_obra).label('mao'),
+        func.sum(models.OrdemServico.horas_tecnicas).label('horas')
+    ).filter(
+        models.OrdemServico.tecnico_id.in_(user_ids),
+        models.OrdemServico.status.in_(status_concluidos)
+    ).group_by(models.OrdemServico.tecnico_id).all()
+    t_map = {r.tecnico_id: {'qtd': r.qtd, 'mao': r.mao or 0, 'horas': r.horas or 0} for r in os_tec_bulk}
 
     res = []
     for u in usuarios:
@@ -76,8 +88,15 @@ def listar_usuarios_com_metricas(skip: int = 0, limit: int = 50, db: Session = D
             v = v_map.get(u.id, {'qtd': 0, 'soma': 0})
             d.update({"vendas_realizadas": v['qtd'], "comissao_vendas": float(v['soma']) * taxa})
         elif u.cargo == "tecnico":
-            t = t_map.get(u.id, {'qtd': 0, 'mao': 0})
-            d.update({"reparos_concluidos": t['qtd'], "comissao_reparos": float(t['mao']) * taxa})
+            t = t_map.get(u.id, {'qtd': 0, 'mao': 0, 'horas': 0})
+            d.update({
+                "reparos_concluidos": t['qtd'],
+                "comissao_reparos": float(t['mao']) * taxa,
+                "mao_de_obra_total": float(t['mao']),
+                # O ecrã de equipa já mostrava este valor, mas a API nunca o
+                # devolvia: aparecia sempre 0h.
+                "horas_tecnicas": round(float(t['horas']), 1)
+            })
         res.append(d)
     return res
 

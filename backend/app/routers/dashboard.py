@@ -25,11 +25,31 @@ def obter_metricas_dashboard(db: Session = Depends(get_db), admin=Depends(admin_
             return CACHE_DADOS[chave_cache]['dados']
 
     
-    v = db.query(func.sum(models.Venda.valor_total)).filter(models.Venda.loja_id == admin.loja_id).scalar() or 0
-    o = db.query(func.sum(models.OrdemServico.valor_orcamento)).filter(models.OrdemServico.loja_id == admin.loja_id, models.OrdemServico.status == StatusOS.ENTREGUE.value).scalar() or 0
-    
+    # O livro financeiro é a fonte de verdade: separa serviço de produto e já
+    # desconta o que foi concedido. Somar Venda.valor_total com o orçamento das
+    # OS entregues contava o serviço duas vezes, porque a venda da OS já inclui
+    # o valor do orçamento no seu total.
+    def soma_entradas(categoria):
+        return float(db.query(func.sum(models.TransacaoFinanceira.valor)).filter(
+            models.TransacaoFinanceira.loja_id == admin.loja_id,
+            models.TransacaoFinanceira.tipo == "ENTRADA",
+            models.TransacaoFinanceira.categoria == categoria
+        ).scalar() or 0)
+
+    total_servicos_os = soma_entradas("Serviços (OS)")
+    total_vendas_balcao = soma_entradas("Venda de Produtos")
+    total_descontos = float(db.query(func.sum(models.TransacaoFinanceira.valor)).filter(
+        models.TransacaoFinanceira.loja_id == admin.loja_id,
+        models.TransacaoFinanceira.tipo == "SAIDA",
+        models.TransacaoFinanceira.categoria == "Descontos Concedidos"
+    ).scalar() or 0)
+
     resultado = {
-        "faturamento_total": float(v) + float(o), 
+        "faturamento_total": total_servicos_os + total_vendas_balcao - total_descontos,
+        # A tela de Financeiro lia estes dois campos, que a API nunca devolveu:
+        # Number(undefined) dava "R$ NaN".
+        "total_servicos_os": total_servicos_os,
+        "total_vendas_balcao": total_vendas_balcao,
         "os_pendentes": db.query(func.count(models.OrdemServico.id)).filter(models.OrdemServico.loja_id == admin.loja_id, models.OrdemServico.status.notin_([StatusOS.ENTREGUE.value, StatusOS.CANCELADA.value])).scalar()
     }
 
