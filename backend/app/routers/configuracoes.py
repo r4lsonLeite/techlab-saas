@@ -41,10 +41,10 @@ def upload_foto_os(os_id: int, file: UploadFile = File(...), db: Session = Depen
     if not os_db:
         raise HTTPException(404, "Ordem de serviço não encontrada.")
 
-    ext = Path(file.filename).suffix.lower()
+    ext = Path(file.filename or "").suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(400, f"Extensão de arquivo não permitida. Use: {', '.join(ALLOWED_EXTENSIONS)}")
-    
+        raise HTTPException(400, f"Extensão de arquivo não permitida. Use: {', '.join(sorted(ALLOWED_EXTENSIONS))}")
+
     conteudo = file.file.read()
     if len(conteudo) > MAX_FILE_SIZE:
         raise HTTPException(400, "Arquivo de evidência excede o limite de 5MB.")
@@ -52,11 +52,17 @@ def upload_foto_os(os_id: int, file: UploadFile = File(...), db: Session = Depen
     os.makedirs("uploads/evidencias", exist_ok=True)
     nome_seguro = f"os_{os_id}_{uuid.uuid4().hex}{ext}"
     caminho_arquivo = f"uploads/evidencias/{nome_seguro}"
-    
+
     with open(caminho_arquivo, "wb") as f:
         f.write(conteudo)
-        
-    return {"mensagem": "Foto salva com segurança!", "url": f"/{caminho_arquivo}"}
+
+    # Sem isto o ficheiro ficava no disco sem qualquer ligação à OS: o
+    # técnico anexava a evidência e ninguém conseguia chegar a ela.
+    url = f"/{caminho_arquivo}"
+    os_db.foto_url = url
+    db.commit()
+
+    return {"mensagem": "Foto salva com segurança!", "url": url}
 
 @router.put("/lojas/configuracoes")
 def atualizar_configuracoes_loja(dados: dict, db: Session = Depends(get_db), user=Depends(obter_usuario_logado)):

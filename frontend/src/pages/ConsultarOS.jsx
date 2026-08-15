@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
-import { apiFetch } from '../services/api'; 
+import { apiFetch, API_BASE_URL } from '../services/api';
 import { gerarOrcamentoPDF, imprimirComprovanteOS } from '../utils/geradorPDF';
 
 export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, abrirPDVComOS }) {
@@ -386,6 +386,19 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                     <p className="text-slate-300 text-sm bg-[#0f172a] p-3 rounded-lg border border-slate-700 whitespace-pre-wrap">
                       {osAtiva.pecas_necessarias}
                     </p>
+                  </div>
+                )}
+
+                {osAtiva.foto_url && (
+                  <div>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">📸 Evidência anexada pelo técnico</p>
+                    <a href={`${API_BASE_URL}${osAtiva.foto_url}`} target="_blank" rel="noreferrer">
+                      <img
+                        src={`${API_BASE_URL}${osAtiva.foto_url}`}
+                        alt="Evidência do reparo"
+                        className="max-h-64 rounded-lg border border-slate-700 hover:border-blue-500 transition-colors"
+                      />
+                    </a>
                   </div>
                 )}
 
