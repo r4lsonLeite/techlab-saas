@@ -85,7 +85,11 @@ class OSService:
         
         if novo_status == StatusOS.PRONTO.value:
             os_db.data_fim_reparo = agora
-            
-            
+
+        # Sem isto data_conclusao ficava sempre NULL e o KPI de tempo médio de
+        # reparo do painel do ADM devolvia 0.0 para todas as lojas.
+        if novo_status == StatusOS.ENTREGUE.value:
+            os_db.data_conclusao = agora
+
         os_db.status = novo_status
         return os_db

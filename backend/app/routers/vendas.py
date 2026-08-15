@@ -57,8 +57,10 @@ def finalizar_venda(venda: schemas.VendaCreate, db: Session = Depends(get_db), u
         os_v = None
         if hasattr(venda, 'os_id') and venda.os_id:
             os_v = db.query(models.OrdemServico).filter(models.OrdemServico.id == venda.os_id, models.OrdemServico.loja_id == user.loja_id).with_for_update().first()
-            if not os_v or os_v.status == StatusOS.ENTREGUE.value: 
-                raise HTTPException(400, "OS inválida ou já paga")
+            if not os_v:
+                raise HTTPException(400, f"OS #{venda.os_id} não encontrada nesta loja.")
+            if os_v.status == StatusOS.ENTREGUE.value:
+                raise HTTPException(400, f"A OS #{os_v.id} já foi paga e entregue. Recarregue a lista do balcão.")
             
         vendedor_final_id = getattr(venda, 'usuario_id', None) or user.id
         nova_venda = models.Venda(valor_total=0, forma_pagamento=venda.forma_pagamento, loja_id=user.loja_id, usuario_id=vendedor_final_id, os_id=getattr(venda, 'os_id', None) )

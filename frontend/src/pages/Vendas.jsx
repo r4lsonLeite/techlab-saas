@@ -144,13 +144,11 @@ export default function Vendas({ osParaPDV, setOsParaPDV }) {
     };
 
     try {
+      // POST /vendas já marca a OS como Entregue dentro da mesma transação.
+      // O PUT extra que existia aqui era recusado de propósito pelo backend
+      // ("só pode ser marcada como Entregue através do pagamento no PDV"), o
+      // que fazia uma venda bem-sucedida aparecer como erro no balcão.
       await apiFetch('/vendas', { method: 'POST', body: JSON.stringify(payloadDaVenda) });
-      
-      if (os_id_final) {
-        await apiFetch(`/ordens-servico/${os_id_final}`, {
-          method: 'PUT', body: JSON.stringify({ status: 'Entregue' })
-        });
-      }
 
       mostrarToast(`Venda de R$ ${totalComDesconto.toFixed(2)} recebida com sucesso!`);
       setCarrinho([]); 

@@ -398,3 +398,54 @@ def test_foto_com_extensao_proibida_e_recusada():
         )
     assert resposta.status_code == 400
     assert "não permitida" in resposta.json()["detail"]
+
+
+# ==============================
+# PAGAMENTO DA OS NO PDV
+# ==============================
+
+def test_pagamento_da_os_no_pdv_entrega_e_regista_conclusao():
+    """A venda marca a OS como Entregue dentro da própria transação — o balcão
+    não precisa (nem pode) fazer um PUT extra para 'Entregue'."""
+    os_id = criar_os_de_teste()
+
+    client.put(f"/ordens-servico/{os_id}", json={"status": StatusOS.AGUARDANDO_CLIENTE.value})
+    client.put(f"/ordens-servico/{os_id}", json={
+        "status": StatusOS.APROVADO.value, "valor_orcamento": 70.0})
+    client.put(f"/ordens-servico/{os_id}", json={"status": StatusOS.PRONTO.value})
+
+    venda = client.post("/vendas", json={
+        "forma_pagamento": "Cartão", "itens": [], "os_id": os_id, "desconto": 0.1})
+    assert venda.status_code == 200, venda.text
+
+    listagem = client.get("/ordens-servico")
+    os_listada = next(o for o in listagem.json() if o["id"] == os_id)
+    assert os_listada["status"] == StatusOS.ENTREGUE.value
+    assert os_listada["data_conclusao"] is not None
+
+
+def test_os_ja_paga_nao_e_cobrada_duas_vezes():
+    os_id = criar_os_de_teste()
+
+    client.put(f"/ordens-servico/{os_id}", json={"status": StatusOS.AGUARDANDO_CLIENTE.value})
+    client.put(f"/ordens-servico/{os_id}", json={
+        "status": StatusOS.APROVADO.value, "valor_orcamento": 70.0})
+    client.put(f"/ordens-servico/{os_id}", json={"status": StatusOS.PRONTO.value})
+
+    assert client.post("/vendas", json={
+        "forma_pagamento": "PIX", "itens": [], "os_id": os_id}).status_code == 200
+
+    repetida = client.post("/vendas", json={
+        "forma_pagamento": "PIX", "itens": [], "os_id": os_id})
+    assert repetida.status_code == 400
+    assert "já foi paga" in repetida.json()["detail"]
+
+
+def test_balcao_nao_pode_entregar_os_por_fora_do_pdv():
+    """Regressão do erro no balcão: o frontend fazia este PUT depois da venda
+    e o 400 fazia uma venda concluída parecer falhada."""
+    os_id = criar_os_de_teste()
+
+    resposta = client.put(f"/ordens-servico/{os_id}", json={"status": StatusOS.ENTREGUE.value})
+    assert resposta.status_code == 400
+    assert "PDV" in resposta.json()["detail"]
