@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
 import logging
+import unicodedata
 
 from core.database import get_db
 from core.deps import obter_usuario_logado, admin_required
@@ -13,6 +14,13 @@ from services.os_service import OSService, StatusOS
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ordens-servico", tags=["Ordens de Serviço"])
+
+
+def normalizar_cargo(cargo: str) -> str:
+    """'Técnico', 'TECNICO' e 'tecnico' são o mesmo cargo. Sem remover os
+    acentos, o técnico escapava às validações de segurança abaixo."""
+    sem_acentos = unicodedata.normalize("NFKD", cargo or "")
+    return "".join(c for c in sem_acentos if not unicodedata.combining(c)).strip().lower()
 
 def atualizar_os_retorno_helper(os_db):
     d = {c.name: getattr(os_db, c.name) for c in os_db.__table__.columns}
@@ -84,10 +92,17 @@ def atualizar_os(os_id: int, payload: schemas.OSUpdate, db: Session = Depends(ge
         if not os_db: raise HTTPException(404, "OS não encontrada")
         dados = payload.model_dump(exclude_unset=True)
 
-        if user.cargo.lower() == "tecnico":
+        if normalizar_cargo(user.cargo) == "tecnico":
             if "valor_orcamento" in dados:
                 raise HTTPException(403, "Falha de Segurança: O Técnico não tem permissão para alterar valores financeiros.")
-            if "status" in dados and dados["status"] in [StatusOS.APROVADO.value, StatusOS.RECUSADO.value, StatusOS.ENTREGUE.value]:
+            # Retomar o reparo depois de a peça chegar não é uma decisão
+            # comercial, por isso 'Aguardando Peça' -> 'APROVADO' é permitido.
+            retomando_reparo = (
+                dados.get("status") == StatusOS.APROVADO.value
+                and os_db.status == StatusOS.AGUARDANDO_PECA.value
+            )
+            bloqueados = [StatusOS.APROVADO.value, StatusOS.RECUSADO.value, StatusOS.ENTREGUE.value]
+            if "status" in dados and dados["status"] in bloqueados and not retomando_reparo:
                 raise HTTPException(403, "Falha de Segurança: O Técnico não tem permissão para faturar ou cancelar OS.")
 
         if "status" in dados and dados["status"] == StatusOS.ENTREGUE.value:

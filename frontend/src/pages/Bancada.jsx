@@ -11,7 +11,8 @@ export default function Bancada() {
 
   const [estoquePecas, setEstoquePecas] = useState([]);
   const [buscaPeca, setBuscaPeca] = useState('');
-  const [pecasSelecionadas, setPecasSelecionadas] = useState([]); 
+  const [carregandoPecas, setCarregandoPecas] = useState(false);
+  const [pecasSelecionadas, setPecasSelecionadas] = useState([]);
   
   const [modalAberto, setModalAberto] = useState(false);
   const [osParaSolicitacao, setOsParaSolicitacao] = useState(null);
@@ -21,8 +22,14 @@ export default function Bancada() {
 
   useEffect(() => {
     carregarOrdens();
-    carregarEstoque();
   }, []);
+
+  // A busca corre no servidor: a API devolve no máximo 50 itens por página,
+  // por isso filtrar no cliente escondia peças e serviços do catálogo.
+  useEffect(() => {
+    const temporizador = setTimeout(() => carregarEstoque(buscaPeca), 300);
+    return () => clearTimeout(temporizador);
+  }, [buscaPeca]);
 
   const carregarOrdens = async () => {
     try {
@@ -38,11 +45,22 @@ export default function Bancada() {
     finally { setCarregando(false); }
   };
 
-  const carregarEstoque = async () => {
+  // O técnico vincula peças E serviços à OS, por isso o catálogo não é
+  // filtrado por categoria — antes só 'Peças' aparecia e uma busca por
+  // "limpeza" (Serviços) não devolvia nada.
+  const carregarEstoque = async (termo = '') => {
+    setCarregandoPecas(true);
     try {
-      const dados = await apiFetch('/produtos');
-      setEstoquePecas(dados.filter(p => p.categoria === 'Peças'));
-    } catch (erro) { console.error(erro); }
+      const limpo = termo.trim();
+      const url = limpo
+        ? `/produtos?limit=50&busca=${encodeURIComponent(limpo)}`
+        : '/produtos?limit=50';
+      setEstoquePecas(await apiFetch(url));
+    } catch (erro) {
+      console.error(erro);
+    } finally {
+      setCarregandoPecas(false);
+    }
   };
 
   const selecionarOS = (os) => {
@@ -51,7 +69,19 @@ export default function Bancada() {
     setPecasUsadasTexto(os.pecas_necessarias || ""); 
     setFoto(null);
     
-    setPecasSelecionadas(Array.isArray(os.pecas_selecionadas) ? os.pecas_selecionadas : []);
+    // 'pecas_selecionadas' só existe no payload de escrita; o que a API devolve
+    // é 'itens'. Sem esta conversão o carrinho reabria vazio e a gravação
+    // seguinte apagava todas as peças já vinculadas à OS.
+    setPecasSelecionadas(
+      Array.isArray(os.itens)
+        ? os.itens.map(i => ({
+            produto_id: i.produto_id,
+            nome: i.nome_produto,
+            qtd: i.quantidade,
+            preco: Number(i.preco_unitario || 0)
+          }))
+        : []
+    );
     
     
     if (os.status === 'APROVADO - Fila de Conserto' && !os.data_inicio_reparo) {
@@ -68,11 +98,22 @@ export default function Bancada() {
       } catch (e) { console.error("Falha ao iniciar relógio", e); }
   };
 
+  // Mesma regra do backend (EstoqueService): serviços não têm estoque.
+  const ehServico = (item) =>
+      Boolean(item.is_servico) ||
+      ['serviços', 'servicos', 'mão de obra'].includes(String(item.categoria || '').toLowerCase());
+
   const adicionarPecaAoCarrinho = (peca) => {
-      if (peca.estoque_atual <= 0) {
-          alert("Atenção: Esta peça está sem estoque. Adicione à OS e solicite ao ADM.");
+      // Sem unidades físicas o servidor recusa a reserva e a gravação da OS
+      // falha por inteiro, levando o laudo junto. Melhor pedir ao ADM.
+      if (!ehServico(peca) && peca.estoque_atual <= 0) {
+          alert(
+            `"${peca.nome}" está sem estoque e não pode ser vinculada à OS agora.\n\n` +
+            `Use "+ Solicitar Peça ao ADM" para pedir a peça — a OS fica em "Aguardando Peça" até ela chegar.`
+          );
+          return;
       }
-      
+
       setPecasSelecionadas(prev => {
           const itemExiste = prev.find(item => item.produto_id === peca.id);
           if (itemExiste) {
@@ -93,13 +134,15 @@ export default function Bancada() {
   };
 
   const handleAtualizarOS = async (novoStatus) => {
+    if (!osAtiva) return;
+
     const payload = {
         status: novoStatus,
         laudo_tecnico: laudo,
-        pecas_necessarias: pecasUsadasTexto, 
-        pecas_selecionadas: pecasSelecionadas 
+        pecas_necessarias: pecasUsadasTexto,
+        pecas_selecionadas: pecasSelecionadas
     };
-    
+
     if (novoStatus === 'Pronto para Retirada') {
         payload.data_fim_reparo = new Date().toISOString();
     }
@@ -154,19 +197,44 @@ export default function Bancada() {
         method: 'POST',
         body: JSON.stringify(payload)
       });
-
-      alert("✅ Solicitação enviada para o ADM com sucesso!");
       setModalAberto(false);
-      if (osParaSolicitacao) {
-          handleAtualizarOS('Aguardando Peça');
+
+      if (!osParaSolicitacao) {
+        alert("✅ Solicitação enviada para o ADM com sucesso!");
+        return;
       }
-    } catch (e) { 
+
+      // A OS fica em espera até a peça chegar. A solicitação já foi criada,
+      // por isso uma falha aqui não pode ser reportada como falha do pedido.
+      const ehOsAberta = osAtiva?.id === osParaSolicitacao.id;
+      const payloadOS = { status: 'Aguardando Peça' };
+      if (ehOsAberta) {
+        payloadOS.laudo_tecnico = laudo;
+        payloadOS.pecas_necessarias = pecasUsadasTexto;
+        payloadOS.pecas_selecionadas = pecasSelecionadas;
+      }
+
+      try {
+        await apiFetch(`/ordens-servico/${osParaSolicitacao.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payloadOS)
+        });
+        alert(`✅ Solicitação enviada ao ADM! A OS #${osParaSolicitacao.id} ficou em "Aguardando Peça".`);
+        if (ehOsAberta) setOsAtiva(null);
+      } catch (erroStatus) {
+        alert(
+          `✅ Solicitação enviada ao ADM, mas não foi possível colocar a OS #${osParaSolicitacao.id} ` +
+          `em "Aguardando Peça": ${erroStatus.message}`
+        );
+        console.error(erroStatus);
+      }
+
+      carregarOrdens();
+    } catch (e) {
       alert(`Erro ao enviar solicitação: ${e.message}`);
-      console.error(e); 
+      console.error(e);
     }
   };
-
-  const pecasFiltradas = estoquePecas.filter(p => p.nome.toLowerCase().includes(buscaPeca.toLowerCase()));
 
   return (
     <div className="flex h-full w-full bg-[#0f172a] overflow-x-auto">
@@ -176,20 +244,26 @@ export default function Bancada() {
         
         <div className="p-4 border-b border-slate-700">
           <h2 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
-            <span>🔍</span> Procurar Peças
+            <span>🔍</span> Procurar Peças e Serviços
           </h2>
-          <input 
+          <input
             type="text" value={buscaPeca} onChange={(e) => setBuscaPeca(e.target.value)}
-            placeholder="Procurar tela, bateria..." 
+            placeholder="Procurar tela, bateria, limpeza..."
             className="w-full px-3 py-2 text-sm rounded-lg bg-[#0f172a] text-white border border-slate-600 focus:border-blue-500 outline-none transition-colors"
           />
         </div>
         
         <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar border-b border-slate-700/50">
-          {pecasFiltradas.length === 0 ? (
-            <p className="text-center text-slate-500 mt-4 text-xs">Nenhuma peça encontrada.</p>
+          {carregandoPecas ? (
+            <p className="text-center text-slate-500 mt-4 text-xs animate-pulse">A procurar no catálogo...</p>
+          ) : estoquePecas.length === 0 ? (
+            <p className="text-center text-slate-500 mt-4 text-xs">
+              {buscaPeca.trim()
+                ? `Nenhuma peça ou serviço para "${buscaPeca.trim()}".`
+                : 'Nenhum item no catálogo.'}
+            </p>
           ) : (
-            pecasFiltradas.map(peca => (
+            estoquePecas.map(peca => (
               <div 
                 key={peca.id} 
                 onClick={() => {
@@ -203,11 +277,20 @@ export default function Bancada() {
                   <span className="opacity-0 group-hover:opacity-100 text-blue-500 text-xs font-bold transition-opacity">➕</span>
                 </div>
                 <div className="flex justify-between items-center mt-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-400">📍 {peca.localizacao || '-'}</span>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${peca.estoque_atual > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                      {peca.estoque_atual} un.
-                    </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded">{peca.categoria || 'Outros'}</span>
+                    {ehServico(peca) ? (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400">
+                        Serviço
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-[10px] text-slate-400">📍 {peca.localizacao || '-'}</span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${peca.estoque_atual > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                          {peca.estoque_atual} un.
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -219,7 +302,7 @@ export default function Bancada() {
         {osAtiva && (
             <div className="bg-slate-800/80 p-3 flex flex-col max-h-56 border-b border-slate-700 shadow-inner">
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 flex justify-between items-center">
-                    <span>📦 Peças Vinculadas</span>
+                    <span>📦 Peças e Serviços Vinculados</span>
                     <span className="bg-slate-700 text-white px-2 py-0.5 rounded-full">{pecasSelecionadas.length}</span>
                 </h4>
                 
@@ -409,6 +492,17 @@ export default function Bancada() {
                   </button>
                 )}
 
+                {osAtiva.status === 'Aguardando Peça' && (
+                  <>
+                    <button onClick={() => handleAtualizarOS('Aguardando Cliente')} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all" title="Envia o laudo e o orçamento para o balcão negociar com o cliente">
+                      Enviar Orçamento Detalhado para o Balcão
+                    </button>
+                    <button onClick={() => handleAtualizarOS('APROVADO - Fila de Conserto')} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all" title="A peça chegou: volta para a fila de conserto">
+                      📦 Peça Recebida / Retomar Reparo
+                    </button>
+                  </>
+                )}
+
                 {osAtiva.status === 'APROVADO - Fila de Conserto' && (
                   <>
                     <button onClick={() => handleAtualizarOS('Aguardando Reavaliação')} className="flex-1 bg-[#1e293b] hover:bg-amber-900/30 text-amber-500 border border-amber-500/30 font-bold py-4 rounded-xl shadow-lg transition-all" title="Devolve para o balcão entrar em contato com o cliente">
@@ -434,7 +528,7 @@ export default function Bancada() {
             </h2>
             {osParaSolicitacao && (
               <p className="text-amber-400 text-xs mb-4 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-                Vinculado à <b>OS #{osParaSolicitacao.id} - {osParaSolicitacao.aparelho}</b>
+                Vinculado à <b>OS #{osParaSolicitacao.id} - {osParaSolicitacao.marca} {osParaSolicitacao.modelo}</b>
               </p>
             )}
             
