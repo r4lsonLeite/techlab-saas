@@ -77,11 +77,11 @@ export default function Financeiro() {
   if (erro) {
     return (
       <div className="flex-1 flex items-center justify-center bg-[#0f172a] text-red-500">
-        <div className="bg-red-500/10 p-8 rounded-2xl border border-red-500/30 text-center max-w-md">
+        <div className="bg-red-500/10 p-6 sm:p-8 rounded-2xl border border-red-500/30 text-center max-w-md">
           <span className="text-5xl block mb-4">🚨</span>
           <h2 className="text-xl font-bold mb-2">Erro no Relatório</h2>
           <p className="text-sm text-red-400 mb-6">{erro}</p>
-          <button onClick={() => window.location.reload()} className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold">Tentar Novamente</button>
+          <button onClick={() => window.location.reload()} className="bg-suave-vermelho hover:bg-suave-vermelho-hover text-white px-6 py-2 rounded-lg font-bold transition-colors">Tentar Novamente</button>
         </div>
       </div>
     );
@@ -96,7 +96,7 @@ export default function Financeiro() {
   let totalLiquidoAPagar = 0;
 
   return (
-    <div className="flex-1 p-8 overflow-y-auto bg-[#0f172a] text-white custom-scrollbar print-area">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 min-h-full bg-[#0f172a] text-white custom-scrollbar print-area">
       
       {/* Estilo embutido para limpar a tela na hora de imprimir / gerar PDF */}
       <style>{`
@@ -115,12 +115,12 @@ export default function Financeiro() {
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* CABEÇALHO E FILTROS */}
-        <div className="flex flex-wrap justify-between items-end gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-between sm:items-end gap-4 mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">Relatórios Financeiros</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Relatórios Financeiros</h1>
             <p className="text-slate-400 mt-1">Análise detalhada de DRE, receitas e comissões da equipe</p>
           </div>
-          <button onClick={handleExportar} className="no-print bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg font-bold transition-colors shadow-lg shadow-emerald-500/20 flex items-center gap-2">
+          <button onClick={handleExportar} className="no-print w-full sm:w-auto justify-center bg-suave-verde hover:bg-suave-verde-hover text-white px-5 py-2.5 rounded-lg font-bold transition-colors flex items-center gap-2">
             <span>🖨️</span> Exportar / Imprimir
           </button>
         </div>
@@ -130,9 +130,9 @@ export default function Financeiro() {
           {['Este Mês', 'Últimos 3 Meses', 'Últimos 6 Meses', 'Este Ano'].map(f => (
             <button 
               key={f} onClick={() => setFiltro(f)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                 filtro === f 
-                ? 'bg-blue-600 text-white shadow-md border-blue-500' 
+                ? 'bg-suave-azul text-white' 
                 : 'bg-transparent text-slate-400 border border-slate-700 hover:border-slate-500 hover:text-white'
               }`}
             >
@@ -142,44 +142,44 @@ export default function Financeiro() {
         </div>
 
         {/* 1º ANDAR: CARDS PRINCIPAIS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-blue-600 p-6 rounded-2xl shadow-lg shadow-blue-500/20 text-white">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
+          <div className="bg-suave-azul p-5 sm:p-6 rounded-2xl shadow-lg text-white">
             <p className="text-blue-200 text-sm font-medium flex items-center gap-2 mb-2">💎 Faturamento Total</p>
-            <h2 className="text-3xl font-bold">R$ {Number(metricas.faturamento_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold">R$ {Number(metricas.faturamento_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
             <p className="text-blue-300 text-xs mt-2">Balcão + Serviços</p>
           </div>
-          <div className="bg-emerald-600 p-6 rounded-2xl shadow-lg shadow-emerald-500/20 text-white">
+          <div className="bg-suave-verde p-5 sm:p-6 rounded-2xl shadow-lg text-white">
             <p className="text-emerald-200 text-sm font-medium flex items-center gap-2 mb-2">💵 Receita de Serviços</p>
-            <h2 className="text-3xl font-bold">R$ {Number(metricas.total_servicos_os).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold">R$ {Number(metricas.total_servicos_os).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
             <p className="text-emerald-300 text-xs mt-2">Vindo das OS Entregues</p>
           </div>
-          <div className="bg-purple-600 p-6 rounded-2xl shadow-lg shadow-purple-500/20 text-white">
+          <div className="bg-suave-roxo p-5 sm:p-6 rounded-2xl shadow-lg text-white">
             <p className="text-purple-200 text-sm font-medium flex items-center gap-2 mb-2">🎫 Ticket Médio Geral</p>
-            <h2 className="text-3xl font-bold">R$ {Number(graficos.kpis_extras?.ticket_medio_geral || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold">R$ {Number(graficos.kpis_extras?.ticket_medio_geral || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
             <p className="text-purple-300 text-xs mt-2">Gasto médio por cliente</p>
           </div>
-          <div className="bg-[#1e293b] border border-slate-700 p-6 rounded-2xl shadow-lg text-white">
+          <div className="bg-[#1e293b] border border-slate-700 p-5 sm:p-6 rounded-2xl shadow-lg text-white">
             <p className="text-slate-400 text-sm font-medium flex items-center gap-2 mb-2">⏱️ Tempo Médio de Reparo</p>
-            <h2 className="text-3xl font-bold text-amber-400">{graficos.kpis_extras?.tempo_medio_reparo_horas || 0} <span className="text-lg font-normal text-slate-500">horas</span></h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-amber-400">{graficos.kpis_extras?.tempo_medio_reparo_horas || 0} <span className="text-lg font-normal text-slate-500">horas</span></h2>
             <p className="text-slate-500 text-xs mt-2">Da bancada à entrega</p>
           </div>
         </div>
 
         {/* 2º ANDAR: GESTÃO DE COMISSÕES DA EQUIPE (MOVIDO PARA CIMA PELA IMPORTÂNCIA) */}
         <div className="bg-[#1e293b] rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
-          <div className="p-6 border-b border-slate-700 flex flex-wrap justify-between items-center gap-4">
+          <div className="p-4 sm:p-6 border-b border-slate-700 flex flex-col sm:flex-row sm:flex-wrap sm:justify-between sm:items-center gap-4">
             <div>
               <h3 className="text-slate-300 font-bold text-lg flex items-center gap-2"><span>👥</span> Folha de Pagamento & Fechamento de Comissões</h3>
               <p className="text-slate-500 text-xs mt-1">Insira vales, adiantamentos ou peças quebradas na coluna de Descontos.</p>
             </div>
-            <div className="text-right">
+            <div className="sm:text-right">
               <p className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Período de Apuração</p>
               <p className="text-emerald-400 font-bold">{filtro}</p>
             </div>
           </div>
           
           <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[760px] text-left border-collapse">
               <thead>
                 <tr className="bg-[#0f172a] border-b border-slate-700">
                   <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Funcionário</th>
@@ -309,7 +309,7 @@ export default function Financeiro() {
         </div>
 
         {/* 4º ANDAR: CATEGORIAS E RANKING */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 page-break-before">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-8 page-break-before">
           <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
             <h3 className="text-slate-300 font-bold mb-6">Faturamento por Categoria</h3>
             <div className="h-64 w-full">

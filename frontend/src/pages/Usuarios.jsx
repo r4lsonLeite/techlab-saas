@@ -119,24 +119,24 @@ export default function Usuarios() {
   const tecnicosAtivos = usuarios.filter(u => String(u?.cargo || '').toLowerCase() === 'tecnico' && u?.ativo !== false).length;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto w-full h-full overflow-y-auto custom-scrollbar">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full min-h-full custom-scrollbar">
       
       {/* CABEÇALHO */}
-      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-1">Controle de Equipe</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Controle de Equipe</h1>
           <p className="text-slate-400 text-sm">Faça a gestão dos acessos ao sistema e dos cargos dos funcionários.</p>
         </div>
         <button
           onClick={() => setModalAberto(true)}
-          className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-lg font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2"
+          className="w-full sm:w-auto justify-center bg-suave-verde hover:bg-suave-verde-hover text-white px-5 py-2.5 rounded-lg font-bold transition-colors flex items-center gap-2"
         >
           <span>+</span> Adicionar Funcionário
         </button>
       </div>
 
       {/* CARDS DE ESTATÍSTICAS GERAIS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <div className="bg-[#1e293b] p-6 rounded-xl border border-slate-700 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-slate-400">👥</span>
@@ -160,7 +160,7 @@ export default function Usuarios() {
           A carregar equipa da base de dados...
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6">
           {usuarios.map((user) => {
             const nomeStr = String(user?.nome || 'Sem Nome');
             const emailStr = String(user?.email || 'Sem e-mail');
@@ -173,7 +173,7 @@ export default function Usuarios() {
               <div key={user.id || Math.random()} className={`bg-[#1e293b] rounded-xl border ${inativo ? 'border-red-500/50 opacity-70' : 'border-slate-700'} shadow-xl overflow-hidden flex flex-col hover:border-slate-500 transition-colors group`}>
                 
                 {/* Topo do Card */}
-                <div className="p-5 flex gap-4 items-center border-b border-slate-700/50">
+                <div className="p-4 sm:p-5 flex gap-4 items-center border-b border-slate-700/50">
                   <div className={`w-12 h-12 shrink-0 rounded-full ${inativo ? 'bg-red-900/50' : 'bg-slate-800'} border border-slate-600 flex items-center justify-center text-white font-bold text-lg shadow-inner uppercase`}>
                     {nomeStr.charAt(0)}
                   </div>
@@ -244,7 +244,7 @@ export default function Usuarios() {
                         {editandoComissaoId !== user.id && (
                           <button 
                             onClick={() => { setEditandoComissaoId(user.id); setNovaComissao(user.taxa_comissao || 0); }} 
-                            className="text-[10px] bg-slate-800 text-blue-400 border border-slate-600 px-2 py-1 rounded hover:text-white transition-colors"
+                            className="text-[10px] bg-suave-azul hover:bg-suave-azul-hover text-white px-2 py-1 rounded transition-colors"
                           >
                             ✏️ Editar
                           </button>
@@ -261,8 +261,8 @@ export default function Usuarios() {
                             placeholder="Ex: 30"
                             autoFocus
                           />
-                          <button onClick={() => salvarComissao(user.id)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 rounded text-xs font-bold transition-colors">OK</button>
-                          <button onClick={() => setEditandoComissaoId(null)} className="bg-slate-700 hover:bg-slate-600 text-white px-2 rounded text-xs font-bold transition-colors">✕</button>
+                          <button onClick={() => salvarComissao(user.id)} className="bg-suave-verde hover:bg-suave-verde-hover text-white px-3 rounded text-xs font-bold transition-colors">OK</button>
+                          <button onClick={() => setEditandoComissaoId(null)} className="bg-suave-grafite hover:bg-suave-grafite-hover text-white px-2 rounded text-xs font-bold transition-colors">✕</button>
                         </div>
                       ) : (
                         <div className="flex items-end gap-1">
@@ -276,18 +276,18 @@ export default function Usuarios() {
                 </div>
 
                 {/* Rodapé do Card */}
-                <div className="p-3 border-t border-slate-700 bg-[#0f172a]/50 flex gap-2">
+                <div className="p-3 border-t border-slate-700 bg-[#0f172a]/50 flex flex-col sm:flex-row gap-2">
                   <button 
                     onClick={() => resetarSenha(user.id, user.nome)} 
                     disabled={inativo}
-                    className={`flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed py-2 rounded-lg text-xs font-bold transition-all flex justify-center items-center gap-1 ${inativo ? 'hidden' : ''}`}
+                    className={`flex-1 bg-suave-grafite hover:bg-suave-grafite-hover text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed py-2 rounded-lg text-xs font-bold transition-colors flex justify-center items-center gap-1 ${inativo ? 'hidden' : ''}`}
                   >
                     🔑 Nova Palavra-passe
                   </button>
                   {inativo ? (
                     <button 
                       onClick={() => reativarAcesso(user.id, user.nome)} 
-                      className="flex-1 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/50 py-2 rounded-lg text-xs font-bold transition-all flex justify-center items-center gap-1"
+                      className="flex-1 bg-suave-verde hover:bg-suave-verde-hover text-white py-2 rounded-lg text-xs font-bold transition-colors flex justify-center items-center gap-1"
                     >
                       ✅ Reativar Acesso
                     </button>
@@ -295,7 +295,7 @@ export default function Usuarios() {
                     <button 
                       onClick={() => revogarAcesso(user.id, user.nome)} 
                       disabled={user.id === 1}
-                      className="flex-1 bg-slate-800 hover:bg-red-600/20 text-slate-300 hover:text-red-400 border border-slate-700 hover:border-red-500/50 disabled:opacity-50 disabled:cursor-not-allowed py-2 rounded-lg text-xs font-bold transition-all flex justify-center items-center gap-1"
+                      className="flex-1 bg-suave-vermelho hover:bg-suave-vermelho-hover text-white disabled:opacity-50 disabled:cursor-not-allowed py-2 rounded-lg text-xs font-bold transition-colors flex justify-center items-center gap-1"
                     >
                       🗑️ Eliminar
                     </button>
@@ -339,9 +339,9 @@ export default function Usuarios() {
                   </select>
                 </div>
               </div>
-              <div className="flex gap-3 pt-4 mt-2">
-                <button type="button" onClick={() => setModalAberto(false)} className="flex-1 py-2.5 rounded-lg font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors text-sm">Cancelar</button>
-                <button type="submit" className="flex-1 py-2.5 rounded-lg font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors text-sm">Guardar</button>
+              <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4 mt-2">
+                <button type="button" onClick={() => setModalAberto(false)} className="flex-1 py-2.5 rounded-lg font-bold text-slate-200 bg-suave-grafite hover:bg-suave-grafite-hover transition-colors text-sm">Cancelar</button>
+                <button type="submit" className="flex-1 py-2.5 rounded-lg font-bold text-white bg-suave-verde hover:bg-suave-verde-hover transition-colors text-sm">Guardar</button>
               </div>
             </form>
           </div>

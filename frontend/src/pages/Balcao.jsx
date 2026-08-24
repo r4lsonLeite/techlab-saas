@@ -313,18 +313,18 @@ export default function Balcao({ abrirOSNaConsulta }) {
   }, []);
 
   return (
-    <div className="flex h-full w-full relative">
+    <div className="flex flex-col lg:flex-row min-h-full lg:h-full w-full relative">
       
       {/* LADO ESQUERDO: FORMULÁRIO */}
-      <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 lg:overflow-y-auto custom-scrollbar">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold text-white mb-1">Nova Ordem de Serviço</h1>
-          <p className="text-slate-400 text-sm mb-8">Preencha os dados para registrar a entrada do aparelho</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Nova Ordem de Serviço</h1>
+          <p className="text-slate-400 text-sm mb-6 sm:mb-8">Preencha os dados para registrar a entrada do aparelho</p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             
             {/* DADOS DO CLIENTE */}
-            <div className="bg-[#1e293b] p-6 rounded-xl border border-emerald-500/20 shadow-lg">
+            <div className="bg-[#1e293b] p-4 sm:p-6 rounded-xl border border-emerald-500/20 shadow-lg">
               <h3 className="text-white font-semibold mb-4 border-b border-slate-700 pb-2">Dados do Cliente</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -343,7 +343,7 @@ export default function Balcao({ abrirOSNaConsulta }) {
             </div>
 
             {/* DADOS DO APARELHO */}
-            <div className="bg-[#1e293b] p-6 rounded-xl border border-[#3b82f6]/20 shadow-lg">
+            <div className="bg-[#1e293b] p-4 sm:p-6 rounded-xl border border-[#3b82f6]/20 shadow-lg">
               <h3 className="text-white font-semibold mb-4 border-b border-slate-700 pb-2">Dados do Aparelho</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
@@ -386,21 +386,21 @@ export default function Balcao({ abrirOSNaConsulta }) {
             </div>
 
             {/* CHECKLIST DE ENTRADA */}
-            <div className="bg-[#1e293b] p-6 rounded-xl border border-[#eab308]/30 shadow-lg">
+            <div className="bg-[#1e293b] p-4 sm:p-6 rounded-xl border border-[#eab308]/30 shadow-lg">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[#eab308] text-xl">⚠️</span>
                 <h3 className="text-white font-semibold">Checklist de Entrada</h3>
               </div>
               <p className="text-slate-400 text-xs mb-4">Marque os defeitos PREEXISTENTES para proteger a oficina</p>
               
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
                 {itensChecklist.map((item) => (
                   <button
                     key={item} type="button"
                     onClick={() => toggleChecklist(item)}
-                    className={`p-2 rounded-lg text-sm border transition-all ${
+                    className={`w-full px-2 py-2.5 rounded-lg text-xs sm:text-sm leading-tight break-words border transition-colors ${
                       checklistMarcados.includes(item) 
-                      ? 'bg-red-500/20 border-red-500 text-red-400 font-bold' 
+                      ? 'bg-suave-vermelho border-suave-vermelho text-white font-bold' 
                       : 'bg-[#0f172a] border-slate-600 text-slate-300 hover:border-slate-400'
                     }`}
                   >
@@ -411,21 +411,21 @@ export default function Balcao({ abrirOSNaConsulta }) {
             </div>
 
             {/* STATUS E BOTÕES DE AÇÃO */}
-            <div className="flex flex-col md:flex-row justify-between items-center pt-4 gap-4">
-              <div className="flex-1">
-                {status === 'sucesso' && <span className="bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-lg font-bold">✅ OS Salva com Sucesso!</span>}
-                {status === 'erro' && <span className="bg-red-500/20 text-red-400 px-4 py-2 rounded-lg font-bold">❌ Erro ao salvar OS. Verifique o servidor.</span>}
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center pt-2 gap-4">
+              <div className="w-full md:flex-1">
+                {status === 'sucesso' && <span className="block md:inline-block text-center bg-suave-verde text-white px-4 py-2 rounded-lg font-bold text-sm">✅ OS Salva com Sucesso!</span>}
+                {status === 'erro' && <span className="block md:inline-block text-center bg-suave-vermelho text-white px-4 py-2 rounded-lg font-bold text-sm">❌ Erro ao salvar OS. Verifique o servidor.</span>}
               </div>
-              <div className="flex space-x-4">
-                <button type="button" onClick={() => { setOs(estadoInicial); setChecklistMarcados([]); setStatus(''); }} className="px-6 py-3 rounded-lg text-slate-300 bg-slate-800 hover:bg-slate-700 font-semibold transition-colors">
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-end gap-3 w-full md:w-auto">
+                <button type="button" onClick={() => { setOs(estadoInicial); setChecklistMarcados([]); setStatus(''); }} className="w-full sm:w-auto px-5 py-3 rounded-lg text-slate-200 bg-suave-grafite hover:bg-suave-grafite-hover font-semibold text-sm transition-colors">
                   Limpar
                 </button>
                 
-                <button type="button" onClick={() => setModalImpressao({ aberto: true, dados: os, id: "TESTE", checklist: checklistMarcados })} className="px-6 py-3 rounded-lg text-white bg-blue-600 hover:bg-blue-700 font-bold transition-colors shadow-lg shadow-blue-600/20">
+                <button type="button" onClick={() => setModalImpressao({ aberto: true, dados: os, id: "TESTE", checklist: checklistMarcados })} className="w-full sm:w-auto px-5 py-3 rounded-lg text-white bg-suave-azul hover:bg-suave-azul-hover font-bold text-sm transition-colors">
                   🖨️ Testar Recibo
                 </button>
                 
-                <button type="submit" disabled={status === 'Salvando...'} className="px-8 py-3 rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-600 font-bold transition-colors shadow-lg shadow-emerald-600/20">
+                <button type="submit" disabled={status === 'Salvando...'} className="col-span-2 sm:col-span-1 w-full sm:w-auto px-6 py-3 rounded-lg text-white bg-suave-verde hover:bg-suave-verde-hover disabled:bg-slate-600 font-bold text-sm transition-colors">
                   {status === 'Salvando...' ? 'Enviando...' : 'Criar Ordem de Serviço'}
                 </button>
               </div>
@@ -438,40 +438,40 @@ export default function Balcao({ abrirOSNaConsulta }) {
       {/* MODAL DE ESCOLHA DE IMPRESSÃO (Aparece após salvar) */}
       {modalImpressao.aberto && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1e293b] border border-emerald-500/50 rounded-3xl p-8 w-full max-w-md shadow-[0_0_50px_rgba(16,185,129,0.2)] text-center transform scale-100 animate-in fade-in zoom-in duration-200">
-            <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <span className="text-4xl">✅</span>
+          <div className="bg-[#1e293b] border border-slate-700 rounded-3xl p-6 sm:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl text-center transform scale-100 animate-in fade-in zoom-in duration-200">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-suave-verde rounded-full flex items-center justify-center mx-auto mb-5 sm:mb-6">
+              <span className="text-3xl sm:text-4xl">✅</span>
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Ordem Registrada!</h2>
-            <p className="text-slate-400 text-sm mb-8">Como deseja imprimir o comprovante para o cliente?</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Ordem Registrada!</h2>
+            <p className="text-slate-400 text-sm mb-6 sm:mb-8">Como deseja imprimir o comprovante para o cliente?</p>
             
             <div className="flex flex-col gap-4">
               <button 
                 onClick={() => imprimirComprovante(modalImpressao.dados, modalImpressao.id, 'termica', modalImpressao.checklist)}
-                className="w-full bg-[#0f172a] hover:bg-slate-800 border border-slate-600 text-white p-4 rounded-xl font-bold flex items-center justify-between group transition-colors"
+                className="w-full bg-suave-grafite hover:bg-suave-grafite-hover text-white p-3 sm:p-4 rounded-xl font-bold flex items-center justify-between gap-3 text-left group transition-colors"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <span className="text-2xl group-hover:scale-110 transition-transform">🧾</span>
-                  <div className="text-left">
-                    <p>Impressora Térmica</p>
-                    <p className="text-xs text-slate-400 font-normal">Bobina 58mm / 80mm com Canhoto</p>
+                  <div className="text-left min-w-0">
+                    <p className="text-sm sm:text-base">Impressora Térmica</p>
+                    <p className="text-xs text-slate-300 font-normal">Bobina 58mm / 80mm com Canhoto</p>
                   </div>
                 </div>
-                <span className="text-slate-500 group-hover:text-white">→</span>
+                <span className="text-slate-300 group-hover:text-white shrink-0">→</span>
               </button>
 
               <button 
                 onClick={() => imprimirComprovante(modalImpressao.dados, modalImpressao.id, 'a4', modalImpressao.checklist)}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white p-4 rounded-xl font-bold flex items-center justify-between group transition-colors shadow-lg shadow-emerald-500/20"
+                className="w-full bg-suave-verde hover:bg-suave-verde-hover text-white p-3 sm:p-4 rounded-xl font-bold flex items-center justify-between gap-3 text-left group transition-colors"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <span className="text-2xl group-hover:scale-110 transition-transform">📄</span>
-                  <div className="text-left">
-                    <p>Folha A4 / PDF</p>
-                    <p className="text-xs text-emerald-200 font-normal">Ideal para WhatsApp ou Contrato</p>
+                  <div className="text-left min-w-0">
+                    <p className="text-sm sm:text-base">Folha A4 / PDF</p>
+                    <p className="text-xs text-emerald-50/80 font-normal">Ideal para WhatsApp ou Contrato</p>
                   </div>
                 </div>
-                <span className="text-emerald-300 group-hover:text-white">→</span>
+                <span className="text-emerald-50/80 group-hover:text-white shrink-0">→</span>
               </button>
             </div>
 
@@ -483,13 +483,13 @@ export default function Balcao({ abrirOSNaConsulta }) {
       )}
 
       {/* LADO DIREITO: BARRA LATERAL COM ABAS (MANTIDO INTACTO) */}
-      <div className="w-80 bg-[#1e293b] border-l border-slate-700 flex flex-col z-10 shadow-xl hidden lg:flex">
+      <div className="w-full lg:w-80 lg:shrink-0 lg:h-full bg-[#1e293b] border-t lg:border-t-0 lg:border-l border-slate-700 flex flex-col z-10 shadow-xl">
         
         <div className="flex w-full border-b border-slate-700">
           <button
             onClick={() => setAbaLateral('prontos')}
-            className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
-              abaLateral === 'prontos' ? 'bg-emerald-600 text-white' : 'bg-transparent text-slate-400 hover:bg-slate-800'
+            className={`flex-1 px-2 py-3 sm:py-4 text-xs sm:text-sm lg:text-xs whitespace-nowrap font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-colors ${
+              abaLateral === 'prontos' ? 'bg-suave-verde text-white' : 'bg-transparent text-slate-400 hover:bg-slate-800'
             }`}
           >
             ✅ Prontos ({aparelhosProntos.length})
@@ -497,21 +497,21 @@ export default function Balcao({ abrirOSNaConsulta }) {
           
           <button
             onClick={() => setAbaLateral('aprovacao')}
-            className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative ${
-              abaLateral === 'aprovacao' ? 'bg-amber-500 text-white' : 'bg-transparent text-slate-400 hover:bg-slate-800'
+            className={`flex-1 px-2 py-3 sm:py-4 text-xs sm:text-sm lg:text-xs whitespace-nowrap font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-colors ${
+              abaLateral === 'aprovacao' ? 'bg-suave-ambar text-white' : 'bg-transparent text-slate-400 hover:bg-slate-800'
             }`}
           >
             ⏱️ Aprovação ({aparelhosAprovacao.length})
             {aparelhosAprovacao.length > 0 && abaLateral !== 'aprovacao' && (
-              <span className="absolute top-2 right-4 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-suave-vermelho opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-suave-vermelho"></span>
               </span>
             )}
           </button>
         </div>
 
-        <div className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar">
+        <div className="flex-1 p-4 space-y-3 max-h-[55vh] lg:max-h-none overflow-y-auto custom-scrollbar">
           {abaLateral === 'prontos' ? (
             aparelhosProntos.length === 0 ? (
               <div className="text-center mt-10">
@@ -564,8 +564,8 @@ export default function Balcao({ abrirOSNaConsulta }) {
         </div>
 
         <div className="p-4 border-t border-slate-700">
-          <button className={`w-full text-white py-3 rounded-lg font-bold text-sm transition-colors shadow-lg ${
-            abaLateral === 'prontos' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20' : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'
+          <button className={`w-full text-white py-3 rounded-lg font-bold text-sm transition-colors ${
+            abaLateral === 'prontos' ? 'bg-suave-verde hover:bg-suave-verde-hover' : 'bg-suave-ambar hover:bg-suave-ambar-hover'
           }`}>
             {abaLateral === 'prontos' ? 'Ver Todos os Prontos' : 'Ir para Negociação'}
           </button>

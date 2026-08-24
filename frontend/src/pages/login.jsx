@@ -101,7 +101,7 @@ export default function Login({ onLoginSucesso }) {
             <button 
               type="submit" 
               disabled={carregando}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex justify-center items-center gap-2"
+              className="w-full bg-suave-verde hover:bg-suave-verde-hover disabled:bg-slate-700 text-white font-bold py-3.5 rounded-xl transition-colors flex justify-center items-center gap-2"
             >
               {carregando ? 'Autenticando...' : 'Entrar no Sistema'}
             </button>

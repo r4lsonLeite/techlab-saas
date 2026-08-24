@@ -178,51 +178,51 @@ export default function Estoque() {
   const solicitacoesVisiveis = verSolicitacoesResolvidas ? solicitacoes : solicitacoesPendentes;
 
   return (
-    <div className="p-8 h-full overflow-y-auto bg-[#0f172a] relative">
+    <div className="p-4 sm:p-6 lg:p-8 min-h-full bg-[#0f172a] relative">
 
       {toast && (
-        <div className={`fixed top-8 right-8 px-6 py-4 rounded-xl shadow-2xl z-[100] flex items-center gap-3 text-white font-bold transition-all animate-bounce ${toast.tipo === 'sucesso' ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-red-500 shadow-red-500/20'}`}>
+        <div className={`fixed top-4 right-4 left-4 sm:top-8 sm:right-8 sm:left-auto sm:max-w-sm px-5 py-4 rounded-xl shadow-2xl z-[100] flex items-center gap-3 text-white font-bold transition-all animate-bounce ${toast.tipo === 'sucesso' ? 'bg-suave-verde' : 'bg-suave-vermelho'}`}>
           <span className="text-xl">{toast.tipo === 'sucesso' ? '✅' : '🚨'}</span>
           <p>{toast.mensagem}</p>
         </div>
       )}
 
-      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">📦 Gestão de Estoque</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">📦 Gestão de Estoque</h1>
           <p className="text-slate-400">Controle de peças, serviços e mercadorias</p>
         </div>
         <button
           onClick={() => { setProdutoEditando(null); setIsModalOpen(true); }}
-          className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-1"
+          className="w-full sm:w-auto justify-center bg-suave-verde hover:bg-suave-verde-hover text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-colors"
         >
           <span>➕</span> Novo Item
         </button>
       </div>
 
       <div className="bg-[#1e293b] rounded-2xl border border-amber-500/30 shadow-xl overflow-hidden mb-8">
-        <div className="p-6 border-b border-slate-700 flex flex-wrap justify-between items-center gap-4">
+        <div className="p-4 sm:p-6 border-b border-slate-700 flex flex-col sm:flex-row sm:flex-wrap sm:justify-between sm:items-center gap-4">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
               <span>🛒</span> Solicitações de Compra
               {solicitacoesPendentes.length > 0 && (
-                <span className="bg-amber-500 text-amber-950 text-xs font-black px-2.5 py-1 rounded-full">
+                <span className="bg-suave-ambar text-white text-xs font-black px-2.5 py-1 rounded-full">
                   {solicitacoesPendentes.length}
                 </span>
               )}
             </h2>
             <p className="text-slate-400 text-sm mt-1">Peças pedidas pela Bancada e faltas anotadas no PDV</p>
           </div>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 sm:flex gap-2">
             <button
               onClick={() => setVerSolicitacoesResolvidas(v => !v)}
-              className="px-4 py-2 rounded-xl text-sm font-bold border border-slate-600 text-slate-300 hover:bg-slate-700 transition-colors"
+              className="px-4 py-2 rounded-xl text-sm font-bold bg-suave-grafite text-slate-200 hover:bg-suave-grafite-hover transition-colors"
             >
               {verSolicitacoesResolvidas ? 'Ver só pendentes' : 'Ver histórico'}
             </button>
             <button
               onClick={carregarSolicitacoes}
-              className="px-4 py-2 rounded-xl text-sm font-bold border border-slate-600 text-slate-300 hover:bg-slate-700 transition-colors"
+              className="px-4 py-2 rounded-xl text-sm font-bold bg-suave-grafite text-slate-200 hover:bg-suave-grafite-hover transition-colors"
             >
               🔄 Atualizar
             </button>
@@ -241,8 +241,8 @@ export default function Estoque() {
               const pendente = String(s.status || '').toLowerCase() === 'pendente';
               const urgente = String(s.prioridade || '').toLowerCase() === 'urgente';
               return (
-                <div key={s.id} className="p-5 flex flex-wrap gap-4 justify-between items-start hover:bg-slate-800/40 transition-colors">
-                  <div className="min-w-[240px] flex-1">
+                <div key={s.id} className="p-4 sm:p-5 flex flex-col md:flex-row flex-wrap gap-4 md:justify-between md:items-start hover:bg-slate-800/40 transition-colors">
+                  <div className="md:min-w-[240px] flex-1">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <h3 className="text-white font-bold">{s.quantidade}x {s.produto_solicitado}</h3>
                       {urgente && <span className="text-[10px] font-black px-2 py-0.5 rounded bg-red-500/20 text-red-400">URGENTE</span>}
@@ -261,24 +261,24 @@ export default function Estoque() {
                   </div>
 
                   {pendente && (
-                    <div className="flex gap-2 shrink-0">
+                    <div className="grid grid-cols-2 sm:flex gap-2 shrink-0">
                       <button
                         onClick={() => responderSolicitacao(s.id, 'Comprada')}
-                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors"
+                        className="bg-suave-azul hover:bg-suave-azul-hover text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors"
                         title="Pedido feito ao fornecedor"
                       >
                         🛍️ Comprada
                       </button>
                       <button
                         onClick={() => responderSolicitacao(s.id, 'Recebida')}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors"
+                        className="bg-suave-verde hover:bg-suave-verde-hover text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors"
                         title="A peça chegou — lembre-se de dar entrada no estoque"
                       >
                         ✅ Recebida
                       </button>
                       <button
                         onClick={() => responderSolicitacao(s.id, 'Recusada')}
-                        className="bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 px-4 py-2 rounded-xl text-sm font-bold transition-colors"
+                        className="bg-suave-vermelho hover:bg-suave-vermelho-hover text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors"
                       >
                         ✖
                       </button>
@@ -292,7 +292,7 @@ export default function Estoque() {
       </div>
 
       <div className="bg-[#1e293b] rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
-        <div className="p-6 border-b border-slate-700 flex gap-4 bg-[#1e293b]">
+        <div className="p-4 sm:p-6 border-b border-slate-700 flex flex-col sm:flex-row gap-4 bg-[#1e293b]">
           <div className="relative flex-1">
             <span className="absolute left-4 top-3.5 text-slate-400">🔍</span>
             <input 
@@ -307,7 +307,7 @@ export default function Estoque() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[640px] text-left border-collapse">
             <thead>
               <tr className="bg-slate-800/50 text-slate-400 text-sm uppercase tracking-wider border-b border-slate-700">
                 <th className="p-4">Código / Nome</th>
@@ -358,7 +358,7 @@ export default function Estoque() {
               <button 
                 onClick={carregarMaisProdutos} 
                 disabled={carregandoMais}
-                className="px-6 py-2 bg-blue-500/10 text-blue-400 font-bold rounded-xl hover:bg-blue-500/20 border border-blue-500/30 transition-all disabled:opacity-50"
+                className="px-6 py-2 bg-suave-azul hover:bg-suave-azul-hover text-white font-bold rounded-xl transition-colors disabled:opacity-50"
               >
                 {carregandoMais ? "A descer nas prateleiras..." : "Carregar Mais Itens ↓"}
               </button>
@@ -369,8 +369,8 @@ export default function Estoque() {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1e293b] border border-slate-700 rounded-3xl p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+          <div className="bg-[#1e293b] border border-slate-700 rounded-3xl p-5 sm:p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-5 sm:mb-6 flex items-center gap-2">
               <span>{produtoEditando ? '✏️' : '📦'}</span> 
               {produtoEditando ? 'Editar Produto' : 'Novo Item no Estoque'}
             </h2>
@@ -458,9 +458,9 @@ export default function Estoque() {
               </div>
 
               {/* BOTÕES */}
-              <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-slate-700">
-                <button type="button" onClick={fecharModal} className="px-6 py-3 text-slate-400 font-bold hover:bg-slate-800 rounded-xl transition-colors">Cancelar</button>
-                <button type="submit" className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-1">
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-6 mt-6 border-t border-slate-700">
+                <button type="button" onClick={fecharModal} className="px-6 py-3 text-slate-200 font-bold bg-suave-grafite hover:bg-suave-grafite-hover rounded-xl transition-colors">Cancelar</button>
+                <button type="submit" className="px-8 py-3 bg-suave-verde hover:bg-suave-verde-hover text-white font-bold rounded-xl transition-colors">
                   {produtoEditando ? 'Salvar Alterações' : 'Salvar no Estoque'}
                 </button>
               </div>

@@ -139,7 +139,7 @@ const menus = [
               onClick={() => selecionarMenu(menu.id)}
               className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all ${
                 telaAtiva === menu.id
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                ? 'bg-suave-verde text-white border border-suave-verde'
                 : 'text-slate-300 hover:bg-slate-800 border border-transparent'
               }`}
             >
@@ -151,7 +151,7 @@ const menus = [
         <div className="p-4 border-t border-slate-700">
           <button
             onClick={onLogout}
-            className="mt-auto w-full bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white font-bold py-3 rounded-xl transition-all border border-red-500/20"
+            className="mt-auto w-full bg-suave-vermelho hover:bg-suave-vermelho-hover text-white font-bold py-3 rounded-xl transition-colors"
           >
             Sair do Sistema
           </button>
