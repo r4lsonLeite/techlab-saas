@@ -12,6 +12,8 @@ frontend/dist/
 *.env.local
 backend/app/uploads/*
 !backend/app/uploads/.gitkeep
+# Uploads gravados quando a app (ou os testes) correm a partir de backend/.
+backend/uploads/
 tempCodeRunnerFile.py
 .vscode/
 .idea/

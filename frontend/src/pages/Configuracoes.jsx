@@ -117,7 +117,7 @@ export default function Configuracoes() {
                   <span className="text-3xl">📤</span>
                 </div>
                 <p className="text-slate-300 font-medium">Clique para fazer upload ou arraste uma imagem</p>
-                <p className="text-slate-500 text-xs mt-1">PNG, JPG até 5MB</p>
+                <p className="text-slate-500 text-xs mt-1">PNG, JPG ou WEBP até 5MB &bull; a imagem é ajustada automaticamente para o tamanho de impressão</p>
               </div>
 
               <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-4">

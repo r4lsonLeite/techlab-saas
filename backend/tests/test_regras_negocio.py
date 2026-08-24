@@ -541,3 +541,121 @@ def test_metricas_devolvem_receita_de_servicos_separada():
     assert "total_servicos_os" in metricas
     assert "total_vendas_balcao" in metricas
     assert isinstance(metricas["faturamento_total"], float)
+
+
+# ==============================
+# LOGO DA LOJA
+# ==============================
+
+def _png_de_teste(largura, altura, modo="RGB", exif=None):
+    """Devolve os bytes de um PNG gerado na hora, para não depender de
+    ficheiros de exemplo no repositório."""
+    import io
+    from PIL import Image
+
+    imagem = Image.new(modo, (largura, altura), "red")
+    buffer = io.BytesIO()
+    if exif is not None:
+        imagem.save(buffer, format="JPEG", exif=exif)
+    else:
+        imagem.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def test_logo_grande_e_reduzida_para_a_caixa_de_impressao():
+    """A logo era guardada no tamanho original: o cupom e o orçamento
+    baixavam megabytes para desenhar poucos centímetros de papel."""
+    import io
+    from PIL import Image
+
+    original = _png_de_teste(2400, 800)
+
+    resposta = client.post(
+        "/lojas/upload-logo",
+        files={"file": ("logo.png", io.BytesIO(original), "image/png")},
+    )
+    assert resposta.status_code == 200, resposta.text
+
+    corpo = resposta.json()
+    assert corpo["url"].endswith(".png")
+    assert corpo["largura"] <= 700 and corpo["altura"] <= 300
+
+    from pathlib import Path
+
+    caminho = Path(corpo["url"].lstrip("/"))
+    # A proporção original (3:1) tem de sobreviver ao redimensionamento.
+    assert Image.open(caminho).size == (700, 233)
+    assert caminho.stat().st_size < len(original)
+
+
+def test_logo_pequena_nao_e_ampliada():
+    """Ampliar uma logo pequena só a deixaria borrada no papel."""
+    import io
+    from PIL import Image
+
+    resposta = client.post(
+        "/lojas/upload-logo",
+        files={"file": ("logo.png", io.BytesIO(_png_de_teste(120, 60)), "image/png")},
+    )
+    assert resposta.status_code == 200, resposta.text
+    assert Image.open(resposta.json()["url"].lstrip("/")).size == (120, 60)
+
+
+def test_logo_transparente_mantem_a_transparencia():
+    """Logo de assistência costuma vir em PNG com fundo transparente; achatá-la
+    num fundo sólido deixaria um retângulo branco no cabeçalho."""
+    import io
+    from PIL import Image
+
+    resposta = client.post(
+        "/lojas/upload-logo",
+        files={"file": ("logo.png", io.BytesIO(_png_de_teste(300, 150, modo="RGBA")), "image/png")},
+    )
+    assert resposta.status_code == 200, resposta.text
+    assert Image.open(resposta.json()["url"].lstrip("/")).mode == "RGBA"
+
+
+def test_jpg_enviado_sai_convertido_para_png():
+    import io
+
+    resposta = client.post(
+        "/lojas/upload-logo",
+        files={"file": ("logo.jpg", io.BytesIO(_png_de_teste(400, 200)), "image/jpeg")},
+    )
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()["url"].endswith(".png")
+
+
+def test_arquivo_que_nao_e_imagem_e_recusado():
+    """Antes qualquer lixo com extensão .png era gravado e o cabeçalho ficava
+    com uma imagem partida."""
+    import io
+
+    resposta = client.post(
+        "/lojas/upload-logo",
+        files={"file": ("logo.png", io.BytesIO(b"isto nao e uma imagem"), "image/png")},
+    )
+    assert resposta.status_code == 400
+    assert "imagem" in resposta.json()["detail"].lower()
+
+
+def test_logo_com_orientacao_no_exif_sai_endireitada():
+    """Foto de telemóvel guarda a rotação no EXIF: sem corrigir, a logo saía
+    deitada no papel mesmo aparecendo direita no computador."""
+    import io
+    from PIL import Image
+
+    exif = Image.Exif()
+    exif[0x0112] = 6  # rotacionar 90 graus
+    enviada = _png_de_teste(400, 200, exif=exif)
+
+    resposta = client.post(
+        "/lojas/upload-logo",
+        files={"file": ("logo.jpg", io.BytesIO(enviada), "image/jpeg")},
+    )
+    assert resposta.status_code == 200, resposta.text
+    # A orientação aplicada troca largura e altura: a imagem enviada era
+    # deitada e a guardada tem de ficar em pé (aqui já reduzida à caixa).
+    largura, altura = Image.open(resposta.json()["url"].lstrip("/")).size
+    assert altura > largura
+    assert (largura, altura) == (150, 300)
