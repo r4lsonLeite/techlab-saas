@@ -85,67 +85,67 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="flex-1 p-8 overflow-y-auto bg-[#0f172a] text-white custom-scrollbar">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 min-h-full bg-[#0f172a] text-white custom-scrollbar">
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* CABEÇALHO */}
-        <div className="flex flex-wrap justify-between items-end gap-4 mb-6 border-b border-slate-700/50 pb-4">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-between sm:items-end gap-4 mb-6 border-b border-slate-700/50 pb-4">
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
               <span>📊</span> Dashboard Administrativo
             </h1>
             <p className="text-slate-400 mt-1">Visão estratégica em tempo real</p>
           </div>
-          <button onClick={carregarDashboard} className="bg-[#1e293b] hover:bg-slate-800 border border-slate-600 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-lg">
+          <button onClick={carregarDashboard} className="w-full sm:w-auto justify-center bg-suave-grafite hover:bg-suave-grafite-hover text-slate-100 px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2">
             🔄 Atualizar Dados
           </button>
         </div>
 
         {/* ================= 1º ANDAR: 6 KPIS PRINCIPAIS ================= */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
           
           {/* Faturamento */}
-          <div className="bg-blue-600 p-6 rounded-2xl shadow-lg shadow-blue-500/10 relative overflow-hidden">
+          <div className="bg-suave-azul p-5 sm:p-6 rounded-2xl shadow-lg relative overflow-hidden">
             <div className="absolute -top-4 -right-4 p-4 opacity-10 text-8xl text-black">💲</div>
             <p className="text-blue-200 text-sm font-medium uppercase tracking-wider mb-1">Faturamento Bruto</p>
-            <h2 className="text-4xl font-black text-white">R$ {Number(metricas.faturamento_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
+            <h2 className="text-3xl sm:text-4xl font-black text-white">R$ {Number(metricas.faturamento_total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
             <p className="text-blue-300 text-xs mt-2 font-bold">Vendas + Serviços</p>
           </div>
 
           {/* Lucro Estimado */}
-          <div className="bg-emerald-600 p-6 rounded-2xl shadow-lg shadow-emerald-500/10 relative overflow-hidden">
+          <div className="bg-suave-verde p-5 sm:p-6 rounded-2xl shadow-lg relative overflow-hidden">
             <div className="absolute -top-4 -right-4 p-4 opacity-10 text-8xl text-black">📈</div>
             <p className="text-emerald-200 text-sm font-medium uppercase tracking-wider mb-1">Lucro Estimado (Mês)</p>
-            <h2 className="text-4xl font-black text-white">R$ {Number(metricas.lucro_estimado).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
+            <h2 className="text-3xl sm:text-4xl font-black text-white">R$ {Number(metricas.lucro_estimado).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
             <p className="text-emerald-200 text-xs mt-2 font-bold">Receita Bruta - Custos (CMV)</p>
           </div>
 
           {/* Ticket Médio */}
-          <div className="bg-purple-600 p-6 rounded-2xl shadow-lg shadow-purple-500/10 relative overflow-hidden">
+          <div className="bg-suave-roxo p-5 sm:p-6 rounded-2xl shadow-lg relative overflow-hidden">
             <div className="absolute -top-4 -right-4 p-4 opacity-10 text-8xl text-black">🎫</div>
             <p className="text-purple-200 text-sm font-medium uppercase tracking-wider mb-1">Ticket Médio</p>
-            <h2 className="text-4xl font-black text-white">R$ {Number(metricas.ticket_medio).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
+            <h2 className="text-3xl sm:text-4xl font-black text-white">R$ {Number(metricas.ticket_medio).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h2>
             <p className="text-purple-300 text-xs mt-2 font-bold">Gasto médio por cliente</p>
           </div>
 
           {/* OS Pendentes */}
-          <div className="bg-[#1e293b] p-6 rounded-2xl border border-amber-500/30 shadow-lg relative overflow-hidden group hover:border-amber-500 transition-colors">
+          <div className="bg-[#1e293b] p-5 sm:p-6 rounded-2xl border border-amber-500/30 shadow-lg relative overflow-hidden group hover:border-amber-500 transition-colors">
             <div className="absolute top-4 right-4 text-3xl opacity-80 group-hover:scale-110 transition-transform">⏳</div>
             <p className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-1">Aparelhos na Loja</p>
-            <h2 className="text-4xl font-black text-amber-400">{metricas.os_pendentes}</h2>
+            <h2 className="text-3xl sm:text-4xl font-black text-amber-400">{metricas.os_pendentes}</h2>
             <p className="text-amber-500/80 text-xs mt-2 font-bold">OS aguardando peça/aprovação</p>
           </div>
 
           {/* OS Entregues */}
-          <div className="bg-[#1e293b] p-6 rounded-2xl border border-blue-500/30 shadow-lg relative overflow-hidden group hover:border-blue-500 transition-colors">
+          <div className="bg-[#1e293b] p-5 sm:p-6 rounded-2xl border border-blue-500/30 shadow-lg relative overflow-hidden group hover:border-blue-500 transition-colors">
             <div className="absolute top-4 right-4 text-3xl opacity-80 group-hover:scale-110 transition-transform">🤝</div>
             <p className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-1">Serviços Entregues</p>
-            <h2 className="text-4xl font-black text-blue-400">{metricas.os_entregues}</h2>
+            <h2 className="text-3xl sm:text-4xl font-black text-blue-400">{metricas.os_entregues}</h2>
             <p className="text-blue-500/80 text-xs mt-2 font-bold">Aparelhos devolvidos aos clientes</p>
           </div>
 
           {/* Alerta de Estoque */}
-          <div className={`p-6 rounded-2xl border shadow-lg relative overflow-hidden group transition-colors ${metricas.alertas_estoque > 0 ? 'bg-red-500/10 border-red-500/50 hover:border-red-400' : 'bg-[#1e293b] border-emerald-500/30 hover:border-emerald-500'}`}>
+          <div className={`p-5 sm:p-6 rounded-2xl border shadow-lg relative overflow-hidden group transition-colors ${metricas.alertas_estoque > 0 ? 'bg-red-500/10 border-red-500/50 hover:border-red-400' : 'bg-[#1e293b] border-emerald-500/30 hover:border-emerald-500'}`}>
             <div className={`absolute top-4 right-4 text-3xl group-hover:scale-110 transition-transform ${metricas.alertas_estoque > 0 ? 'animate-pulse' : ''}`}>
               {metricas.alertas_estoque > 0 ? '🚨' : '📦'}
             </div>
@@ -160,7 +160,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* ================= 2º ANDAR: GRÁFICOS ================= */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           
           {/* Gráfico de Barras: Receita vs Lucro */}
           <div className="lg:col-span-2 bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
@@ -189,7 +189,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Gráfico de Pizza: Categorias */}
-          <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg flex flex-col">
+          <div className="bg-[#1e293b] p-5 sm:p-6 rounded-2xl border border-slate-700 shadow-lg flex flex-col">
             <h3 className="text-slate-300 font-bold mb-2 flex items-center gap-2"><span>🏷️</span> Vendas por Categoria</h3>
             <div className="flex-1 w-full flex justify-center items-center">
               {dadosCategorias.length === 0 ? (
@@ -222,10 +222,10 @@ export default function AdminDashboard() {
         </div>
 
         {/* ================= 3º ANDAR: RADAR EM TEMPO REAL ================= */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           
           {/* Tabela: Últimas Entradas na Bancada */}
-          <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col h-96">
+          <div className="bg-[#1e293b] p-5 sm:p-6 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col h-96">
             <h3 className="text-slate-300 font-bold mb-4 flex items-center justify-between">
               <span className="flex items-center gap-2"><span>📱</span> Recentes na Bancada</span>
               <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-1 rounded uppercase tracking-wider">Ao Vivo</span>
@@ -259,7 +259,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Lista: Alerta de Produtos Acabando */}
-          <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col h-96">
+          <div className="bg-[#1e293b] p-5 sm:p-6 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col h-96">
             <h3 className="text-slate-300 font-bold mb-4 flex items-center justify-between">
               <span className="flex items-center gap-2"><span>🛒</span> Produtos para Comprar</span>
               <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded uppercase tracking-wider">Atenção</span>

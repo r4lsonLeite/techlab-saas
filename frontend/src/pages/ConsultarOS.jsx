@@ -254,25 +254,25 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
   };
 
   return (
-    <div className="flex h-full w-full bg-[#0f172a] relative overflow-x-auto">
+    <div className="flex flex-col lg:flex-row min-h-full lg:h-full w-full bg-[#0f172a] relative">
 
       {toast && (
-        <div className={`fixed top-8 right-8 px-6 py-4 rounded-xl shadow-2xl z-[100] flex items-center gap-3 text-white font-bold transition-all animate-bounce ${toast.tipo === 'sucesso' ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-red-500 shadow-red-500/20'}`}>
+        <div className={`fixed top-4 right-4 left-4 sm:top-8 sm:right-8 sm:left-auto sm:max-w-sm px-5 py-4 rounded-xl shadow-2xl z-[100] flex items-center gap-3 text-white font-bold transition-all animate-bounce ${toast.tipo === 'sucesso' ? 'bg-suave-verde' : 'bg-suave-vermelho'}`}>
           <span className="text-xl">{toast.tipo === 'sucesso' ? '✅' : '🚨'}</span>
           <p>{toast.mensagem}</p>
         </div>
       )}
 
-      <div className="w-1/3 min-w-[300px] shrink-0 bg-[#1e293b] border-r border-slate-700 flex flex-col z-10 shadow-xl">
-        <div className="p-6 border-b border-slate-700">
-          <h2 className="text-2xl font-bold text-white mb-4">Consultar OS</h2>
+      <div className="w-full lg:w-1/3 lg:min-w-[300px] lg:shrink-0 bg-[#1e293b] border-b lg:border-b-0 lg:border-r border-slate-700 flex flex-col z-10 shadow-xl">
+        <div className="p-4 sm:p-6 border-b border-slate-700">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-4">Consultar OS</h2>
           <div className="relative">
             <span className="absolute left-4 top-3.5 text-slate-400">🔍</span>
             <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nº OS, Cliente..." className="w-full pl-11 pr-4 py-3 rounded-xl bg-[#0f172a] text-white border border-slate-600 focus:border-emerald-500 outline-none" />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+        <div className="flex-1 max-h-[45vh] lg:max-h-none overflow-y-auto p-4 space-y-3 custom-scrollbar">
           {carregando ? (
             <div className="text-center text-emerald-500 mt-10 animate-pulse font-bold">A carregar banco de dados...</div> 
           ) : ordens.length === 0 ? (
@@ -292,7 +292,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
               ))}
               
               {temMais && (
-                <button onClick={carregarMaisOS} disabled={carregandoMais} className="w-full py-3 mt-2 text-center text-sm font-bold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors border border-blue-500/30 disabled:opacity-50">
+                <button onClick={carregarMaisOS} disabled={carregandoMais} className="w-full py-3 mt-2 text-center text-sm font-bold text-white bg-suave-azul hover:bg-suave-azul-hover rounded-xl transition-colors disabled:opacity-50">
                   {carregandoMais ? "A buscar..." : "Carregar Mais ↓"}
                 </button>
               )}
@@ -301,24 +301,24 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
         </div>
       </div>
 
-      <div className="flex-1 min-w-[380px] flex flex-col h-full overflow-hidden bg-[#0f172a]">
+      <div className="flex-1 lg:min-w-[380px] flex flex-col lg:h-full lg:overflow-hidden bg-[#0f172a]">
         {!osAtiva ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-500"><span className="text-6xl mb-4">📂</span><h2 className="text-xl font-medium">Selecione uma OS</h2></div>
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-8 min-h-[40vh]"><span className="text-6xl mb-4">📂</span><h2 className="text-lg sm:text-xl font-medium">Selecione uma OS</h2></div>
         ) : (
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        <div className="flex-1 lg:overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
           <div className="flex flex-wrap justify-between items-center gap-4 border-b border-slate-700 pb-6 mb-6 mt-2">
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white flex flex-wrap items-center gap-2 sm:gap-3">
               OS #{osAtiva.id}
               <span className={`text-sm font-bold border px-3 py-1 rounded-full ${osAtiva.status.includes('Aguardando') ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' : 'bg-slate-800 text-slate-300 border-slate-600'}`}>{osAtiva.status}</span>
             </h1>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               {!isTecnico && (
                 <>
                   {/* 🟢 AGORA PASSAMOS O 'configLoja' PARA A FERRAMENTA */}
-                  <button onClick={() => imprimirComprovanteOS(configLoja, osAtiva)} disabled={processando} className="bg-slate-800 text-slate-300 px-4 py-2 rounded-xl font-bold border border-slate-600 disabled:opacity-50 hover:bg-slate-700">
+                  <button onClick={() => imprimirComprovanteOS(configLoja, osAtiva)} disabled={processando} className="bg-suave-grafite hover:bg-suave-grafite-hover text-slate-200 px-4 py-2 rounded-xl font-bold text-sm transition-colors disabled:opacity-50">
                     🖨️ Reimprimir
                   </button>
-                  <button onClick={() => handleExcluir(osAtiva.id)} disabled={processando} className="bg-red-500/10 text-red-500 border border-red-500/20 px-4 py-2 rounded-xl font-bold disabled:opacity-50 hover:bg-red-500/20">
+                  <button onClick={() => handleExcluir(osAtiva.id)} disabled={processando} className="bg-suave-vermelho hover:bg-suave-vermelho-hover text-white px-4 py-2 rounded-xl font-bold text-sm transition-colors disabled:opacity-50">
                     🗑️ Excluir
                   </button>
                 </>
@@ -328,12 +328,12 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
 
           <div className="max-w-4xl mx-auto space-y-6">
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+              <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl border border-slate-700 shadow-lg">
                 <h3 className="text-emerald-400 font-bold mb-4 border-b border-slate-700 pb-2">👤 Dados do Cliente</h3>
                 <div className="flex items-center justify-between">
                   <span className="text-white font-medium text-lg">{osAtiva.cliente_nome}</span>
-                  <button onClick={() => verPerfilCliente(osAtiva.cliente_id)} disabled={processando} className="px-2 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-lg font-bold text-xs transition-colors disabled:opacity-50">
+                  <button onClick={() => verPerfilCliente(osAtiva.cliente_id)} disabled={processando} className="px-3 py-1.5 bg-suave-azul hover:bg-suave-azul-hover text-white rounded-lg font-bold text-xs whitespace-nowrap transition-colors disabled:opacity-50">
                     🔍 Ver Perfil
                   </button>
                 </div>
@@ -350,7 +350,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                   </button>
                 </div>
               </div>
-              <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
+              <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl border border-slate-700 shadow-lg">
                 <h3 className="text-blue-400 font-bold mb-4 border-b border-slate-700 pb-2">📱 Dados do Aparelho</h3>
                 <p className="text-white font-medium text-lg">{osAtiva.marca} {osAtiva.modelo}</p>
                 {!isTecnico && (
@@ -359,7 +359,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
               </div>
             </div>
 
-            <div className="bg-[#1e293b] p-6 rounded-2xl border border-blue-500/30 shadow-lg">
+            <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl border border-blue-500/30 shadow-lg">
               <h3 className="text-blue-400 font-bold mb-4 border-b border-slate-700 pb-2 flex items-center gap-2">
                 <span>👨‍🔧</span> Diagnóstico do Técnico
               </h3>
@@ -418,13 +418,13 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
               </div>
             </div>
 
-            <div className="bg-[#1e293b] p-6 rounded-2xl border border-purple-500/30 shadow-lg">
-              <div className="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+            <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl border border-purple-500/30 shadow-lg">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 border-b border-slate-700 pb-2">
                 <h3 className="text-purple-400 font-bold flex items-center gap-2"><span>🔧</span> Orçamento (Peças e Serviços)</h3>
                 
                 {!isTecnico && (pecasNegociacao.length > 0 || osAtiva.laudo_tecnico) && (
                   <div className="flex gap-2">
-                    <button onClick={enviarOrcamentoWhatsApp} disabled={processando} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 shadow-lg transition-colors disabled:opacity-50">
+                    <button onClick={enviarOrcamentoWhatsApp} disabled={processando} className="bg-suave-verde hover:bg-suave-verde-hover text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors disabled:opacity-50">
                       Enviar Zap
                     </button>
                     {/* 🟢 AQUI PASSAMOS O 'configLoja' PARA O GERADOR DE PDF */}
@@ -436,7 +436,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                         gerarOrcamentoPDF(configLoja, osAtiva, pecasNegociacao, valorDigitado, telefoneTela);
                       }}
                       disabled={processando} 
-                      className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 border border-slate-500 transition-colors disabled:opacity-50"
+                      className="bg-suave-grafite hover:bg-suave-grafite-hover text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
                     >
                       📄 PDF
                     </button>
@@ -444,8 +444,8 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                 )}
               </div>
               
-              <div className="bg-[#0f172a] rounded-xl border border-slate-700 overflow-hidden mb-4">
-                <table className="w-full text-left text-sm text-slate-300">
+              <div className="bg-[#0f172a] rounded-xl border border-slate-700 overflow-x-auto mb-4 custom-scrollbar">
+                <table className="w-full min-w-[480px] text-left text-sm text-slate-300">
                   <thead className="bg-slate-800 text-slate-400 text-xs uppercase">
                     <tr>
                       <th className="p-3">Qtd</th>
@@ -509,22 +509,22 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
             </div>
 
             {(osAtiva.status === 'Aguardando Cliente' || osAtiva.status === 'Aguardando Reavaliação') && !isTecnico && (
-              <div className="bg-[#1e293b] p-8 rounded-2xl border border-purple-500/40 shadow-xl mt-8 relative overflow-hidden">
+              <div className="bg-[#1e293b] p-5 sm:p-8 rounded-2xl border border-purple-500/40 shadow-xl mt-6 sm:mt-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 text-8xl">📞</div>
-                <h3 className="text-white font-bold text-xl mb-6 border-b border-slate-700 pb-3 relative z-10">📞 Finalizar e Aprovar Orçamento</h3>
+                <h3 className="text-white font-bold text-lg sm:text-xl mb-5 sm:mb-6 border-b border-slate-700 pb-3 relative z-10">📞 Finalizar e Aprovar Orçamento</h3>
                 <div className="mb-6 relative z-10">
                   <label className="block text-slate-400 text-sm font-bold mb-2">Observações para o Técnico</label>
                   <textarea value={obsBalcao} onChange={(e) => setObsBalcao(e.target.value)} disabled={processando} className="w-full p-4 rounded-xl bg-[#0f172a] text-white border-2 border-slate-600 focus:border-purple-500 resize-none disabled:opacity-50" rows="2" placeholder="Ex: Cliente tem pressa..." />
                 </div>
-                <div className="flex flex-wrap gap-4 md:gap-6 items-end relative z-10">
-                  <div className="flex-1 min-w-[200px]">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-4 md:gap-6 sm:items-end relative z-10">
+                  <div className="flex-1 sm:min-w-[200px]">
                     <label className="block text-slate-400 text-sm font-bold mb-3">Valor Final Negociado (R$)</label>
                     <input type="number" value={valorDigitado} onChange={(e) => setValorDigitado(e.target.value)} disabled={processando} className="w-full p-4 rounded-xl bg-[#0f172a] text-white text-xl font-bold border-2 border-emerald-500 focus:outline-none disabled:opacity-50" />
                   </div>
-                  <button onClick={() => handleAtualizarStatus('APROVADO - Fila de Conserto')} disabled={processando} className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0">
+                  <button onClick={() => handleAtualizarStatus('APROVADO - Fila de Conserto')} disabled={processando} className="w-full sm:w-auto bg-suave-verde hover:bg-suave-verde-hover text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-colors disabled:opacity-50">
                     {processando ? '⏳ A processar...' : '✅ Aprovar OS'}
                   </button>
-                  <button onClick={() => handleAtualizarStatus('Recusado - Devolver ao Cliente')} disabled={processando} className="bg-red-600 hover:bg-red-500 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0">
+                  <button onClick={() => handleAtualizarStatus('Recusado - Devolver ao Cliente')} disabled={processando} className="w-full sm:w-auto bg-suave-vermelho hover:bg-suave-vermelho-hover text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-colors disabled:opacity-50">
                     ❌ Recusar
                   </button>
                 </div>
@@ -532,9 +532,9 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
             )}
             
             {osAtiva.status === 'Pronto para Retirada' && !isTecnico && (
-              <div className="bg-emerald-500/10 p-6 rounded-2xl border border-emerald-500/30 flex justify-between items-center mt-6">
+              <div className="bg-emerald-500/10 p-5 sm:p-6 rounded-2xl border border-emerald-500/30 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mt-6">
                 <div><h3 className="text-emerald-400 font-bold">✅ Aparelho Pronto na Bancada</h3><p className="text-slate-300">Aguardando Pagamento e Retirada</p></div>
-                <button onClick={() => abrirPDVComOS(osAtiva)} disabled={processando} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all hover:-translate-y-1 disabled:opacity-50">
+                <button onClick={() => abrirPDVComOS(osAtiva)} disabled={processando} className="w-full sm:w-auto justify-center bg-suave-azul hover:bg-suave-azul-hover text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-colors disabled:opacity-50">
                   📦 Ir para o Pagamento
                 </button>
               </div>
@@ -547,9 +547,9 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
 
       {modalCrmAberto && dadosCrm && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1e293b] border border-slate-700 rounded-3xl p-8 w-full max-w-md shadow-2xl">
+          <div className="bg-[#1e293b] border border-slate-700 rounded-3xl p-5 sm:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
             <div className="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
-              <h2 className="text-2xl font-bold text-white flex items-center gap-2"><span>👤</span> Perfil do Cliente</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2"><span>👤</span> Perfil do Cliente</h2>
               <button onClick={() => setModalCrmAberto(false)} className="text-slate-500 hover:text-white text-xl">✖</button>
             </div>
             
@@ -559,7 +559,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                 <p className="text-lg text-white font-medium">{dadosCrm.cliente?.nome}</p>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-[#0f172a] p-4 rounded-xl border border-slate-700/50">
                   <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Telefone</p>
                   <p className="text-white">{dadosCrm.cliente?.telefone}</p>
@@ -570,7 +570,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mt-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
                 <div className="bg-blue-500/10 p-4 rounded-xl border border-blue-500/20 text-center">
                   <p className="text-xs text-blue-400 font-bold uppercase tracking-wider mb-1">Ordens Totais</p>
                   <p className="text-3xl font-black text-blue-500">{dadosCrm.metricas?.total_os || 0}</p>
@@ -582,7 +582,7 @@ export default function ConsultarOS({ cargo, osIdParaAbrir, setOsIdParaAbrir, ab
               </div>
             </div>
 
-            <button onClick={() => setModalCrmAberto(false)} className="w-full mt-8 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-colors">
+            <button onClick={() => setModalCrmAberto(false)} className="w-full mt-6 sm:mt-8 bg-suave-grafite hover:bg-suave-grafite-hover text-white font-bold py-3 rounded-xl transition-colors">
               Fechar Perfil
             </button>
           </div>

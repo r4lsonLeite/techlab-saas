@@ -18,6 +18,8 @@ export default {
           'ambar-hover': '#ab7e42',
           vermelho: '#a85a5a',
           'vermelho-hover': '#b56767',
+          roxo: '#6b5aa0',
+          'roxo-hover': '#7a6aae',
           grafite: '#31415c',
           'grafite-hover': '#3b4d6b',
         },

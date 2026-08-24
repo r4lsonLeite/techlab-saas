@@ -78,27 +78,27 @@ export default function Configuracoes() {
   if (carregando) return <div className="text-center p-10 text-emerald-500 font-bold">Carregando configurações...</div>;
 
   return (
-    <div className="flex-1 p-8 overflow-y-auto bg-[#0f172a] text-white">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 min-h-full bg-[#0f172a] text-white">
       <div className="max-w-7xl mx-auto">
         
         {/* CABEÇALHO */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white">Configurações da Loja</h1>
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Configurações da Loja</h1>
           <p className="text-slate-400 mt-1">Personalize a identidade e termos do seu negócio</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           
           <div className="lg:col-span-2 space-y-6">
             
             {/* 🟢 UPLOAD DE LOGO */}
-            <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
+            <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl border border-slate-700 shadow-lg">
               <h3 className="text-white font-bold mb-4 flex items-center gap-2">🖼️ Logo da Empresa</h3>
               
               {/* Input de arquivo invisível */}
               <input type="file" ref={inputImagemRef} onChange={handleFileChange} className="hidden" accept="image/png, image/jpeg, image/jpg" />
               
-              <div onClick={handleUploadClick} className="border-2 border-dashed border-slate-600 rounded-xl p-8 flex flex-col items-center justify-center bg-[#0f172a]/50 hover:border-emerald-500/50 transition-colors cursor-pointer group">
+              <div onClick={handleUploadClick} className="border-2 border-dashed border-slate-600 rounded-xl p-6 sm:p-8 flex flex-col items-center justify-center text-center bg-[#0f172a]/50 hover:border-emerald-500/50 transition-colors cursor-pointer group">
                 <div className="bg-slate-800 p-4 rounded-full mb-3 group-hover:scale-110 transition-transform">
                   <span className="text-3xl">📤</span>
                 </div>
@@ -120,7 +120,7 @@ export default function Configuracoes() {
             </div>
 
             {/* INFORMAÇÕES DA EMPRESA */}
-            <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
+            <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl border border-slate-700 shadow-lg">
               <h3 className="text-white font-bold mb-6 flex items-center gap-2">🏢 Informações da Empresa</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
@@ -151,7 +151,7 @@ export default function Configuracoes() {
             </div>
 
             {/* TERMOS DE GARANTIA */}
-            <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
+            <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl border border-slate-700 shadow-lg">
               <h3 className="text-white font-bold mb-2 flex items-center gap-2">📄 Termos de Garantia</h3>
               <p className="text-slate-500 text-xs mb-4">Digite aqui os termos que serão impressos nas ordens de serviço</p>
               <textarea 
@@ -167,18 +167,18 @@ export default function Configuracoes() {
           <div className="space-y-6">
             <button 
               onClick={handleSave}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+              className="w-full bg-suave-verde hover:bg-suave-verde-hover text-white font-bold py-4 rounded-2xl transition-colors flex items-center justify-center gap-2"
             >
               💾 Salvar Configurações
             </button>
 
             {/* ... Resto da coluna direita (Segurança, Dicas, Estatísticas) que você já tinha desenhado ... */}
-            <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 shadow-lg">
+            <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl border border-slate-700 shadow-lg">
               <h4 className="text-purple-400 font-bold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">🛡️ Segurança</h4>
               <p className="text-slate-400 text-xs mb-4">Suas informações estão protegidas e criptografadas</p>
-              <button className="w-full bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-lg text-sm font-bold transition-colors">Alterar Senha</button>
+              <button className="w-full bg-suave-grafite hover:bg-suave-grafite-hover text-white py-2 rounded-lg text-sm font-bold transition-colors">Alterar Senha</button>
             </div>
-            <div className="bg-blue-600/10 border border-blue-500/30 p-6 rounded-2xl">
+            <div className="bg-blue-600/10 border border-blue-500/30 p-4 sm:p-6 rounded-2xl">
               <h4 className="text-blue-400 font-bold text-sm uppercase tracking-wider mb-2">Dicas Rápidas</h4>
               <ul className="text-xs text-slate-400 space-y-2">
                 <li>• Use um logo de alta resolução (PNG transparente)</li>

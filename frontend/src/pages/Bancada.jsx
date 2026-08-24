@@ -278,10 +278,10 @@ export default function Bancada() {
   };
 
   return (
-    <div className="flex h-full w-full bg-[#0f172a] overflow-x-auto">
+    <div className="flex flex-col lg:flex-row min-h-full lg:h-full w-full bg-[#0f172a] lg:overflow-x-auto">
 
       {/* PAINEL 1: LUPA DE PEÇAS E "CARRINHO DO TÉCNICO" */}
-      <div className="w-1/4 min-w-[260px] bg-[#1e293b] border-r border-slate-700 flex flex-col z-10 shadow-xl overflow-hidden shrink-0">
+      <div className="w-full lg:w-1/4 lg:min-w-[260px] order-3 lg:order-none bg-[#1e293b] border-t lg:border-t-0 lg:border-r border-slate-700 flex flex-col z-10 shadow-xl lg:overflow-hidden lg:shrink-0">
         
         <div className="p-4 border-b border-slate-700">
           <h2 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
@@ -294,7 +294,7 @@ export default function Bancada() {
           />
         </div>
         
-        <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar border-b border-slate-700/50">
+        <div className="flex-1 max-h-[45vh] lg:max-h-none overflow-y-auto p-3 space-y-2 custom-scrollbar border-b border-slate-700/50">
           {carregandoPecas ? (
             <p className="text-center text-slate-500 mt-4 text-xs animate-pulse">A procurar no catálogo...</p>
           ) : estoquePecas.length === 0 ? (
@@ -369,15 +369,15 @@ export default function Bancada() {
             </div>
         )}
 
-        <div className="p-3 bg-blue-500/5">
-          <button onClick={() => abrirModalSolicitacao(osAtiva)} className="w-full bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white py-2 rounded-lg text-xs font-bold transition-all border border-blue-500/30">
+        <div className="p-3">
+          <button onClick={() => abrirModalSolicitacao(osAtiva)} className="w-full bg-suave-azul hover:bg-suave-azul-hover text-white py-2 rounded-lg text-xs font-bold transition-colors">
             + Solicitar Peça ao ADM
           </button>
         </div>
       </div>
 
       {/* PAINEL 2: FILA DA BANCADA */}
-      <div className="w-1/4 min-w-[260px] bg-[#1e293b] border-r border-slate-700 flex flex-col z-10 shadow-xl shrink-0">
+      <div className="w-full lg:w-1/4 lg:min-w-[260px] order-1 lg:order-none bg-[#1e293b] border-b lg:border-b-0 lg:border-r border-slate-700 flex flex-col z-10 shadow-xl lg:shrink-0">
         <div className="p-4 border-b border-slate-700 bg-slate-800/50">
           <h2 className="text-sm font-bold text-white flex items-center gap-2">
             <span>🔧</span> Fila de Trabalho
@@ -385,7 +385,7 @@ export default function Bancada() {
           <p className="text-[10px] text-slate-400 mt-1">{ordens.length} a aguardar</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+        <div className="flex-1 max-h-[45vh] lg:max-h-none overflow-y-auto p-3 space-y-3 custom-scrollbar">
           {carregando ? (
             <div className="text-slate-500 text-center mt-10 text-sm">Carregando fila...</div>
           ) : ordens.length === 0 ? (
@@ -411,7 +411,7 @@ export default function Bancada() {
 
                 <button 
                   onClick={(e) => { e.stopPropagation(); abrirModalSolicitacao(os); }}
-                  className="absolute -right-2 -top-2 bg-amber-500 text-amber-950 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-lg opacity-0 group-hover:opacity-100 hover:scale-110 transition-all"
+                  className="absolute -right-2 -top-2 bg-suave-ambar hover:bg-suave-ambar-hover text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-lg opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:scale-110 transition-all"
                   title="Faltou peça para esta OS?"
                 >
                   ⚠️
@@ -423,25 +423,25 @@ export default function Bancada() {
       </div>
 
       {/* PAINEL 3: ÁREA DO TÉCNICO */}
-      <div className="flex-1 min-w-[380px] flex flex-col h-full overflow-hidden">
+      <div className="flex-1 lg:min-w-[380px] order-2 lg:order-none flex flex-col lg:h-full lg:overflow-hidden">
         {!osAtiva ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+          <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-500 p-8 min-h-[40vh]">
             <span className="text-6xl mb-4">🛠️</span>
-            <h2 className="text-xl font-medium">Selecione um aparelho na fila para começar</h2>
+            <h2 className="text-lg sm:text-xl font-medium">Selecione um aparelho na fila para começar</h2>
             <p className="text-sm mt-2 text-slate-600">O relógio de horas será iniciado automaticamente.</p>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-            <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex-1 lg:overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
+            <div className="max-w-4xl mx-auto space-y-5 sm:space-y-6">
               
-              <div className="flex justify-between items-start border-b border-slate-700 pb-4 mb-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 border-b border-slate-700 pb-4 mb-2">
                 <div>
-                  <h1 className="text-2xl font-bold text-white mb-1">
+                  <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">
                     {osAtiva.marca} {osAtiva.modelo} <span className="text-slate-500 font-normal">| OS #{osAtiva.id}</span>
                   </h1>
                   <p className="text-slate-400">Cliente: {osAtiva.cliente_nome}</p>
                 </div>
-                <div className="flex flex-col items-end gap-2">
+                <div className="flex flex-row sm:flex-col items-start sm:items-end gap-2 flex-wrap">
                     <span className={`text-sm font-bold border px-3 py-1 rounded-full ${osAtiva.status === 'APROVADO - Fila de Conserto' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-blue-500/10 text-blue-400 border-blue-500/30'}`}>
                         {osAtiva.status}
                     </span>
@@ -483,32 +483,32 @@ export default function Bancada() {
                 )}
               </div>
 
-              <div className="bg-[#1e293b] p-6 rounded-xl border border-blue-500/20 shadow-lg relative overflow-hidden">
+              <div className="bg-[#1e293b] p-4 sm:p-6 rounded-xl border border-blue-500/20 shadow-lg relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-indigo-600"></div>
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-5 sm:mb-6">
                   <h3 className="text-white font-bold text-lg flex items-center gap-2">
                     <span>👨‍🔧</span> Área de Diagnóstico e Reparo
                   </h3>
                   
-                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <div className="flex items-center gap-2 flex-wrap md:justify-end">
                     {osAtiva.foto_url && (
                       <a
                         href={`${API_BASE_URL}${osAtiva.foto_url}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs font-bold px-4 py-2 rounded-lg border bg-blue-500/10 text-blue-400 border-blue-500/40 hover:bg-blue-500/20 transition-all"
+                        className="text-xs font-bold px-4 py-2 rounded-lg bg-suave-azul hover:bg-suave-azul-hover text-white transition-colors"
                       >
                         🖼️ Ver foto anexada
                       </a>
                     )}
                     <input type="file" id="upload-foto" accept=".jpg,.jpeg,.png,.webp" className="hidden" onChange={(e) => selecionarFoto(e.target.files[0])} />
-                    <label htmlFor="upload-foto" className={`cursor-pointer text-xs font-bold px-4 py-2 rounded-lg border transition-all flex items-center gap-2 ${foto ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700 hover:border-slate-500'}`}>
+                    <label htmlFor="upload-foto" className={`cursor-pointer text-xs font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-2 max-w-full truncate ${foto ? 'bg-suave-verde text-white' : 'bg-suave-grafite text-slate-200 hover:bg-suave-grafite-hover'}`}>
                       {foto ? `✅ ${foto.name}` : '📸 Anexar Prova/Foto'}
                     </label>
                     {foto && (
                       <button
                         onClick={enviarFotoAgora}
-                        className="text-xs font-bold px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all"
+                        className="text-xs font-bold px-4 py-2 rounded-lg bg-suave-verde hover:bg-suave-verde-hover text-white transition-colors"
                         title="Envia a foto já, sem mudar o status da OS"
                       >
                         📤 Enviar Foto Agora
@@ -545,19 +545,19 @@ export default function Bancada() {
                 </div>
               </div>
 
-              <div className="pt-4 flex gap-4">
+              <div className="pt-2 flex flex-col sm:flex-row gap-3 sm:gap-4">
                 {osAtiva.status === 'Aguardando Análise' && (
-                  <button onClick={() => handleAtualizarOS('Aguardando Cliente')} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all text-lg hover:-translate-y-1">
+                  <button onClick={() => handleAtualizarOS('Aguardando Cliente')} className="w-full bg-suave-azul hover:bg-suave-azul-hover text-white font-bold py-3.5 sm:py-4 px-4 rounded-xl transition-colors text-base sm:text-lg">
                     Enviar Orçamento Detalhado para o Balcão
                   </button>
                 )}
 
                 {osAtiva.status === 'Aguardando Peça' && (
                   <>
-                    <button onClick={() => handleAtualizarOS('Aguardando Cliente')} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all" title="Envia o laudo e o orçamento para o balcão negociar com o cliente">
+                    <button onClick={() => handleAtualizarOS('Aguardando Cliente')} className="flex-1 bg-suave-azul hover:bg-suave-azul-hover text-white font-bold py-3.5 sm:py-4 px-4 rounded-xl transition-colors text-sm sm:text-base" title="Envia o laudo e o orçamento para o balcão negociar com o cliente">
                       Enviar Orçamento Detalhado para o Balcão
                     </button>
-                    <button onClick={() => handleAtualizarOS('APROVADO - Fila de Conserto')} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all" title="A peça chegou: volta para a fila de conserto">
+                    <button onClick={() => handleAtualizarOS('APROVADO - Fila de Conserto')} className="flex-1 bg-suave-verde hover:bg-suave-verde-hover text-white font-bold py-3.5 sm:py-4 px-4 rounded-xl transition-colors text-sm sm:text-base" title="A peça chegou: volta para a fila de conserto">
                       📦 Peça Recebida / Retomar Reparo
                     </button>
                   </>
@@ -565,10 +565,10 @@ export default function Bancada() {
 
                 {osAtiva.status === 'APROVADO - Fila de Conserto' && (
                   <>
-                    <button onClick={() => handleAtualizarOS('Aguardando Reavaliação')} className="flex-1 bg-[#1e293b] hover:bg-amber-900/30 text-amber-500 border border-amber-500/30 font-bold py-4 rounded-xl shadow-lg transition-all" title="Devolve para o balcão entrar em contato com o cliente">
+                    <button onClick={() => handleAtualizarOS('Aguardando Reavaliação')} className="flex-1 bg-suave-ambar hover:bg-suave-ambar-hover text-white font-bold py-3.5 sm:py-4 px-4 rounded-xl transition-colors text-sm sm:text-base" title="Devolve para o balcão entrar em contato com o cliente">
                       ⚠️ Pausar / Problema Complexo
                     </button>
-                    <button onClick={() => handleAtualizarOS('Pronto para Retirada')} className="flex-2 w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-[0_4px_20px_rgba(16,185,129,0.3)] transition-all text-lg flex items-center justify-center gap-2 hover:-translate-y-1">
+                    <button onClick={() => handleAtualizarOS('Pronto para Retirada')} className="w-full sm:w-2/3 bg-suave-verde hover:bg-suave-verde-hover text-white font-bold py-3.5 sm:py-4 px-4 rounded-xl transition-colors text-base sm:text-lg flex items-center justify-center gap-2">
                       <span>✅</span> Finalizar Serviço (Travar Tempo)
                     </button>
                   </>
@@ -582,7 +582,7 @@ export default function Bancada() {
 
       {modalAberto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1e293b] border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <div className="bg-[#1e293b] border border-slate-700 rounded-2xl p-5 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
             <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
               <span>🛒</span> Solicitar Peça ao ADM
             </h2>
@@ -608,9 +608,9 @@ export default function Bancada() {
                 <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Observação</label>
                 <textarea value={formSolicitacao.observacao} onChange={e => setFormSolicitacao({...formSolicitacao, observacao: e.target.value})} className="w-full p-3 rounded-lg bg-[#0f172a] text-white border border-slate-600 outline-none resize-none h-20" placeholder="Ex: Pegar da marca Original China." />
               </div>
-              <div className="flex justify-end gap-3 mt-4">
-                <button type="button" onClick={() => setModalAberto(false)} className="px-4 py-2 rounded-xl font-bold text-slate-300 hover:bg-slate-800 transition-colors">Cancelar</button>
-                <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl font-bold shadow-lg transition-all">Enviar Pedido</button>
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 mt-4">
+                <button type="button" onClick={() => setModalAberto(false)} className="px-4 py-2 rounded-xl font-bold text-slate-200 bg-suave-grafite hover:bg-suave-grafite-hover transition-colors">Cancelar</button>
+                <button type="submit" className="bg-suave-azul hover:bg-suave-azul-hover text-white px-6 py-2 rounded-xl font-bold transition-colors">Enviar Pedido</button>
               </div>
             </form>
           </div>
