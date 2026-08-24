@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { apiFetch, API_BASE_URL } from '../services/api';
+import { apiFetch } from '../services/api';
+import { normalizarLoja, htmlLogo, linhasContato, cabecalhoTermico, escapar } from '../utils/documentosLoja';
 
 export default function Balcao({ abrirOSNaConsulta }) {
   const estadoInicial = {
@@ -42,11 +43,9 @@ export default function Balcao({ abrirOSNaConsulta }) {
     iframe.style.display = 'none';
     document.body.appendChild(iframe);
     
-    const logoHtml = lojaConfig.logo_url
-      ? `<img src="${API_BASE_URL}${lojaConfig.logo_url}" class="logo" />`
-      : `<h1 class="titulo">${lojaConfig.nome || 'TECHLAB'}</h1>`;
-
-    const termosGarantia = lojaConfig.termos_garantia || '1. Orçamentos válidos por 5 dias. 2. Aparelhos não retirados em 90 dias serão descartados. 3. Garantia de 90 dias p/ peças trocadas. 4. Não nos responsabilizamos por perda de dados.';
+    // Mesma fonte de dados do orçamento e do cupom da tela "Consultar OS".
+    const loja = normalizarLoja(lojaConfig);
+    const termosGarantia = loja.termos;
     
     
     const dataAtual = new Date().toLocaleString('pt-BR');
@@ -66,8 +65,6 @@ export default function Balcao({ abrirOSNaConsulta }) {
               .bold { font-weight: bold; }
               .divider { border-top: 1px dashed #000; margin: 8px 0; }
               .linha { margin: 4px 0; line-height: 1.2; }
-              .titulo { font-size: 20px; font-weight: 900; margin-bottom: 2px; }
-              .logo { max-width: 160px; max-height: 60px; margin-bottom: 5px; object-fit: contain; filter: grayscale(100%); display: block; margin-left: auto; margin-right: auto; }
               .os-numero { font-size: 24px; font-weight: 900; text-align: center; margin: 10px 0; border: 2px solid #000; padding: 5px; }
               .termo { font-size: 10px; text-align: justify; margin: 10px 0; line-height: 1.2; white-space: pre-wrap; }
               .assinatura { border-top: 1px solid #000; text-align: center; margin-top: 30px; padding-top: 5px; font-size: 11px; font-weight: bold; }
@@ -78,12 +75,7 @@ export default function Balcao({ abrirOSNaConsulta }) {
             </style>
           </head>
           <body>
-            <div class="center">
-              ${logoHtml}
-              <p class="linha bold">${lojaConfig.nome || 'Assistência Técnica'}</p>
-              <p class="linha">${lojaConfig.endereco || ''}</p>
-              <p class="linha">Tel: ${lojaConfig.telefone || '(00) 00000-0000'}</p>
-            </div>
+            ${cabecalhoTermico(loja)}
             
             <div class="os-numero">OS #${idOs}</div>
             <p class="center bold">VIA DO CLIENTE</p>
@@ -106,7 +98,7 @@ export default function Balcao({ abrirOSNaConsulta }) {
             <p class="linha"><span class="bold">Prioridade:</span> ${dadosOs.prioridade || 'Normal'}</p>
             
             <div class="divider"></div>
-            <p class="termo">${termosGarantia}</p>
+            <p class="termo">${escapar(termosGarantia)}</p>
             <div class="assinatura">Assinatura do Cliente</div>
 
             <div class="tesoura">✂️ - - - - - - - - - - </div>
@@ -138,7 +130,6 @@ export default function Balcao({ abrirOSNaConsulta }) {
             <style>
               body { font-family: Arial, sans-serif; margin: 0; padding: 40px; color: #333; font-size: 14px; }
               .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #10b981; padding-bottom: 20px; margin-bottom: 30px; }
-              .logo { max-width: 250px; max-height: 100px; object-fit: contain; }
               .info-loja { text-align: right; }
               .info-loja h1 { margin: 0 0 5px 0; font-size: 22px; color: #0f172a; }
               .info-loja p { margin: 2px 0; color: #64748b; font-size: 13px; }
@@ -160,13 +151,10 @@ export default function Balcao({ abrirOSNaConsulta }) {
           </head>
           <body>
             <div class="header">
-              <div>${logoHtml}</div>
+              <div>${htmlLogo(loja, 'a4')}</div>
               <div class="info-loja">
-                <h1>${lojaConfig.nome || 'TechLab Assistência'}</h1>
-                <p>${lojaConfig.endereco || ''}</p>
-                <p>CNPJ: ${lojaConfig.cnpj || '---'}</p>
-                <p>Telefone/WhatsApp: <strong>${lojaConfig.telefone || ''}</strong></p>
-                <p>${lojaConfig.email || ''}</p>
+                <h1>${escapar(loja.nome)}</h1>
+                ${linhasContato(loja).map((linha) => `<p>${linha}</p>`).join('')}
               </div>
             </div>
 
@@ -200,10 +188,7 @@ export default function Balcao({ abrirOSNaConsulta }) {
               <div class="row" style="margin-top: 10px;"><strong>Acessórios:</strong> <span>${dadosOs.acessorios || 'Nenhum acessório deixado com o aparelho.'}</span></div>
             </div>
 
-            <div class="termos">
-              <strong>TERMOS E CONDIÇÕES DE SERVIÇO:</strong><br><br>
-              ${termosGarantia}
-            </div>
+            <div class="termos"><strong>TERMOS E CONDIÇÕES DE SERVIÇO:</strong><br><br>${escapar(termosGarantia)}</div>
 
             <div class="assinaturas">
               <div class="assinatura-linha">Assinatura da Assistência</div>
@@ -222,16 +207,32 @@ export default function Balcao({ abrirOSNaConsulta }) {
     doc.close();
 
     
-    iframe.onload = () => {
+    // O cabeçalho tem a logo da loja: imprimir antes de ela carregar deixava o
+    // topo do papel em branco. Espera as imagens, com teto de 3s para rede lenta.
+    let jaImprimiu = false;
+    const imprimir = () => {
+      if (jaImprimiu) return;
+      jaImprimiu = true;
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
       setTimeout(() => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-          setModalImpressao({ aberto: false, dados: null, id: null, checklist: [] });
-        }, 1000);
-      }, 800); 
+        if (iframe.parentNode) document.body.removeChild(iframe);
+        setModalImpressao({ aberto: false, dados: null, id: null, checklist: [] });
+      }, 1000);
     };
+
+    const pendentes = Array.from(doc.images).filter((img) => !img.complete);
+    if (pendentes.length === 0) {
+      setTimeout(imprimir, 300);
+    } else {
+      let restantes = pendentes.length;
+      const concluida = () => { if (--restantes === 0) imprimir(); };
+      pendentes.forEach((img) => {
+        img.addEventListener('load', concluida);
+        img.addEventListener('error', concluida);
+      });
+      setTimeout(imprimir, 3000);
+    }
   };
 
   const handleSubmit = async (e) => {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { apiFetch, apiUpload, API_BASE_URL } from '../services/api';
+import { apiFetch, apiUpload } from '../services/api';
+import { TAMANHO_LOGO, urlAbsoluta } from '../utils/documentosLoja';
 
 export default function Configuracoes() {
   const [carregando, setCarregando] = useState(true);
@@ -49,10 +50,23 @@ export default function Configuracoes() {
 
     try {
       const data = await apiUpload('/lojas/upload-logo', formData);
-      setEmpresa({ ...empresa, logo_url: data.url });
-      alert("✅ Logo enviada com sucesso! Não se esqueça de 'Salvar Configurações'.");
+      const atualizada = { ...empresa, logo_url: data.url };
+      setEmpresa(atualizada);
+
+      // Persiste já: antes o ficheiro subia mas o endereço só era gravado ao
+      // clicar em "Salvar Configurações", e quem esquecia ficava com o cupom
+      // e o orçamento sem logo.
+      await apiFetch('/lojas/configuracoes', {
+        method: 'PUT',
+        body: JSON.stringify({ logo_url: data.url })
+      });
+
+      alert('✅ Logo enviada e salva! Ela já sai no cupom e no orçamento.');
     } catch (erro) {
       alert(`Erro: ${erro.message}`);
+    } finally {
+      // Sem isto, reenviar o mesmo ficheiro não disparava o onChange.
+      if (inputImagemRef.current) inputImagemRef.current.value = '';
     }
   };
 
@@ -106,15 +120,29 @@ export default function Configuracoes() {
                 <p className="text-slate-500 text-xs mt-1">PNG, JPG até 5MB</p>
               </div>
 
-              <div className="mt-4 flex items-center gap-4">
-                {empresa.logo_url ? (
-                  <img src={`${API_BASE_URL}${empresa.logo_url}`} alt="Logo" className="h-16 w-16 object-contain bg-white rounded-lg p-1 border border-slate-600" />
-                ) : (
-                  <div className="w-16 h-16 bg-slate-800 rounded-lg flex items-center justify-center font-bold text-slate-500 border border-slate-600">Sem<br/>Logo</div>
-                )}
+              <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                {/* Mesma caixa usada na impressão: o que aparece aqui é o que sai no papel. */}
+                <div
+                  className="bg-white rounded-lg p-1 border border-slate-600 flex items-center justify-center shrink-0"
+                  style={{ width: TAMANHO_LOGO.a4.largura, height: TAMANHO_LOGO.a4.altura }}
+                >
+                  {empresa.logo_url ? (
+                    <img
+                      src={urlAbsoluta(empresa.logo_url)}
+                      alt="Logo da loja"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-xs font-bold text-slate-400 text-center">Sem logo</span>
+                  )}
+                </div>
                 <div>
-                  <p className="text-sm font-bold text-white">Logo atual</p>
-                  <p className="text-xs text-slate-500">{empresa.logo_url ? 'Logo personalizada' : 'Nenhuma logo enviada'}</p>
+                  <p className="text-sm font-bold text-white">Prévia da impressão</p>
+                  <p className="text-xs text-slate-500">
+                    {empresa.logo_url
+                      ? `A imagem é encaixada em ${TAMANHO_LOGO.a4.largura}x${TAMANHO_LOGO.a4.altura}px no orçamento e ${TAMANHO_LOGO.termica.largura}x${TAMANHO_LOGO.termica.altura}px no cupom, sem distorcer.`
+                      : 'Nenhuma logo enviada. O cupom sai apenas com o nome da loja.'}
+                  </p>
                 </div>
               </div>
             </div>

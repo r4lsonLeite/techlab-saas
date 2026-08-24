@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../services/api';
+import { normalizarLoja, htmlLogo, linhasContato, cabecalhoTermico, escapar, urlAbsoluta } from './documentosLoja';
 
 // ============================================================================
 // 1. GERADOR DO PDF A4 (ORDEM DE SERVIÇO COMPLETA E DETALHADA)
@@ -6,21 +6,13 @@ import { API_BASE_URL } from '../services/api';
 export const gerarOrcamentoPDF = (configLoja, osAtiva, pecasNegociacao, valorDigitado, telefoneTela) => {
   const win = window.open('', '_blank');
   
-  // Tratamento da Imagem da Logo e Dados da Loja
-  const urlLogo = configLoja?.logo_url ? 
-    (configLoja.logo_url.startsWith('http') ? configLoja.logo_url : `${API_BASE_URL}${configLoja.logo_url}`) 
-    : null;
-    
-  const nomeLoja = configLoja?.nome || 'Assistência Técnica';
-  const cnpjLoja = configLoja?.cnpj ? `CNPJ: ${configLoja.cnpj}` : '';
-  const telLoja = configLoja?.telefone ? `Tel: ${configLoja.telefone}` : '';
-  const endLoja = configLoja?.endereco || '';
-  const termosGarantia = configLoja?.termos_garantia || '1. O prazo de garantia para serviços é de 90 dias.\n2. A garantia não cobre mau uso, quedas ou contato com líquidos.\n3. Aparelhos não retirados em 90 dias poderão ser vendidos para custear o serviço.';
+  // Dados da loja e logo vêm todos de "Configurações da Loja".
+  const loja = normalizarLoja(configLoja);
+  const nomeLoja = loja.nome;
+  const termosGarantia = loja.termos;
 
   // A evidência anexada pelo técnico segue no orçamento entregue ao cliente.
-  const urlFoto = osAtiva.foto_url
-    ? (osAtiva.foto_url.startsWith('http') ? osAtiva.foto_url : `${API_BASE_URL}${osAtiva.foto_url}`)
-    : null;
+  const urlFoto = urlAbsoluta(osAtiva.foto_url);
 
   const telefoneCliente = telefoneTela || 'Não informado';
   const dataEntrada = osAtiva.data_entrada ? new Date(osAtiva.data_entrada).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
@@ -85,14 +77,12 @@ export const gerarOrcamentoPDF = (configLoja, osAtiva, pecasNegociacao, valorDig
       <body>
         
         <div class="header">
-          <div style="width: 200px;">
-            ${urlLogo ? `<img src="${urlLogo}" id="logoLoja" style="max-width: 100%; max-height: 80px; object-fit: contain;" />` : ''}
+          <div style="width: 220px;">
+            ${htmlLogo(loja, 'a4')}
           </div>
           <div class="header-info">
-            <h2>${nomeLoja}</h2>
-            ${cnpjLoja ? `<p>${cnpjLoja}</p>` : ''}
-            ${endLoja ? `<p>${endLoja}</p>` : ''}
-            ${telLoja ? `<p>${telLoja}</p>` : ''}
+            <h2>${escapar(nomeLoja)}</h2>
+            ${linhasContato(loja).map((linha) => `<p>${linha}</p>`).join('')}
           </div>
           <div class="header-os">
             <h1>OS #${osAtiva.id}</h1>
@@ -219,17 +209,15 @@ export const gerarOrcamentoPDF = (configLoja, osAtiva, pecasNegociacao, valorDig
 export const imprimirComprovanteOS = (configLoja, dadosOs) => {
   const win = window.open('', '_blank');
   const idOs = dadosOs.id;
-  const nomeLoja = configLoja?.nome || 'Assistência Técnica';
-  const telLoja = configLoja?.telefone ? `Tel: ${configLoja.telefone}` : '';
+  const loja = normalizarLoja(configLoja);
   const dataEntrada = dadosOs.data_entrada ? new Date(dadosOs.data_entrada).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
   const valorCobrado = Number(dadosOs.valor_orcamento || 0).toFixed(2);
 
   // Layout comum para ambas as vias para evitar repetição
   const gerarVia = (tituloVia, isViaLoja = false) => `
     <div style="margin-bottom: 20px;">
+      ${cabecalhoTermico(loja)}
       <div class="center">
-        <h2 style="margin:0; padding:0; font-size:16px;">${nomeLoja}</h2>
-        ${telLoja ? `<p style="margin:2px 0;">${telLoja}</p>` : ''}
         <p style="margin:2px 0; font-weight:bold;">${tituloVia}</p>
       </div>
       
@@ -254,9 +242,13 @@ export const imprimirComprovanteOS = (configLoja, dadosOs) => {
         <div style="margin-top: 30px; text-align:center;">
           <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto;"></div>
           <p style="margin:2px 0; font-size:10px;">Assinatura do Cliente</p>
+          <p style="margin:6px 0 0 0; font-size:10px;">${escapar(loja.nome)}</p>
         </div>
       ` : `
-        <p style="text-align:justify; font-size: 10px; margin-top:10px;">Aparelhos não retirados em 90 dias poderão ser descartados/vendidos. Garantia balcão: 90 dias sobre o serviço prestado.</p>
+        <div style="margin-top:10px; border-top: 1px dashed #000; padding-top: 5px;">
+          <p style="margin:0 0 3px 0; font-size:10px; font-weight:bold;">TERMOS DE GARANTIA</p>
+          <p style="text-align:justify; font-size: 10px; margin:0; white-space: pre-wrap;">${escapar(loja.termos)}</p>
+        </div>
       `}
     </div>
   `;
@@ -291,7 +283,28 @@ export const imprimirComprovanteOS = (configLoja, dadosOs) => {
 
         <script>
           window.onload = function() {
-            setTimeout(function() { window.print(); }, 300);
+            var jaImprimiu = false;
+            function imprimir() {
+              if (jaImprimiu) return;
+              jaImprimiu = true;
+              window.print();
+            }
+
+            var pendentes = Array.prototype.slice.call(document.images).filter(function(img) {
+              return !img.complete;
+            });
+
+            if (pendentes.length === 0) { setTimeout(imprimir, 300); return; }
+
+            var restantes = pendentes.length;
+            pendentes.forEach(function(img) {
+              function concluida() { if (--restantes === 0) imprimir(); }
+              img.addEventListener('load', concluida);
+              img.addEventListener('error', concluida);
+            });
+
+            // Rede lenta não pode travar a impressão do cupom.
+            setTimeout(imprimir, 3000);
           }
         </script>
       </body>
